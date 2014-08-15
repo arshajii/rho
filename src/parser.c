@@ -19,27 +19,27 @@ static NodeType nodetype_from_op(Op op);
 
 const Op ops[] = {
 	/*
-	OP, 			PREC, 	ASSOC */
-	{TOK_ASSIGN,	10,		true},
-	{TOK_PLUS,		70,		true},
-	{TOK_MINUS,		70,		true},
-	{TOK_MUL,		80,		true},
-	{TOK_DIV,		80,		true},
-	{TOK_MOD,		80,		true},
-	{TOK_POW,		90,		false},
-	{TOK_BITAND,	32,		true},
-	{TOK_BITOR,		30,		true},
-	{TOK_XOR,		31,		true},
-	{TOK_SHIFTL,	60,		true},
-	{TOK_SHIFTR,	60,		true},
-	{TOK_AND,		21,		true},
-	{TOK_OR,		20,		true},
-	{TOK_EQUAL,		40,		true},
-	{TOK_NOTEQ,		40,		true},
-	{TOK_LT,		50,		true},
-	{TOK_GT,		50,		true},
-	{TOK_LE,		50,		true},
-	{TOK_GE,		50,		true},
+	OP,             PREC,   ASSOC */
+	{TOK_ASSIGN,    10,     true},
+	{TOK_PLUS,      70,     true},
+	{TOK_MINUS,     70,     true},
+	{TOK_MUL,       80,     true},
+	{TOK_DIV,       80,     true},
+	{TOK_MOD,       80,     true},
+	{TOK_POW,       90,     false},
+	{TOK_BITAND,    32,     true},
+	{TOK_BITOR,     30,     true},
+	{TOK_XOR,       31,     true},
+	{TOK_SHIFTL,    60,     true},
+	{TOK_SHIFTR,    60,     true},
+	{TOK_AND,       21,     true},
+	{TOK_OR,        20,     true},
+	{TOK_EQUAL,     40,     true},
+	{TOK_NOTEQ,     40,     true},
+	{TOK_LT,        50,     true},
+	{TOK_GT,        50,     true},
+	{TOK_LE,        50,     true},
+	{TOK_GE,        50,     true},
 };
 
 const size_t ops_size = (sizeof(ops) / sizeof(Op));

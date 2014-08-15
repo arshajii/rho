@@ -747,10 +747,10 @@ const char *type_to_str(TokType type)
 static void lex_err_unknown_char(Lexer *lex, const char *c)
 {
 	fprintf(stderr,
-		    SYNTAX_ERROR " unrecognized character: %c\n\n",
-		    lex->name,
-		    lex->lineno,
-		    *c);
+	        SYNTAX_ERROR " unrecognized character: %c\n\n",
+	        lex->name,
+	        lex->lineno,
+	        *c);
 
 	err_on_char(c, lex->code, lex->end, lex->lineno);
 
