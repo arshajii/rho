@@ -58,7 +58,6 @@ struct num_methods obj_num_methods = {
 	NULL,    /* to_float */
 };
 
-
 struct seq_methods obj_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* conctat */
