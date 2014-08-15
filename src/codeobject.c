@@ -29,7 +29,7 @@ void codeobj_free(Value *this)
 	free(co->names.array);
 	free(co->consts.array);
 	free(co);
-	co->base.class->super->free(this);
+	co->base.class->super->del(this);
 }
 
 static struct str_array read_sym_table(Code *code)
@@ -142,10 +142,14 @@ Class co_class = {
 	.super = &obj_class,
 
 	.new = NULL,
-	.free = codeobj_free,
-	.str = NULL,
+	.del = codeobj_free,
 
-	.arith_methods = NULL,
-	.cmp_methods = NULL,
-	.misc_methods = NULL
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.num_methods = NULL,
+	.seq_methods = NULL,
 };

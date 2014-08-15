@@ -43,7 +43,7 @@ static void strobj_free(Value *this)
 		free((char *) s->str.value);
 	}
 
-	s->base.class->super->free(this);
+	s->base.class->super->del(this);
 }
 
 static Value strobj_str(Value *this)
@@ -77,27 +77,52 @@ static Value strobj_cat(Value *this, Value *other)
 	return strobj_make((Str){.value = cat, .len = len_cat, .hashed = false});
 }
 
-struct arith_methods str_arith_methods = {
-	NULL,			/*  uplus   */
-	NULL,			/*  uminus  */
-	strobj_cat,		/*  add     */
-	NULL,			/*  sub     */
-	NULL,			/*  mul     */
-	NULL,			/*  div     */
-	NULL,			/*  mod     */
-	NULL			/*  pow     */
+struct num_methods str_num_methods = {
+	NULL,    /* plus */
+	NULL,    /* minus */
+	NULL,    /* abs */
+
+	strobj_cat,    /* add */
+	NULL,    /* sub */
+	NULL,    /* mul */
+	NULL,    /* div */
+	NULL,    /* mod */
+	NULL,    /* pow */
+
+	NULL,    /* not */
+	NULL,    /* and */
+	NULL,    /* or */
+	NULL,    /* xor */
+	NULL,    /* shiftl */
+	NULL,    /* shiftr */
+
+	NULL,    /* iadd */
+	NULL,    /* isub */
+	NULL,    /* imul */
+	NULL,    /* idiv */
+	NULL,    /* imod */
+	NULL,    /* ipow */
+
+	NULL,    /* iand */
+	NULL,    /* ior */
+	NULL,    /* ixor */
+	NULL,    /* ishiftl */
+	NULL,    /* ishiftr */
+
+	NULL,    /* nonzero */
+
+	NULL,    /* to_int */
+	NULL,    /* to_float */
 };
 
-struct cmp_methods str_cmp_methods = {
-	strobj_eq,		/*  eq    */
-	strobj_cmp,		/*  cmp   */
-	strobj_hash,	/*  hash  */
-};
-
-struct misc_methods str_misc_methods = {
-	NULL,			/*  call     */
-	NULL,			/*  index    */
-	NULL,			/*  nonzero  */
+struct seq_methods str_seq_methods = {
+	NULL,    /* len */
+	NULL,    /* conctat */
+	NULL,    /* get */
+	NULL,    /* set */
+	NULL,    /* contains */
+	NULL,    /* iter */
+	NULL,    /* iternext */
 };
 
 Class str_class = {
@@ -106,10 +131,14 @@ Class str_class = {
 	.super = &obj_class,
 
 	.new = NULL,
-	.free = strobj_free,
-	.str = strobj_str,
+	.del = strobj_free,
 
-	.arith_methods = &str_arith_methods,
-	.cmp_methods = &str_cmp_methods,
-	.misc_methods = &str_misc_methods
+	.eq = strobj_eq,
+	.hash = strobj_hash,
+	.cmp = strobj_cmp,
+	.str = strobj_str,
+	.call = NULL,
+
+	.num_methods = &str_num_methods,
+	.seq_methods  = &str_seq_methods
 };
