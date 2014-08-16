@@ -266,6 +266,216 @@ static void eval_frame(VM *vm)
 			STACK_PUSH(pow(v1, v2));
 			break;
 		}
+		case INS_BITAND: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BinOp and = resolve_and(class);
+
+			if (!and) {
+				type_error_unsupported_2("&", class, getclass(v2));
+			}
+
+			STACK_PUSH(and(v1, v2));
+			break;
+		}
+		case INS_BITOR: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BinOp or = resolve_or(class);
+
+			if (!or) {
+				type_error_unsupported_2("|", class, getclass(v2));
+			}
+
+			STACK_PUSH(or(v1, v2));
+			break;
+		}
+		case INS_XOR: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BinOp xor = resolve_xor(class);
+
+			if (!xor) {
+				type_error_unsupported_2("^", class, getclass(v2));
+			}
+
+			STACK_PUSH(xor(v1, v2));
+			break;
+		}
+		case INS_BITNOT: {
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const UnOp not = resolve_not(class);
+
+			if (!not) {
+				type_error_unsupported_1("~", class);
+			}
+
+			STACK_PUSH(not(v1));
+			break;
+		}
+		case INS_SHIFTL: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BinOp shiftl = resolve_shiftl(class);
+
+			if (!shiftl) {
+				type_error_unsupported_2("<<", class, getclass(v2));
+			}
+
+			STACK_PUSH(shiftl(v1, v2));
+			break;
+		}
+		case INS_SHIFTR: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BinOp shiftr = resolve_shiftr(class);
+
+			if (!shiftr) {
+				type_error_unsupported_2(">>", class, getclass(v2));
+			}
+
+			STACK_PUSH(shiftr(v1, v2));
+			break;
+		}
+		case INS_AND: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class1 = getclass(v1);
+			const Class *class2 = getclass(v2);
+
+			const BoolUnOp bool_v1 = resolve_nonzero(class1);
+
+			if (!bool_v1) {
+				type_error_unsupported_1("bool", class1);
+			}
+
+			const BoolUnOp bool_v2 = resolve_nonzero(class2);
+
+			if (!bool_v2) {
+				type_error_unsupported_1("bool", class2);
+			}
+
+			STACK_PUSH(makeint(bool_v1(v1) && bool_v2(v2)));
+			break;
+		}
+		case INS_OR: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class1 = getclass(v1);
+			const Class *class2 = getclass(v2);
+
+			const BoolUnOp bool_v1 = resolve_nonzero(class1);
+
+			if (!bool_v1) {
+				type_error_unsupported_1("bool", class1);
+			}
+
+			const BoolUnOp bool_v2 = resolve_nonzero(class2);
+
+			if (!bool_v2) {
+				type_error_unsupported_1("bool", class2);
+			}
+
+			STACK_PUSH(makeint(bool_v1(v1) || bool_v2(v2)));
+			break;
+		}
+		case INS_NOT: {
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+
+			const BoolUnOp bool_v1 = resolve_nonzero(class);
+
+			if (!bool_v1) {
+				type_error_unsupported_1("bool", class);
+			}
+
+			STACK_PUSH(makeint(!bool_v1(v1)));
+			break;
+		}
+		case INS_EQUAL: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BoolBinOp eq = resolve_eq(class);
+
+			if (!eq) {
+				type_error_unsupported_2("==", class, getclass(v2));
+			}
+
+			STACK_PUSH(makeint(eq(v1, v2)));
+			break;
+		}
+		case INS_NOTEQ: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BoolBinOp eq = resolve_eq(class);
+
+			if (!eq) {
+				type_error_unsupported_2("!=", class, getclass(v2));
+			}
+
+			STACK_PUSH(makeint(!eq(v1, v2)));
+			break;
+		}
+		case INS_LT: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const IntBinOp cmp = resolve_cmp(class);
+
+			if (!cmp) {
+				type_error_unsupported_2("<", class, getclass(v2));
+			}
+
+			STACK_PUSH(makeint(cmp(v1, v2) < 0));
+			break;
+		}
+		case INS_GT: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const IntBinOp cmp = resolve_cmp(class);
+
+			if (!cmp) {
+				type_error_unsupported_2(">", class, getclass(v2));
+			}
+
+			STACK_PUSH(makeint(cmp(v1, v2) > 0));
+			break;
+		}
+		case INS_LE: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const IntBinOp cmp = resolve_cmp(class);
+
+			if (!cmp) {
+				type_error_unsupported_2("<=", class, getclass(v2));
+			}
+
+			STACK_PUSH(makeint(cmp(v1, v2) <= 0));
+			break;
+		}
+		case INS_GE: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const IntBinOp cmp = resolve_cmp(class);
+
+			if (!cmp) {
+				type_error_unsupported_2(">=", class, getclass(v2));
+			}
+
+			STACK_PUSH(makeint(cmp(v1, v2) >= 0));
+			break;
+		}
 		case INS_UPLUS: {
 			Value *v1 = STACK_POP();
 			const Class *class = getclass(v1);
@@ -278,7 +488,7 @@ static void eval_frame(VM *vm)
 			STACK_PUSH(plus(v1));
 			break;
 		}
-		case INS_UMIN: {
+		case INS_UMINUS: {
 			Value *v1 = STACK_POP();
 			const Class *class = getclass(v1);
 			const UnOp minus = resolve_minus(class);

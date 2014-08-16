@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include "object.h"
 #include "util.h"
@@ -29,34 +30,34 @@
 		return SENTINEL; \
 	}
 
-static Value float_eq(Value *this, Value *other)
+static bool float_eq(Value *this, Value *other)
 {
 	if (isint(other)) {
-		return makeint(floatvalue(this) == intvalue(other));
+		return floatvalue(this) == intvalue(other);
 	} else if (isfloat(other)) {
-		return makeint(floatvalue(this) == floatvalue(other));
+		return floatvalue(this) == floatvalue(other);
 	} else {
-		return makeint(0);
+		return false;
 	}
 }
 
-static Value float_hash(Value *this)
+static int float_hash(Value *this)
 {
-	return makeint(hash_float(floatvalue(this)));
+	return hash_float(floatvalue(this));
 }
 
-static Value float_cmp(Value *this, Value *other)
+static int float_cmp(Value *this, Value *other)
 {
 	const double x = floatvalue(this);
 	if (isint(other)) {
 		const int y = intvalue(other);
-		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
+		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else if (isfloat(other)) {
 		const double y = floatvalue(other);
-		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
+		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else {
 		type_error(TYPE_ERR_STR(cmp));
-		return SENTINEL;
+		return 0;
 	}
 }
 
@@ -141,9 +142,9 @@ static Value float_ipow(Value *this, Value *other)
 	}
 }
 
-static Value float_nonzero(Value *this)
+static bool float_nonzero(Value *this)
 {
-	return makeint(floatvalue(this) != 0);
+	return floatvalue(this) != 0;
 }
 
 static Value float_to_int(Value *this)

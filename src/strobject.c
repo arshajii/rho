@@ -15,26 +15,26 @@ Value strobj_make(Str value)
 	return makeobj(s);
 }
 
-static Value strobj_eq(Value *this, Value *other)
+static bool strobj_eq(Value *this, Value *other)
 {
 	type_assert(other, &str_class);
 	StrObject *s1 = this->data.o;
 	StrObject *s2 = this->data.o;
-	return makeint(str_eq(&s1->str, &s2->str));
+	return str_eq(&s1->str, &s2->str);
 }
 
-static Value strobj_cmp(Value *this, Value *other)
+static int strobj_cmp(Value *this, Value *other)
 {
 	type_assert(other, &str_class);
 	StrObject *s1 = this->data.o;
 	StrObject *s2 = this->data.o;
-	return makeint(str_cmp(&s1->str, &s2->str));
+	return str_cmp(&s1->str, &s2->str);
 }
 
-static Value strobj_hash(Value *this)
+static int strobj_hash(Value *this)
 {
 	StrObject *s = this->data.o;
-	return makeint(str_hash(&s->str));
+	return str_hash(&s->str);
 }
 
 static void strobj_free(Value *this)

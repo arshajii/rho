@@ -256,7 +256,7 @@ static Opcode to_opcode(NodeType type)
 	case NODE_UPLUS:
 		return INS_NOP;
 	case NODE_UMINUS:
-		return INS_UMIN;
+		return INS_UMINUS;
 	case NODE_ASSIGN:
 		return INS_STORE;
 	default:

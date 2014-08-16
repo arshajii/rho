@@ -1,6 +1,7 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include <stdbool.h>
 #include "str.h"
 
 typedef struct value Value;
@@ -9,6 +10,10 @@ const struct value SENTINEL;
 
 typedef Value (*UnOp)(Value *this);
 typedef Value (*BinOp)(Value *this, Value *other);
+typedef int (*IntUnOp)(Value *this);
+typedef int (*IntBinOp)(Value *this, Value *other);
+typedef bool (*BoolUnOp)(Value *this);
+typedef bool (*BoolBinOp)(Value *this, Value *other);
 
 struct num_methods {
 	UnOp plus;
@@ -42,7 +47,7 @@ struct num_methods {
 	BinOp ishiftl;
 	BinOp ishiftr;
 
-	UnOp nonzero;
+	BoolUnOp nonzero;
 
 	UnOp to_int;
 	UnOp to_float;
@@ -66,9 +71,9 @@ typedef struct class {
 	Value (*new)(Value *args, size_t nargs);
 	void (*del)(Value *this);
 
-	BinOp eq;
-	UnOp hash;
-	BinOp cmp;
+	BoolBinOp eq;
+	IntUnOp hash;
+	IntBinOp cmp;
 	UnOp str;
 	BinOp call;
 
@@ -120,9 +125,9 @@ Class *getclass(Value *val);
 
 bool instanceof(Object *o, Class *class);
 
-BinOp resolve_eq(const Class *class);
-UnOp resolve_hash(const Class *class);
-BinOp resolve_cmp(const Class *class);
+BoolBinOp resolve_eq(const Class *class);
+IntUnOp resolve_hash(const Class *class);
+IntBinOp resolve_cmp(const Class *class);
 UnOp resolve_str(const Class *class);
 BinOp resolve_call(const Class *class);
 
@@ -152,7 +157,7 @@ BinOp resolve_ior(const Class *class);
 BinOp resolve_ixor(const Class *class);
 BinOp resolve_ishiftl(const Class *class);
 BinOp resolve_ishiftr(const Class *class);
-UnOp resolve_nonzero(const Class *class);
+BoolUnOp resolve_nonzero(const Class *class);
 UnOp resolve_to_int(const Class *class);
 UnOp resolve_to_float(const Class *class);
 

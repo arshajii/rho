@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <math.h>
 #include "object.h"
 #include "util.h"
@@ -47,34 +48,34 @@
 		return SENTINEL; \
 	}
 
-static Value int_eq(Value *this, Value *other)
+static bool int_eq(Value *this, Value *other)
 {
 	if (isint(other)) {
-		return makeint(intvalue(this) == intvalue(other));
+		return intvalue(this) == intvalue(other);
 	} else if (isfloat(other)) {
-		return makeint(intvalue(this) == floatvalue(other));
+		return intvalue(this) == floatvalue(other);
 	} else {
-		return makeint(0);
+		return false;
 	}
 }
 
-static Value int_hash(Value *this)
+static int int_hash(Value *this)
 {
-	return makeint(hash_int(intvalue(this)));
+	return hash_int(intvalue(this));
 }
 
-static Value int_cmp(Value *this, Value *other)
+static int int_cmp(Value *this, Value *other)
 {
 	const int x = intvalue(this);
 	if (isint(other)) {
 		const int y = intvalue(other);
-		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
+		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else if (isfloat(other)) {
 		const double y = floatvalue(other);
-		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
+		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else {
 		type_error(TYPE_ERR_STR(cmp));
-		return SENTINEL;
+		return 0;
 	}
 }
 
@@ -225,9 +226,9 @@ static Value int_ishiftr(Value *this, Value *other)
 	INT_IBINOP_FUNC_BODY_NOFLOAT(>>)
 }
 
-static Value int_nonzero(Value *this)
+static bool int_nonzero(Value *this)
 {
-	return makeint(intvalue(this) != 0);
+	return intvalue(this) != 0;
 }
 
 static Value int_to_int(Value *this)

@@ -6,15 +6,15 @@
 #include "floatobject.h"
 #include "object.h"
 
-static Value obj_hash(Value *this)
+static int obj_hash(Value *this)
 {
-	return (Value){.type = VAL_TYPE_INT, .data = {.i = hash_ptr(this->data.o)}};
+	return hash_ptr(this->data.o);
 }
 
-static Value obj_eq(Value *this, Value *other)
+static bool obj_eq(Value *this, Value *other)
 {
 	type_assert(other, &obj_class);
-	return (Value){.type = VAL_TYPE_INT, .data = {.i = (this->data.o == other->data.o)}};
+	return this->data.o == other->data.o;
 }
 
 static void obj_free(Value *this)
@@ -148,9 +148,9 @@ type resolve_##name(const Class *class) { \
 	return op; \
 }
 
-MAKE_METHOD_RESOLVER_DIRECT(eq, BinOp)
-MAKE_METHOD_RESOLVER_DIRECT(hash, UnOp)
-MAKE_METHOD_RESOLVER_DIRECT(cmp, BinOp)
+MAKE_METHOD_RESOLVER_DIRECT(eq, BoolBinOp)
+MAKE_METHOD_RESOLVER_DIRECT(hash, IntUnOp)
+MAKE_METHOD_RESOLVER_DIRECT(cmp, IntBinOp)
 MAKE_METHOD_RESOLVER_DIRECT(str, UnOp)
 MAKE_METHOD_RESOLVER_DIRECT(call, BinOp)
 
@@ -180,7 +180,7 @@ MAKE_METHOD_RESOLVER(ior, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ixor, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ishiftl, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ishiftr, num_methods, BinOp)
-MAKE_METHOD_RESOLVER(nonzero, num_methods, UnOp)
+MAKE_METHOD_RESOLVER(nonzero, num_methods, BoolUnOp)
 MAKE_METHOD_RESOLVER(to_int, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(to_float, num_methods, UnOp)
 
