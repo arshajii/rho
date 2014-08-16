@@ -72,6 +72,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_PLUS;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_ADD;
+			break;
 		}
 		break;
 	case '-':
@@ -79,6 +83,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_MINUS;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_SUB;
+			break;
 		}
 		break;
 	case '*':
@@ -86,9 +94,20 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_MUL;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_MUL;
+			break;
 		case '*':
 			if (len == 2)
 				return TOK_POW;
+
+			switch (str[2]) {
+			case '=':
+				if (len == 3)
+					return TOK_ASSIGN_POW;
+				break;
+			}
 			break;
 		}
 		break;
@@ -97,6 +116,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_DIV;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_DIV;
+			break;
 		}
 		break;
 	case '%':
@@ -104,6 +127,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_MOD;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_MOD;
+			break;
 		}
 		break;
 	case '&':
@@ -111,6 +138,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_BITAND;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_BITAND;
+			break;
 		case '&':
 			if (len == 2)
 				return TOK_AND;
@@ -122,6 +153,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_BITOR;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_BITOR;
+			break;
 		case '|':
 			if (len == 2)
 				return TOK_OR;
@@ -133,6 +168,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_XOR;
 
 		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_XOR;
+			break;
 		}
 		break;
 	case '!':
@@ -176,6 +215,13 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 		case '<':
 			if (len == 2)
 				return TOK_SHIFTL;
+
+			switch (str[2]) {
+			case '=':
+				if (len == 3)
+					return TOK_ASSIGN_SHIFTL;
+				break;
+			}
 			break;
 		}
 		break;
@@ -191,6 +237,13 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 		case '>':
 			if (len == 2)
 				return TOK_SHIFTR;
+
+			switch (str[2]) {
+			case '=':
+				if (len == 3)
+					return TOK_ASSIGN_SHIFTR;
+				break;
+			}
 			break;
 		}
 		break;
@@ -673,8 +726,6 @@ const char *type_to_str(TokType type)
 		return "identifier";
 	case TOK_OPS_START:
 		return "TOK_OPS_START";
-	case TOK_ASSIGN:
-		return "=";
 	case TOK_PLUS:
 		return "+";
 	case TOK_MINUS:
@@ -717,6 +768,34 @@ const char *type_to_str(TokType type)
 		return "<=";
 	case TOK_GE:
 		return ">=";
+	case TOK_ASSIGNMENTS_START:
+		return "TOK_ASSIGNMENTS_START";
+	case TOK_ASSIGN:
+		return "=";
+	case TOK_ASSIGN_ADD:
+		return "+=";
+	case TOK_ASSIGN_SUB:
+		return "-=";
+	case TOK_ASSIGN_MUL:
+		return "*=";
+	case TOK_ASSIGN_DIV:
+		return "/=";
+	case TOK_ASSIGN_MOD:
+		return "%=";
+	case TOK_ASSIGN_POW:
+		return "**=";
+	case TOK_ASSIGN_BITAND:
+		return "&=";
+	case TOK_ASSIGN_BITOR:
+		return "|=";
+	case TOK_ASSIGN_XOR:
+		return "^=";
+	case TOK_ASSIGN_SHIFTL:
+		return "<<=";
+	case TOK_ASSIGN_SHIFTR:
+		return ">>=";
+	case TOK_ASSIGNMENTS_END:
+		return "TOK_ASSIGNMENTS_END";
 	case TOK_OPS_END:
 		return "TOK_OPS_END";
 	case TOK_PAREN_OPEN:

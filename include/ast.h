@@ -33,7 +33,21 @@ typedef enum {
 	NODE_GT,
 	NODE_LE,
 	NODE_GE,
+
+	NODE_ASSIGNMENTS_START,
 	NODE_ASSIGN,
+	NODE_ASSIGN_ADD,
+	NODE_ASSIGN_SUB,
+	NODE_ASSIGN_MUL,
+	NODE_ASSIGN_DIV,
+	NODE_ASSIGN_MOD,
+	NODE_ASSIGN_POW,
+	NODE_ASSIGN_BITAND,
+	NODE_ASSIGN_BITOR,
+	NODE_ASSIGN_XOR,
+	NODE_ASSIGN_SHIFTL,
+	NODE_ASSIGN_SHIFTR,
+	NODE_ASSIGNMENTS_END,
 
 	NODE_UPLUS,
 	NODE_UMINUS,
@@ -86,7 +100,7 @@ void ast_list_free(struct ast_list *block);
 void ast_print(AST *ast);
 void ast_free(AST *ast);
 
-#define IS_ASSIGNMENT(type) ((type) == NODE_ASSIGN)
+#define IS_ASSIGNMENT(type) (NODE_ASSIGNMENTS_START < (type) && (type) < NODE_ASSIGNMENTS_END)
 #define IS_CALL(type) ((type) == NODE_CALL)
 #define IS_EXPR_STMT(type) (IS_CALL(type) || IS_ASSIGNMENT(type))
 #define IS_ASSIGNABLE(type) ((type) == NODE_IDENT)

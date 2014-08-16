@@ -27,109 +27,149 @@ static void ast_print_at(AST *ast, unsigned int level)
 
 	switch (ast->type) {
 	case NODE_EMPTY:
-		printf(";\n");
+		printf(";");
 		break;
 	case NODE_INT:
-		printf("%d\n", ast->v.int_val);
+		printf("%d", ast->v.int_val);
 		break;
 	case NODE_FLOAT:
-		printf("%f\n", ast->v.float_val);
+		printf("%f", ast->v.float_val);
 		break;
 	case NODE_STRING:
 		break;
 	case NODE_IDENT:
 		break;
 	case NODE_ADD:
-		printf("+\n");
+		printf("+");
 		break;
 	case NODE_SUB:
-		printf("-\n");
+		printf("-");
 		break;
 	case NODE_MUL:
-		printf("*\n");
+		printf("*");
 		break;
 	case NODE_DIV:
-		printf("/\n");
+		printf("/");
 		break;
 	case NODE_MOD:
-		printf("%%\n");
+		printf("%%");
 		break;
 	case NODE_POW:
-		printf("**\n");
+		printf("**");
 		break;
 	case NODE_BITAND:
-		printf("&\n");
+		printf("&");
 		break;
 	case NODE_BITOR:
-		printf("|\n");
+		printf("|");
 		break;
 	case NODE_XOR:
-		printf("^\n");
+		printf("^");
 		break;
 	case NODE_BITNOT:
-		printf("~\n");
+		printf("~");
 		break;
 	case NODE_SHIFTL:
-		printf("<<\n");
+		printf("<<");
 		break;
 	case NODE_SHIFTR:
-		printf(">>\n");
+		printf(">>");
 		break;
 	case NODE_AND:
-		printf("and\n");
+		printf("and");
 		break;
 	case NODE_OR:
-		printf("or\n");
+		printf("or");
 		break;
 	case NODE_NOT:
-		printf("!\n");
+		printf("!");
 		break;
 	case NODE_EQUAL:
-		printf("==\n");
+		printf("==");
 		break;
 	case NODE_NOTEQ:
-		printf("!=\n");
+		printf("!=");
 		break;
 	case NODE_LT:
-		printf("<\n");
+		printf("<");
 		break;
 	case NODE_GT:
-		printf(">\n");
+		printf(">");
 		break;
 	case NODE_LE:
-		printf("<=\n");
+		printf("<=");
 		break;
 	case NODE_GE:
-		printf(">=\n");
+		printf(">=");
+		break;
+	case NODE_ASSIGNMENTS_START:
+		printf("NODE_ASSIGNMENTS_START");
 		break;
 	case NODE_ASSIGN:
-		printf("=\n");
+		printf("=");
+		break;
+	case NODE_ASSIGN_ADD:
+		printf("+=");
+		break;
+	case NODE_ASSIGN_SUB:
+		printf("-=");
+		break;
+	case NODE_ASSIGN_MUL:
+		printf("*=");
+		break;
+	case NODE_ASSIGN_DIV:
+		printf("/=");
+		break;
+	case NODE_ASSIGN_MOD:
+		printf("%%=");
+		break;
+	case NODE_ASSIGN_POW:
+		printf("**=");
+		break;
+	case NODE_ASSIGN_BITAND:
+		printf("&=");
+		break;
+	case NODE_ASSIGN_BITOR:
+		printf("|=");
+		break;
+	case NODE_ASSIGN_XOR:
+		printf("^=");
+		break;
+	case NODE_ASSIGN_SHIFTL:
+		printf("<<=");
+		break;
+	case NODE_ASSIGN_SHIFTR:
+		printf(">>=");
+		break;
+	case NODE_ASSIGNMENTS_END:
+		printf("NODE_ASSIGNMENTS_END");
 		break;
 	case NODE_UPLUS:
-		printf("u+\n");
+		printf("+");
 		break;
 	case NODE_UMINUS:
-		printf("u-\n");
+		printf("-");
 		break;
 	case NODE_PRINT:
-		printf("print\n");
+		printf("print");
 		break;
 	case NODE_IF:
-		printf("if\n");
+		printf("if");
 		break;
 	case NODE_WHILE:
-		printf("while\n");
+		printf("while");
 		break;
 	case NODE_DEF:
-		printf("def\n");
+		printf("def");
 		break;
 	case NODE_BLOCK:
-		printf("{}\n");
+		printf("{}");
 		break;
 	case NODE_CALL:
-		printf("call\n");
+		printf("()");
 		break;
 	}
+	printf("\n");
 
 	ast_print_at(ast->left, level + 1);
 	ast_print_at(ast->right, level + 1);

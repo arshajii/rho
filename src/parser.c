@@ -19,27 +19,38 @@ static NodeType nodetype_from_op(Op op);
 
 const Op ops[] = {
 	/*
-	OP,             PREC,   ASSOC */
-	{TOK_ASSIGN,    10,     true},
-	{TOK_PLUS,      70,     true},
-	{TOK_MINUS,     70,     true},
-	{TOK_MUL,       80,     true},
-	{TOK_DIV,       80,     true},
-	{TOK_MOD,       80,     true},
-	{TOK_POW,       90,     false},
-	{TOK_BITAND,    32,     true},
-	{TOK_BITOR,     30,     true},
-	{TOK_XOR,       31,     true},
-	{TOK_SHIFTL,    60,     true},
-	{TOK_SHIFTR,    60,     true},
-	{TOK_AND,       21,     true},
-	{TOK_OR,        20,     true},
-	{TOK_EQUAL,     40,     true},
-	{TOK_NOTEQ,     40,     true},
-	{TOK_LT,        50,     true},
-	{TOK_GT,        50,     true},
-	{TOK_LE,        50,     true},
-	{TOK_GE,        50,     true},
+	OP,                 PREC,        ASSOC */
+	{TOK_PLUS,          70,          true},
+	{TOK_MINUS,         70,          true},
+	{TOK_MUL,           80,          true},
+	{TOK_DIV,           80,          true},
+	{TOK_MOD,           80,          true},
+	{TOK_POW,           90,          false},
+	{TOK_BITAND,        32,          true},
+	{TOK_BITOR,         30,          true},
+	{TOK_XOR,           31,          true},
+	{TOK_SHIFTL,        60,          true},
+	{TOK_SHIFTR,        60,          true},
+	{TOK_AND,           21,          true},
+	{TOK_OR,            20,          true},
+	{TOK_EQUAL,         40,          true},
+	{TOK_NOTEQ,         40,          true},
+	{TOK_LT,            50,          true},
+	{TOK_GT,            50,          true},
+	{TOK_LE,            50,          true},
+	{TOK_GE,            50,          true},
+	{TOK_ASSIGN,        10,          true},
+	{TOK_ASSIGN_ADD,    10,          true},
+	{TOK_ASSIGN_SUB,    10,          true},
+	{TOK_ASSIGN_MUL,    10,          true},
+	{TOK_ASSIGN_DIV,    10,          true},
+	{TOK_ASSIGN_MOD,    10,          true},
+	{TOK_ASSIGN_POW,    10,          true},
+	{TOK_ASSIGN_BITAND, 10,          true},
+	{TOK_ASSIGN_BITOR,  10,          true},
+	{TOK_ASSIGN_XOR,    10,          true},
+	{TOK_ASSIGN_SHIFTL, 10,          true},
+	{TOK_ASSIGN_SHIFTR, 10,          true},
 };
 
 const size_t ops_size = (sizeof(ops) / sizeof(Op));
@@ -50,7 +61,7 @@ static AST *parse_expr(Lexer *lex);
 static AST *parse_subexpr(Lexer *lex);
 static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec);
 static AST *parse_atom(Lexer *lex);
-static AST *parse_uop(Lexer *lex);
+static AST *parse_unop(Lexer *lex);
 
 static AST *parse_int(Lexer *lex);
 static AST *parse_float(Lexer *lex);
@@ -184,7 +195,7 @@ static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec)
 
 		const TokType type = tok->type;
 
-		if (!is_op(type)) {
+		if (!IS_OP(type)) {
 			break;
 		}
 
@@ -196,7 +207,7 @@ static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec)
 
 		const NodeType lhs_type = lhs->type;
 
-		if (op.type == TOK_ASSIGN && !IS_ASSIGNABLE(lhs_type)) {
+		if (IS_ASSIGNMENT_TOK(op.type) && (min_prec != 1 || !IS_ASSIGNABLE(lhs_type))) {
 			parse_err_invalid_assign(lex, tok);
 		}
 
@@ -264,7 +275,7 @@ static AST *parse_atom(Lexer *lex)
 	case TOK_BITNOT:
 	case TOK_PLUS:
 	case TOK_MINUS: {
-		ast = parse_uop(lex);
+		ast = parse_unop(lex);
 		break;
 	}
 	case TOK_BRACKET_OPEN: {
@@ -313,7 +324,7 @@ static AST *parse_subexpr(Lexer *lex)
 	return ast;
 }
 
-static AST *parse_uop(Lexer *lex)
+static AST *parse_unop(Lexer *lex)
 {
 	Token *tok = lex_next_token(lex);
 
@@ -501,8 +512,6 @@ static Op op_from_tok_type(TokType type)
 static NodeType nodetype_from_op(Op op)
 {
 	switch (op.type) {
-	case TOK_ASSIGN:
-		return NODE_ASSIGN;
 	case TOK_PLUS:
 		return NODE_ADD;
 	case TOK_MINUS:
@@ -545,6 +554,30 @@ static NodeType nodetype_from_op(Op op)
 		return NODE_LE;
 	case TOK_GE:
 		return NODE_GE;
+	case TOK_ASSIGN:
+		return NODE_ASSIGN;
+	case TOK_ASSIGN_ADD:
+		return NODE_ASSIGN_ADD;
+	case TOK_ASSIGN_SUB:
+		return NODE_ASSIGN_SUB;
+	case TOK_ASSIGN_MUL:
+		return NODE_ASSIGN_MUL;
+	case TOK_ASSIGN_DIV:
+		return NODE_ASSIGN_DIV;
+	case TOK_ASSIGN_MOD:
+		return NODE_ASSIGN_MOD;
+	case TOK_ASSIGN_POW:
+		return NODE_ASSIGN_POW;
+	case TOK_ASSIGN_BITAND:
+		return NODE_ASSIGN_BITAND;
+	case TOK_ASSIGN_BITOR:
+		return NODE_ASSIGN_BITOR;
+	case TOK_ASSIGN_XOR:
+		return NODE_ASSIGN_XOR;
+	case TOK_ASSIGN_SHIFTL:
+		return NODE_ASSIGN_SHIFTL;
+	case TOK_ASSIGN_SHIFTR:
+		return NODE_ASSIGN_SHIFTR;
 	default:
 		INTERNAL_ERROR();
 		return -1;

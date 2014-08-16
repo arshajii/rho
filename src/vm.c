@@ -500,6 +500,182 @@ static void eval_frame(VM *vm)
 			STACK_PUSH(minus(v1));
 			break;
 		}
+		case INS_IADD: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp add = resolve_iadd(class);
+
+			if (!add) {
+				add = resolve_add(class);
+				if (!add) {
+					type_error_unsupported_2("+", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(add(v1, v2));
+			break;
+		}
+		case INS_ISUB: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp sub = resolve_isub(class);
+
+			if (!sub) {
+				sub = resolve_sub(class);
+				if (!sub) {
+					type_error_unsupported_2("-", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(sub(v1, v2));
+			break;
+		}
+		case INS_IMUL: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp mul = resolve_imul(class);
+
+			if (!mul) {
+				mul = resolve_mul(class);
+				if (!mul) {
+					type_error_unsupported_2("*", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(mul(v1, v2));
+			break;
+		}
+		case INS_IDIV: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp div = resolve_idiv(class);
+
+			if (!div) {
+				div = resolve_div(class);
+				if (!div) {
+					type_error_unsupported_2("/", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(div(v1, v2));
+			break;
+		}
+		case INS_IMOD: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp mod = resolve_imod(class);
+
+			if (!mod) {
+				mod = resolve_mod(class);
+				if (!mod) {
+					type_error_unsupported_2("%", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(mod(v1, v2));
+			break;
+		}
+		case INS_IPOW: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp pow = resolve_ipow(class);
+
+			if (!pow) {
+				pow = resolve_pow(class);
+				if (!pow) {
+					type_error_unsupported_2("**", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(pow(v1, v2));
+			break;
+		}
+		case INS_IBITAND: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp and = resolve_iand(class);
+
+			if (!and) {
+				and = resolve_and(class);
+				if (!and) {
+					type_error_unsupported_2("&", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(and(v1, v2));
+			break;
+		}
+		case INS_IBITOR: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp or = resolve_ior(class);
+
+			if (!or) {
+				or = resolve_or(class);
+				if (!or) {
+					type_error_unsupported_2("|", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(or(v1, v2));
+			break;
+		}
+		case INS_IXOR: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp xor = resolve_ixor(class);
+
+			if (!xor) {
+				xor = resolve_xor(class);
+				if (!xor) {
+					type_error_unsupported_2("^", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(xor(v1, v2));
+			break;
+		}
+		case INS_ISHIFTL: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp shiftl = resolve_ishiftl(class);
+
+			if (!shiftl) {
+				shiftl = resolve_shiftl(class);
+				if (!shiftl) {
+					type_error_unsupported_2("<<", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(shiftl(v1, v2));
+			break;
+		}
+		case INS_ISHIFTR: {
+			Value *v2 = STACK_POP();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			BinOp shiftr = resolve_ishiftr(class);
+
+			if (!shiftr) {
+				shiftr = resolve_shiftr(class);
+				if (!shiftr) {
+					type_error_unsupported_2(">>", class, getclass(v2));
+				}
+			}
+
+			STACK_PUSH(shiftr(v1, v2));
+			break;
+		}
 		case INS_STORE: {
 			Value *v1 = STACK_POP();
 			const unsigned int id = read_int(bc + pos);

@@ -51,6 +51,8 @@ static void fill_st(Compiler *compiler, Program *program);
 static void write_sym_table(Compiler *compiler);
 static void write_const_table(Compiler *compiler);
 
+static Opcode to_opcode(NodeType type);
+
 static Compiler *compiler_new(void)
 {
 	Compiler *compiler = malloc(sizeof(Compiler));
@@ -163,10 +165,22 @@ static void compile_load(Compiler *compiler, AST *ast)
 
 static void compile_assignment(Compiler *compiler, AST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_ASSIGN);
+	const NodeType type = ast->type;
+	if (!IS_ASSIGNMENT(type)) {
+		INTERNAL_ERROR();
+	}
 
 	const unsigned int ref_id = id_for_var(compiler->st, ast->left->v.ident);
-	compile_node(compiler, ast->right);
+
+	if (type == NODE_ASSIGN) {
+		compile_node(compiler, ast->right);
+	} else {
+		/* compound assignment */
+		compile_load(compiler, ast->left);
+		compile_node(compiler, ast->right);
+		write_byte(compiler, to_opcode(type));
+	}
+
 	write_byte(compiler, INS_STORE);
 	write_int(compiler, ref_id);
 }
@@ -235,8 +249,9 @@ static void compile_def(Compiler *compiler, AST *ast)
 }
 
 /*
- * Converts binary-operation node type to
- * corresponding bytecode.
+ * Converts AST node type to corresponding (most relevant) opcode.
+ * For compound-assignment types, converts to the corresponding
+ * in-place binary opcode.
  */
 static Opcode to_opcode(NodeType type)
 {
@@ -289,6 +304,28 @@ static Opcode to_opcode(NodeType type)
 		return INS_UMINUS;
 	case NODE_ASSIGN:
 		return INS_STORE;
+	case NODE_ASSIGN_ADD:
+		return INS_IADD;
+	case NODE_ASSIGN_SUB:
+		return INS_ISUB;
+	case NODE_ASSIGN_MUL:
+		return INS_IMUL;
+	case NODE_ASSIGN_DIV:
+		return INS_IDIV;
+	case NODE_ASSIGN_MOD:
+		return INS_IMOD;
+	case NODE_ASSIGN_POW:
+		return INS_IPOW;
+	case NODE_ASSIGN_BITAND:
+		return INS_IBITAND;
+	case NODE_ASSIGN_BITOR:
+		return INS_IBITOR;
+	case NODE_ASSIGN_XOR:
+		return INS_IXOR;
+	case NODE_ASSIGN_SHIFTL:
+		return INS_ISHIFTL;
+	case NODE_ASSIGN_SHIFTR:
+		return INS_ISHIFTR;
 	default:
 		INTERNAL_ERROR();
 		return 0;
@@ -334,6 +371,17 @@ static void compile_node(Compiler *compiler, AST *ast)
 		write_byte(compiler, to_opcode(ast->type));
 		break;
 	case NODE_ASSIGN:
+	case NODE_ASSIGN_ADD:
+	case NODE_ASSIGN_SUB:
+	case NODE_ASSIGN_MUL:
+	case NODE_ASSIGN_DIV:
+	case NODE_ASSIGN_MOD:
+	case NODE_ASSIGN_POW:
+	case NODE_ASSIGN_BITAND:
+	case NODE_ASSIGN_BITOR:
+	case NODE_ASSIGN_XOR:
+	case NODE_ASSIGN_SHIFTL:
+	case NODE_ASSIGN_SHIFTR:
 		compile_assignment(compiler, ast);
 		break;
 	case NODE_BITNOT:

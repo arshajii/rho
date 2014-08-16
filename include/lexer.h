@@ -15,7 +15,6 @@ typedef enum {
 
 	/* operators */
 	TOK_OPS_START,  /* marker */
-	TOK_ASSIGN,
 	TOK_PLUS,
 	TOK_MINUS,
 	TOK_MUL,
@@ -37,6 +36,22 @@ typedef enum {
 	TOK_GT,
 	TOK_LE,
 	TOK_GE,
+
+	/* assignments */
+	TOK_ASSIGNMENTS_START,
+	TOK_ASSIGN,
+	TOK_ASSIGN_ADD,
+	TOK_ASSIGN_SUB,
+	TOK_ASSIGN_MUL,
+	TOK_ASSIGN_DIV,
+	TOK_ASSIGN_MOD,
+	TOK_ASSIGN_POW,
+	TOK_ASSIGN_BITAND,
+	TOK_ASSIGN_BITOR,
+	TOK_ASSIGN_XOR,
+	TOK_ASSIGN_SHIFTL,
+	TOK_ASSIGN_SHIFTR,
+	TOK_ASSIGNMENTS_END,
 	TOK_OPS_END,    /* marker */
 
 	TOK_PAREN_OPEN,     // literal: (
@@ -56,10 +71,10 @@ typedef enum {
 	TOK_EOF             // should always be the last token
 } TokType;
 
-static inline bool is_op(TokType type)
-{
-	return ((TOK_OPS_START < type) && (type < TOK_OPS_END));
-}
+#define IS_OP(type) (TOK_OPS_START < (type) && (type) < TOK_OPS_END)
+
+#define IS_ASSIGNMENT_TOK(type) \
+	(TOK_ASSIGNMENTS_START < (type) && (type) < TOK_ASSIGNMENTS_END)
 
 typedef struct {
 	const char *value;    // not null-terminated
