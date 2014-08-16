@@ -21,6 +21,8 @@ void err_on_char(const char *culprit,
 
 void type_assert(Value *val, Class *type);
 
+void type_error(const char *msg);
+
 void runtime_error(const char *type, const char *msg);
 
 void fatal_error(const char *msg);

@@ -88,6 +88,12 @@ void type_assert(Value *val, Class *type)
 	}
 }
 
+void type_error(const char *msg)
+{
+	fprintf(stderr, "Type Error: %s\n", msg);
+	abort();
+}
+
 void runtime_error(const char *type, const char *msg)
 {
 	fprintf(stderr, "%s: %s", type, msg);

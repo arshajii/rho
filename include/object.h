@@ -5,6 +5,8 @@
 
 typedef struct value Value;
 
+const struct value SENTINEL;
+
 typedef Value (*UnOp)(Value *this);
 typedef Value (*BinOp)(Value *this, Value *other);
 
@@ -86,15 +88,18 @@ struct object {
 	unsigned int refcnt;
 };
 
-#define intvalue(val)		((val)->data.i)
-#define floatvalue(val)		((val)->data.f)
-#define strvalue(val)		((val)->data.s)
-#define objectvalue(val)	((val)->data.o)
-
 #define isempty(val) 	((val)->type == VAL_TYPE_EMPTY)
 #define isint(val) 		((val)->type == VAL_TYPE_INT)
-#define isfloat(val) 	((val)->type == VAL_TYPE_DOUBLE)
+#define isfloat(val) 	((val)->type == VAL_TYPE_FLOAT)
 #define isobject(val) 	((val)->type == VAL_TYPE_OBJECT)
+
+#define intvalue(val)		((val)->data.i)
+#define floatvalue(val)		((val)->data.f)
+#define objectvalue(val)	((val)->data.o)
+
+#define makeint(val)	((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
+#define makefloat(val)	((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
+#define makeobj(val)	((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
 
 struct value {
 	enum {
