@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "err.h"
 #include "str.h"
+#include "object.h"
 #include "strobject.h"
 
 Value strobj_make(Str value)
@@ -11,7 +12,7 @@ Value strobj_make(Str value)
 	s->base = (Object){.class = &str_class, .refcnt = 0};
 	s->freeable = true;
 	s->str = value;
-	return (Value){.type = VAL_TYPE_OBJECT, .data = {.o = s}};
+	return makeobj(s);
 }
 
 static Value strobj_eq(Value *this, Value *other)
@@ -19,7 +20,7 @@ static Value strobj_eq(Value *this, Value *other)
 	type_assert(other, &str_class);
 	StrObject *s1 = this->data.o;
 	StrObject *s2 = this->data.o;
-	return (Value){.type = VAL_TYPE_INT, .data = {.i = str_eq(&s1->str, &s2->str)}};
+	return makeint(str_eq(&s1->str, &s2->str));
 }
 
 static Value strobj_cmp(Value *this, Value *other)
@@ -27,13 +28,13 @@ static Value strobj_cmp(Value *this, Value *other)
 	type_assert(other, &str_class);
 	StrObject *s1 = this->data.o;
 	StrObject *s2 = this->data.o;
-	return (Value){.type = VAL_TYPE_INT, .data = {.i = str_cmp(&s1->str, &s2->str)}};
+	return makeint(str_cmp(&s1->str, &s2->str));
 }
 
 static Value strobj_hash(Value *this)
 {
 	StrObject *s = this->data.o;
-	return (Value){.type = VAL_TYPE_INT, .data = {.i = str_hash(&s->str)}};
+	return makeint(str_hash(&s->str));
 }
 
 static void strobj_free(Value *this)
