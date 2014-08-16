@@ -33,11 +33,11 @@ The list is not in any particular order, although related items should be groupe
     
     - [x] Incorporate line numbers into error messages.
     
-- [ ] Implement pseudo-classes so everything can be used as an object.
+- [x] Implement pseudo-classes so everything can be used as an object.
 
-    - [ ] `int` pseudo-class
+    - [x] `int` pseudo-class
     
-    - [ ] `float` pseudo-class
+    - [x] `float` pseudo-class
     
     - [ ] Treat everything as an object and get rid of the `Value` structure in `object.h`. (?)
     
