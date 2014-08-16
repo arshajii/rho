@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#define UNUSED(x) (void)(x)
+
 #define DECL_MIN_FUNC(name, type) \
 	static inline type name(const type a, const type b) { return a < b ? a : b; }
 
