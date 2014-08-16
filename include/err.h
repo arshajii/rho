@@ -22,6 +22,8 @@ void err_on_char(const char *culprit,
 void type_assert(Value *val, Class *type);
 
 void type_error(const char *msg);
+void type_error_unsupported_1(const char *op, const Class *c1);
+void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2);
 
 void runtime_error(const char *type, const char *msg);
 

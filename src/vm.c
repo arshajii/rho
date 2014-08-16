@@ -189,185 +189,112 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_ADD: {
+			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const BinOp add = resolve_add(class);
 
-			if (v1->type == VAL_TYPE_OBJECT) {
-				Value *v2 = STACK_POP();
-				Object *o = v2->data.o;
-				STACK_PUSH(resolve_add(o->class)(v2, v1));
-				break;
+			if (!add) {
+				type_error_unsupported_2("+", class, getclass(v2));
 			}
 
-			Value *v2 = STACK_PEEK();
-
-			int t1 = v1->type;
-			int t2 = v2->type;
-
-			if (t1 == VAL_TYPE_INT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->data.i += v1->data.i;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f += v1->data.i;
-				}
-			}
-			else if (t1 == VAL_TYPE_FLOAT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->type = VAL_TYPE_FLOAT;
-					v2->data.f = v2->data.i + v1->data.f;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f += v1->data.f;
-				}
-			}
-
+			STACK_PUSH(add(v1, v2));
 			break;
 		}
 		case INS_SUB: {
+			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			Value *v2 = STACK_PEEK();
+			const Class *class = getclass(v1);
+			const BinOp sub = resolve_sub(class);
 
-			int t1 = v1->type;
-			int t2 = v2->type;
-
-			if (t1 == VAL_TYPE_INT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->data.i -= v1->data.i;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f -= v1->data.i;
-				}
-			}
-			else if (t1 == VAL_TYPE_FLOAT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->type = VAL_TYPE_FLOAT;
-					v2->data.f = v2->data.i - v1->data.f;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f -= v1->data.f;
-				}
+			if (!sub) {
+				type_error_unsupported_2("-", class, getclass(v2));
 			}
 
+			STACK_PUSH(sub(v1, v2));
 			break;
 		}
 		case INS_MUL: {
+			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			Value *v2 = STACK_PEEK();
+			const Class *class = getclass(v1);
+			const BinOp mul = resolve_mul(class);
 
-			int t1 = v1->type;
-			int t2 = v2->type;
-
-			if (t1 == VAL_TYPE_INT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->data.i *= v1->data.i;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f *= v1->data.i;
-				}
-			}
-			else if (t1 == VAL_TYPE_FLOAT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->type = VAL_TYPE_FLOAT;
-					v2->data.f = v2->data.i * v1->data.f;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f *= v1->data.f;
-				}
+			if (!mul) {
+				type_error_unsupported_2("*", class, getclass(v2));
 			}
 
+			STACK_PUSH(mul(v1, v2));
 			break;
 		}
 		case INS_DIV: {
+			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			Value *v2 = STACK_PEEK();
+			const Class *class = getclass(v1);
+			const BinOp div = resolve_div(class);
 
-			int t1 = v1->type;
-			int t2 = v2->type;
-
-			if (t1 == VAL_TYPE_INT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->data.i /= v1->data.i;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f /= v1->data.i;
-				}
-			}
-			else if (t1 == VAL_TYPE_FLOAT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->type = VAL_TYPE_FLOAT;
-					v2->data.f = v2->data.i / v1->data.f;
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f /= v1->data.f;
-				}
+			if (!div) {
+				type_error_unsupported_2("/", class, getclass(v2));
 			}
 
+			STACK_PUSH(div(v1, v2));
 			break;
 		}
 		case INS_MOD: {
+			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			Value *v2 = STACK_PEEK();
+			const Class *class = getclass(v1);
+			const BinOp mod = resolve_mod(class);
 
-			if (v1->type == VAL_TYPE_INT && v2->type == VAL_TYPE_INT) {
-				v2->data.i %= v1->data.i;
+			if (!mod) {
+				type_error_unsupported_2("%", class, getclass(v2));
 			}
 
+			STACK_PUSH(mod(v1, v2));
 			break;
 		}
 		case INS_POW: {
+			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			Value *v2 = STACK_PEEK();
+			const Class *class = getclass(v1);
+			const BinOp pow = resolve_pow(class);
 
-			int t1 = v1->type;
-			int t2 = v2->type;
-
-			if (t1 == VAL_TYPE_INT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->data.i = pow(v2->data.i, v1->data.i);
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f = pow(v2->data.f, v1->data.i);
-				}
-			}
-			else if (t1 == VAL_TYPE_FLOAT) {
-				if (t2 == VAL_TYPE_INT) {
-					v2->type = VAL_TYPE_FLOAT;
-					v2->data.f = pow(v2->data.i, v1->data.f);
-				}
-				else if (t2 == VAL_TYPE_FLOAT) {
-					v2->data.f = pow(v2->data.f, v1->data.f);
-				}
+			if (!pow) {
+				type_error_unsupported_2("**", class, getclass(v2));
 			}
 
+			STACK_PUSH(pow(v1, v2));
 			break;
 		}
 		case INS_UPLUS: {
-			/* NOP */
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const UnOp plus = resolve_plus(class);
+
+			if (!plus) {
+				type_error_unsupported_1("+", class);
+			}
+
+			STACK_PUSH(plus(v1));
 			break;
 		}
 		case INS_UMIN: {
-			Value *v = STACK_PEEK();
+			Value *v1 = STACK_POP();
+			const Class *class = getclass(v1);
+			const UnOp minus = resolve_minus(class);
 
-			switch (v->type) {
-			case VAL_TYPE_EMPTY:
-				INTERNAL_ERROR();
-			case VAL_TYPE_INT:
-				v->data.i = -v->data.i;
-				break;
-			case VAL_TYPE_FLOAT:
-				v->data.f = -v->data.f;
-				break;
-			case VAL_TYPE_OBJECT:
-				/* TODO */
-				break;
+			if (!minus) {
+				type_error_unsupported_1("-", class);
 			}
+
+			STACK_PUSH(minus(v1));
 			break;
 		}
 		case INS_STORE: {
-			Value *v = STACK_POP();
+			Value *v1 = STACK_POP();
 			const unsigned int id = read_int(bc + pos);
-			frame->locals[id] = *v;
-			incref(v);
+			frame->locals[id] = *v1;
+			incref(v1);
 			pos += INT_SIZE;
 			break;
 		}
@@ -397,33 +324,33 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_JMP_IF_TRUE: {
-			Value *v = STACK_POP();
+			Value *v1 = STACK_POP();
 			const unsigned int jmp = bc[pos++];
-			if (v->data.i != 0) {
+			if (v1->data.i != 0) {
 				pos += jmp;
 			}
 			break;
 		}
 		case INS_JMP_IF_FALSE: {
-			Value *v = STACK_POP();
+			Value *v1 = STACK_POP();
 			const unsigned int jmp = bc[pos++];
-			if (v->data.i == 0) {
+			if (v1->data.i == 0) {
 				pos += jmp;
 			}
 			break;
 		}
 		case INS_JMP_BACK_IF_TRUE: {
-			Value *v = STACK_POP();
+			Value *v1 = STACK_POP();
 			const unsigned int jmp = bc[pos++];
-			if (v->data.i != 0) {
+			if (v1->data.i != 0) {
 				pos -= jmp;
 			}
 			break;
 		}
 		case INS_JMP_BACK_IF_FALSE: {
-			Value *v = STACK_POP();
+			Value *v1 = STACK_POP();
 			const unsigned int jmp = bc[pos++];
-			if (v->data.i == 0) {
+			if (v1->data.i == 0) {
 				pos -= jmp;
 			}
 			break;
@@ -433,8 +360,8 @@ static void eval_frame(VM *vm)
 			//#define DYN_ARG_ARRAY_THRESHOLD 16
 			//const unsigned int nargs = code[pos++];
 			//Value args[DYN_ARG_ARRAY_THRESHOLD]
-			Value *v = STACK_POP();
-			CodeObject *co = v->data.o;
+			Value *v1 = STACK_POP();
+			CodeObject *co = v1->data.o;
 			vm_pushframe(vm, "test", co, 10);
 			eval_frame(vm);
 			vm_popframe(vm);

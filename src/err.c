@@ -4,6 +4,8 @@
 #include "object.h"
 #include "err.h"
 
+#define TYPE_ERROR_HEADER "Type Error: "
+
 void err_on_char(const char *culprit,
                  const char *code,
                  const char *end,
@@ -83,14 +85,33 @@ void type_assert(Value *val, Class *type)
 	}
 
 	if (fail) {
-		fprintf(stderr, "Type Error: expected %s, got %s", type->name, name);
+		fprintf(stderr, TYPE_ERROR_HEADER "expected %s, got %s", type->name, name);
 		abort();
 	}
 }
 
 void type_error(const char *msg)
 {
-	fprintf(stderr, "Type Error: %s\n", msg);
+	fprintf(stderr, TYPE_ERROR_HEADER "%s\n", msg);
+	abort();
+}
+
+void type_error_unsupported_1(const char *op, const Class *c1)
+{
+	fprintf(stderr,
+			TYPE_ERROR_HEADER "unsupported operand type for %s: %s\n",
+	        op,
+	        c1->name);
+	abort();
+}
+
+void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2)
+{
+	fprintf(stderr,
+			TYPE_ERROR_HEADER "unsupported operand types for %s: %s and %s\n",
+	        op,
+	        c1->name,
+	        c2->name);
 	abort();
 }
 

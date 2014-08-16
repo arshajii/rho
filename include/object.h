@@ -88,19 +88,6 @@ struct object {
 	unsigned int refcnt;
 };
 
-#define isempty(val) 	((val)->type == VAL_TYPE_EMPTY)
-#define isint(val) 		((val)->type == VAL_TYPE_INT)
-#define isfloat(val) 	((val)->type == VAL_TYPE_FLOAT)
-#define isobject(val) 	((val)->type == VAL_TYPE_OBJECT)
-
-#define intvalue(val)		((val)->data.i)
-#define floatvalue(val)		((val)->data.f)
-#define objectvalue(val)	((val)->data.o)
-
-#define makeint(val)	((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
-#define makefloat(val)	((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
-#define makeobj(val)	((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
-
 struct value {
 	enum {
 		VAL_TYPE_EMPTY = 0,  // indicates nonexistent value (should always be 0)
@@ -115,6 +102,21 @@ struct value {
 		void *o;
 	} data;
 };
+
+#define isempty(val) 	((val)->type == VAL_TYPE_EMPTY)
+#define isint(val) 		((val)->type == VAL_TYPE_INT)
+#define isfloat(val) 	((val)->type == VAL_TYPE_FLOAT)
+#define isobject(val) 	((val)->type == VAL_TYPE_OBJECT)
+
+#define intvalue(val)		((val)->data.i)
+#define floatvalue(val)		((val)->data.f)
+#define objectvalue(val)	((val)->data.o)
+
+#define makeint(val)	((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
+#define makefloat(val)	((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
+#define makeobj(val)	((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
+
+Class *getclass(Value *val);
 
 bool instanceof(Object *o, Class *class);
 

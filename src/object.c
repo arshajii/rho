@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "err.h"
 #include "util.h"
+#include "intobject.h"
+#include "floatobject.h"
 #include "object.h"
 
 static Value obj_hash(Value *this)
@@ -85,6 +87,26 @@ Class obj_class = {
 	.num_methods = &obj_num_methods,
 	.seq_methods = &obj_seq_methods
 };
+
+Class *getclass(Value *val)
+{
+	if (val == NULL) {
+		return NULL;
+	}
+
+	switch (val->type) {
+	case VAL_TYPE_EMPTY:
+		return NULL;
+	case VAL_TYPE_INT:
+		return &int_class;
+	case VAL_TYPE_FLOAT:
+		return &float_class;
+	case VAL_TYPE_OBJECT: {
+		const Object *o = val->data.o;
+		return o->class;
+	}
+	}
+}
 
 /*
  * Generic instanceof -- checks if the given object is
