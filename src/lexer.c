@@ -119,7 +119,7 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 		break;
 	case '|':
 		if (len == 1)
-			return true;
+			return TOK_BITOR;
 
 		switch (str[1]) {
 		case '|':

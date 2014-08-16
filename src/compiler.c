@@ -253,6 +253,36 @@ static Opcode to_opcode(NodeType type)
 		return INS_MOD;
 	case NODE_POW:
 		return INS_POW;
+	case NODE_BITAND:
+		return INS_BITAND;
+	case NODE_BITOR:
+		return INS_BITOR;
+	case NODE_XOR:
+		return INS_XOR;
+	case NODE_BITNOT:
+		return INS_BITNOT;
+	case NODE_SHIFTL:
+		return INS_SHIFTL;
+	case NODE_SHIFTR:
+		return INS_SHIFTR;
+	case NODE_AND:
+		return INS_AND;
+	case NODE_OR:
+		return INS_OR;
+	case NODE_NOT:
+		return INS_NOT;
+	case NODE_EQUAL:
+		return INS_EQUAL;
+	case NODE_NOTEQ:
+		return INS_NOTEQ;
+	case NODE_LT:
+		return INS_LT;
+	case NODE_GT:
+		return INS_GT;
+	case NODE_LE:
+		return INS_LE;
+	case NODE_GE:
+		return INS_GE;
 	case NODE_UPLUS:
 		return INS_NOP;
 	case NODE_UMINUS:
@@ -286,6 +316,19 @@ static void compile_node(Compiler *compiler, AST *ast)
 	case NODE_DIV:
 	case NODE_MOD:
 	case NODE_POW:
+	case NODE_BITAND:
+	case NODE_BITOR:
+	case NODE_XOR:
+	case NODE_SHIFTL:
+	case NODE_SHIFTR:
+	case NODE_AND:
+	case NODE_OR:
+	case NODE_EQUAL:
+	case NODE_NOTEQ:
+	case NODE_LT:
+	case NODE_GT:
+	case NODE_LE:
+	case NODE_GE:
 		compile_node(compiler, ast->left);
 		compile_node(compiler, ast->right);
 		write_byte(compiler, to_opcode(ast->type));
@@ -293,6 +336,8 @@ static void compile_node(Compiler *compiler, AST *ast)
 	case NODE_ASSIGN:
 		compile_assignment(compiler, ast);
 		break;
+	case NODE_BITNOT:
+	case NODE_NOT:
 	case NODE_UPLUS:
 	case NODE_UMINUS:
 		compile_node(compiler, ast->left);

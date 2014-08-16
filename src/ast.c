@@ -57,6 +57,51 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_POW:
 		printf("**\n");
 		break;
+	case NODE_BITAND:
+		printf("&\n");
+		break;
+	case NODE_BITOR:
+		printf("|\n");
+		break;
+	case NODE_XOR:
+		printf("^\n");
+		break;
+	case NODE_BITNOT:
+		printf("~\n");
+		break;
+	case NODE_SHIFTL:
+		printf("<<\n");
+		break;
+	case NODE_SHIFTR:
+		printf(">>\n");
+		break;
+	case NODE_AND:
+		printf("and\n");
+		break;
+	case NODE_OR:
+		printf("or\n");
+		break;
+	case NODE_NOT:
+		printf("!\n");
+		break;
+	case NODE_EQUAL:
+		printf("==\n");
+		break;
+	case NODE_NOTEQ:
+		printf("!=\n");
+		break;
+	case NODE_LT:
+		printf("<\n");
+		break;
+	case NODE_GT:
+		printf(">\n");
+		break;
+	case NODE_LE:
+		printf("<=\n");
+		break;
+	case NODE_GE:
+		printf(">=\n");
+		break;
 	case NODE_ASSIGN:
 		printf("=\n");
 		break;

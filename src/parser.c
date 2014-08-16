@@ -260,6 +260,8 @@ static AST *parse_atom(Lexer *lex)
 		ast = parse_ident(lex);
 		break;
 	}
+	case TOK_NOT:
+	case TOK_BITNOT:
 	case TOK_PLUS:
 	case TOK_MINUS: {
 		ast = parse_uop(lex);
@@ -315,7 +317,7 @@ static AST *parse_uop(Lexer *lex)
 {
 	Token *tok = lex_next_token(lex);
 
-	NodeType type;
+	NodeType type = NODE_EMPTY;
 	switch (tok->type) {
 	case TOK_PLUS:
 		type = NODE_UPLUS;
@@ -324,16 +326,13 @@ static AST *parse_uop(Lexer *lex)
 		type = NODE_UMINUS;
 		break;
 	case TOK_BITNOT:
-		// TODO
-		assert(0);
+		type = NODE_BITNOT;
 		break;
 	case TOK_NOT:
-		// TODO
-		assert(0);
+		type = NODE_NOT;
 		break;
 	default:
-		// TODO -- some kind of error here
-		assert(0);
+		INTERNAL_ERROR();
 		break;
 	}
 
@@ -517,29 +516,39 @@ static NodeType nodetype_from_op(Op op)
 	case TOK_POW:
 		return NODE_POW;
 	case TOK_BITAND:
+		return NODE_BITAND;
 	case TOK_BITOR:
+		return NODE_BITOR;
 	case TOK_XOR:
+		return NODE_XOR;
 	case TOK_BITNOT:
+		return NODE_BITNOT;
 	case TOK_SHIFTL:
+		return NODE_SHIFTL;
 	case TOK_SHIFTR:
+		return NODE_SHIFTR;
 	case TOK_AND:
+		return NODE_AND;
 	case TOK_OR:
+		return NODE_OR;
 	case TOK_NOT:
+		return NODE_NOT;
 	case TOK_EQUAL:
+		return NODE_EQUAL;
 	case TOK_NOTEQ:
+		return NODE_NOTEQ;
 	case TOK_LT:
+		return NODE_LT;
 	case TOK_GT:
+		return NODE_GT;
 	case TOK_LE:
+		return NODE_LE;
 	case TOK_GE:
-		// TODO
-		assert(0);
-		return -1;
+		return NODE_GE;
 	default:
-		break;
+		INTERNAL_ERROR();
+		return -1;
 	}
-
-	INTERNAL_ERROR();
-	return -1;
 }
 
 static Token *expect(Lexer *lex, TokType type)
