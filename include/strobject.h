@@ -1,6 +1,8 @@
 #ifndef STROBJECT_H
 #define STROBJECT_H
 
+#include <stdbool.h>
+#include "str.h"
 #include "object.h"
 
 extern struct num_methods str_num_methods;

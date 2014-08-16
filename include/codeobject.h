@@ -1,7 +1,9 @@
 #ifndef CODEOBJECT_H
 #define CODEOBJECT_H
 
+#include "code.h"
 #include "object.h"
+#include "util.h"
 
 extern Class co_class;
 
