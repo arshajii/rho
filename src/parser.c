@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
@@ -55,6 +54,8 @@ const Op ops[] = {
 
 const size_t ops_size = (sizeof(ops) / sizeof(Op));
 
+#define FUNCTION_MAX_PARAMS 128
+
 static AST *parse_stmt(Lexer *lex);
 
 static AST *parse_expr(Lexer *lex);
@@ -72,6 +73,7 @@ static AST *parse_print(Lexer *lex);
 static AST *parse_if(Lexer *lex);
 static AST *parse_while(Lexer *lex);
 static AST *parse_def(Lexer *lex);
+static AST *parse_return(Lexer *lex);
 
 static AST *parse_block(Lexer *lex);
 
@@ -83,6 +85,8 @@ static void parse_err_unexpected_token(Lexer *lex, Token *tok);
 static void parse_err_not_a_statement(Lexer *lex, Token *tok);
 static void parse_err_unclosed(Lexer *lex, Token *tok);
 static void parse_err_invalid_assign(Lexer *lex, Token *tok);
+static void parse_err_invalid_return(Lexer *lex, Token *tok);
+static void parse_err_too_many_params(Lexer *lex, Token *tok);
 
 Program *parse(Lexer *lex)
 {
@@ -137,6 +141,9 @@ static AST *parse_stmt(Lexer *lex)
 		break;
 	case TOK_DEF:
 		stmt = parse_def(lex);
+		break;
+	case TOK_RETURN:
+		stmt = parse_return(lex);
 		break;
 	case TOK_SEMICOLON:
 		return parse_empty(lex);
@@ -298,11 +305,53 @@ static AST *parse_atom(Lexer *lex)
 	 * parse consecutive calls of the form `func()()...`.
 	 */
 	if (tok->type == TOK_PAREN_OPEN) {
-		expect(lex, TOK_PAREN_OPEN);
-		expect(lex, TOK_PAREN_CLOSE);  // for now
+		Token *paren_open = expect(lex, TOK_PAREN_OPEN);
+
+		ParamList *params_head = NULL;
+		ParamList *params = NULL;
+
+		do {
+			Token *next = lex_peek_token(lex);
+
+			if (next->type == TOK_EOF) {
+				parse_err_unclosed(lex, paren_open);
+			}
+
+			if (next->type == TOK_PAREN_CLOSE) {
+				break;
+			}
+
+			if (params_head == NULL) {
+				params_head = ast_list_new();
+				params = params_head;
+			}
+
+			if (params->ast != NULL) {
+				params->next = ast_list_new();
+				params = params->next;
+			}
+
+			params->ast = parse_expr(lex);
+
+			next = lex_peek_token(lex);
+
+			if (next->type == TOK_COMMA) {
+				expect(lex, TOK_COMMA);
+
+				next = lex_peek_token(lex);
+				if (next->type == TOK_PAREN_CLOSE) {
+					parse_err_unexpected_token(lex, next);
+				}
+			} else if (next->type != TOK_PAREN_CLOSE) {
+				parse_err_unexpected_token(lex, next);
+			}
+		} while (true);
+
+		expect(lex, TOK_PAREN_CLOSE);
 
 		AST *call = ast_new();
 		call->type = NODE_CALL;
+		call->v.params = params_head;
 		call->left = ast;
 		call->right = NULL;
 		ast = call;
@@ -400,7 +449,7 @@ static AST *parse_ident(Lexer *lex)
 	AST *ast = ast_new();
 
 	ast->type = NODE_IDENT;
-	ast->v.ident = str_new(tok->value, tok->length);
+	ast->v.ident = str_new_copy(tok->value, tok->length);
 	ast->left = ast->right = NULL;
 
 	return ast;
@@ -434,7 +483,11 @@ static AST *parse_while(Lexer *lex)
 	AST *ast = ast_new();
 	ast->type = NODE_WHILE;
 	ast->left = parse_expr(lex);   // cond
+
+	unsigned old_in_loop = lex->in_loop;
+	lex->in_loop = 1;
 	ast->right = parse_block(lex); // body
+	lex->in_loop = old_in_loop;
 
 	return ast;
 }
@@ -444,9 +497,82 @@ static AST *parse_def(Lexer *lex)
 	expect(lex, TOK_DEF);
 	AST *ast = ast_new();
 	ast->type = NODE_DEF;
+	Token *name = lex_peek_token(lex);
 	ast->left = parse_ident(lex);  // name
-	ast->right = parse_block(lex); // body
 
+	Token *paren_open = expect(lex, TOK_PAREN_OPEN);
+
+	ParamList *params_head = NULL;
+	ParamList *params = NULL;
+
+	unsigned int nargs = 0;
+
+	do {
+		Token *next = lex_peek_token(lex);
+
+		if (next->type == TOK_EOF) {
+			parse_err_unclosed(lex, paren_open);
+		}
+
+		if (next->type == TOK_PAREN_CLOSE) {
+			break;
+		}
+
+		if (params_head == NULL) {
+			params_head = ast_list_new();
+			params = params_head;
+		}
+
+		if (params->ast != NULL) {
+			params->next = ast_list_new();
+			params = params->next;
+		}
+
+		params->ast = parse_ident(lex);
+		++nargs;
+
+		next = lex_peek_token(lex);
+
+		if (next->type == TOK_COMMA) {
+			expect(lex, TOK_COMMA);
+
+			next = lex_peek_token(lex);
+			if (next->type == TOK_PAREN_CLOSE) {
+				parse_err_unexpected_token(lex, next);
+			}
+		} else if (next->type != TOK_PAREN_CLOSE) {
+			parse_err_unexpected_token(lex, next);
+		}
+	} while (true);
+
+	expect(lex, TOK_PAREN_CLOSE);
+
+	ast->v.params = params_head;
+
+	unsigned old_in_function = lex->in_function;
+	lex->in_function = 1;
+	ast->right = parse_block(lex);  // body
+	lex->in_function = old_in_function;
+
+	if (nargs > FUNCTION_MAX_PARAMS) {
+		parse_err_too_many_params(lex, name);
+	}
+
+	return ast;
+}
+
+static AST *parse_return(Lexer *lex)
+{
+	Token *return_tok = expect(lex, TOK_RETURN);
+
+	if (!lex->in_function) {
+		parse_err_invalid_return(lex, return_tok);
+	}
+
+	AST *ast = ast_new();
+	ast->type = NODE_RETURN;
+	ast->left = parse_expr(lex);
+	ast->right = NULL;
 	return ast;
 }
 
@@ -460,7 +586,7 @@ static AST *parse_block(Lexer *lex)
 	do {
 		Token *next = lex_peek_token(lex);
 
-		if (next == NULL || next->type == TOK_EOF) {
+		if (next->type == TOK_EOF) {
 			parse_err_unclosed(lex, bracket_open);
 		}
 
@@ -686,6 +812,31 @@ static void parse_err_invalid_assign(Lexer *lex, Token *tok)
 		    SYNTAX_ERROR " misplaced assignment\n\n",
 		    lex->name,
 		    tok->lineno);
+
+	err_on_tok(lex, tok);
+
+	exit(EXIT_FAILURE);
+}
+
+static void parse_err_invalid_return(Lexer *lex, Token *tok)
+{
+	fprintf(stderr,
+		    SYNTAX_ERROR " misplaced return statement\n\n",
+		    lex->name,
+		    tok->lineno);
+
+	err_on_tok(lex, tok);
+
+	exit(EXIT_FAILURE);
+}
+
+static void parse_err_too_many_params(Lexer *lex, Token *tok)
+{
+	fprintf(stderr,
+	        SYNTAX_ERROR " function has too many parameters (max %d)\n\n",
+	        lex->name,
+	        tok->lineno,
+	        FUNCTION_MAX_PARAMS);
 
 	err_on_tok(lex, tok);
 

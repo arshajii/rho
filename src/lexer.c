@@ -445,7 +445,8 @@ static Token next_word(Lexer *lex)
 		{"print", TOK_PRINT},
 		{"if",    TOK_IF},
 		{"while", TOK_WHILE},
-		{"def",   TOK_DEF}
+		{"def",   TOK_DEF},
+		{"return",TOK_RETURN},
 	};
 
 	assert(is_word_char(currc(lex)));
@@ -501,6 +502,14 @@ static Token next_bracket_close(Lexer *lex)
 {
 	assert(currc(lex) == '}');
 	Token tok = get(lex, TOK_BRACKET_CLOSE);
+	fwd(lex);
+	return tok;
+}
+
+static Token next_comma(Lexer *lex)
+{
+	assert(currc(lex) == ',');
+	Token tok = get(lex, TOK_COMMA);
 	fwd(lex);
 	return tok;
 }
@@ -591,6 +600,9 @@ static void tokenize(Lexer *lex)
 			case '}':
 				tok = next_bracket_close(lex);
 				break;
+			case ',':
+				tok = next_comma(lex);
+				break;
 			case '"':
 			case '\'':
 				tok = next_string(lex, c);
@@ -633,6 +645,8 @@ Lexer *lex_new(char *str, const size_t length, const char *name)
 	lex->lineno = 1;
 	lex->peek = NULL;
 	lex->name = name;
+	lex->in_function = 0;
+	lex->in_loop = 0;
 
 	tokenize(lex);
 
@@ -814,6 +828,10 @@ const char *type_to_str(TokType type)
 		return "while";
 	case TOK_DEF:
 		return "def";
+	case TOK_RETURN:
+		return "return";
+	case TOK_COMMA:
+		return ",";
 	case TOK_SEMICOLON:
 		return ";";
 	case TOK_NEWLINE:

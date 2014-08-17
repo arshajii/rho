@@ -7,18 +7,36 @@
 #include "err.h"
 #include "codeobject.h"
 
+/*
+ * The CodeObject bytecode format is the same as the general bytecode format.
+ * Note, however, that CodeObject bytecode does not include the magic bytes
+ * at the start.
+ *
+ * +-----------------+
+ * | symbol table    |
+ * +-----------------+
+ * | constant table  |
+ * +-----------------+
+ * | bytecode        |
+ * +-----------------+
+ *
+ * When a CodeObject is saved in a constant table and the written to the
+ * bytecode, that CodeObject's code should start with a 4-byte int indicating
+ * how many arguments that code object takes. The symbol table of CodeObjects
+ * should start with its arguments names (in order).
+ */
+
 static struct str_array read_sym_table(Code *code);
 static struct value_array read_const_table(Code *code);
 
-CodeObject *codeobj_make(Code *code)
+CodeObject *codeobj_make(Code *code, int argcount)
 {
-	// TODO: co.argcount ?
 	CodeObject *co = malloc(sizeof(CodeObject));
 	co->base = (Object){.class = &co_class, .refcnt = 0};
 	co->names = read_sym_table(code);
 	co->consts = read_const_table(code);
 	co->bc = code->bc;
-	co->argcount = 0;  // for now
+	co->argcount = argcount;
 	return co;
 }
 
@@ -115,12 +133,13 @@ static struct value_array read_const_table(Code *code)
 		case CT_ENTRY_CODEOBJ: {
 			constants[i].type = VAL_TYPE_OBJECT;
 			size_t colen = code_read_int(code);
+			int argcount = code_read_int(code);
 			Code sub;
 			code_init(&sub, colen);
 			for (size_t i = 0; i < colen; i++) {
 				code_write_byte(&sub, code_fwd(code));
 			}
-			constants[i].data.o = codeobj_make(&sub);
+			constants[i].data.o = codeobj_make(&sub, argcount);
 			break;
 		}
 		case CT_ENTRY_END:

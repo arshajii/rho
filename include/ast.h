@@ -56,6 +56,7 @@ typedef enum {
 	NODE_IF,
 	NODE_WHILE,
 	NODE_DEF,
+	NODE_RETURN,
 
 	NODE_BLOCK,
 	NODE_CALL
@@ -64,8 +65,9 @@ typedef enum {
 #define AST_TYPE_ASSERT(ast, nodetype) assert((ast)->type == (nodetype))
 
 struct ast_list;
-typedef struct ast_list Block;
 typedef struct ast_list Program;
+typedef struct ast_list Block;
+typedef struct ast_list ParamList;
 
 /*
  * `AST` represents a single statement.
@@ -78,8 +80,8 @@ typedef struct AST {
 		double float_val;
 		Str *str_val;
 		Str *ident;
-
 		Block *block;
+		ParamList *params;
 	} v;  // value
 
 	struct AST *left;

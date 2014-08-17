@@ -13,13 +13,13 @@ The list is not in any particular order, although related items should be groupe
     
     - [ ] Check for virtual machine memory leaks (there likely will be some of these since the garbage collection mechanism has not yet been implemented).
 
-- [ ] Add a function definition mechanism. A rudimentary call mechanism for testing has already been implemented.
+- [x] Add a function definition mechanism. A rudimentary call mechanism for testing has already been implemented.
   
     - [x] Add a `CT_ENTRY_CODEOBJ` enum value to the constant table code, which will be used for function bytecode.
       
     - [x] Update the parser to allow for `def` statements to define functions.
     
-    - [ ] The function definition syntax (for proof-of-concept purposes) is currently:
+    - [x] The function definition syntax (for proof-of-concept purposes) is currently:
 
             def foo {...}
 

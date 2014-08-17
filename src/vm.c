@@ -53,8 +53,8 @@ static void vm_pushframe(VM *vm,
 	frame->co = co;
 	//frame->constants = realloc(constants.array, sizeof(Value) * (nconst + nlocal + DEFAULT_VSTACK_DEPTH));
 	frame->globals = NULL;  /* for now */
+
 	frame->locals = calloc(co->names.length, sizeof(Value));
-	//frame->local_symtab = local_symtab;
 	frame->valuestack = malloc(DEFAULT_VSTACK_DEPTH * sizeof(Value));
 	frame->stack_capacity = DEFAULT_VSTACK_DEPTH;
 
@@ -121,7 +121,7 @@ void execute(FILE *compiled)
  */
 static void vm_push_module_frame(VM *vm, Code *code)
 {
-	CodeObject *co = codeobj_make(code);
+	CodeObject *co = codeobj_make(code, 0);
 
 	vm_pushframe(
 		vm,
@@ -169,23 +169,13 @@ static void eval_frame(VM *vm)
 		switch (opcode) {
 		case INS_NOP:
 			break;
-		case INS_ILOAD: {
-			const int val = read_int(bc + pos);
-			Value intObj = {VAL_TYPE_INT, .data = {.i = val}};
-			STACK_PUSH(intObj);
-			pos += INT_SIZE;
-			break;
-		}
-		case INS_FLOAD: {
-			const double val = read_double(bc + pos);
-			Value floatObj = {VAL_TYPE_FLOAT, .data = {.f = val}};
-			STACK_PUSH(floatObj);
-			pos += DOUBLE_SIZE;
-			break;
-		}
 		case INS_LOAD_CONST: {
 			const unsigned int val = bc[pos++];
 			STACK_PUSH(constants[val]);
+			break;
+		}
+		case INS_LOAD_NULL: {
+			STACK_PUSH(makeint(0));
 			break;
 		}
 		case INS_ADD: {
@@ -742,19 +732,35 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_CALL: {
-			// TODO
-			//#define DYN_ARG_ARRAY_THRESHOLD 16
-			//const unsigned int nargs = code[pos++];
-			//Value args[DYN_ARG_ARRAY_THRESHOLD]
+			const byte argcount = bc[pos++];
 			Value *v1 = STACK_POP();
 			CodeObject *co = v1->data.o;
+
+			if (co->argcount != argcount) {
+				fprintf(stderr, "Error: expected %d arguments, got %d.", co->argcount, argcount);
+				exit(EXIT_FAILURE);
+			}
+
 			vm_pushframe(vm, "test", co, 10);
+
+			Frame *top = vm->callstack;
+			for (byte i = 0; i < argcount; i++) {
+				Value *v = STACK_POP();
+				top->locals[i] = *v;
+			}
+
 			eval_frame(vm);
+			STACK_PUSH(top->return_value);
 			vm_popframe(vm);
 			break;
 		}
 		case INS_RETURN: {
-			return;  // TODO: proper return statements
+			frame->return_value = *STACK_POP();
+			return;
+		}
+		case INS_POP: {
+			STACK_POP();
+			break;
 		}
 		default: {
 			UNEXP_BYTE(opcode);

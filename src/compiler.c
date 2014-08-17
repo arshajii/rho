@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <assert.h>
 #include "err.h"
@@ -74,17 +74,20 @@ static void compiler_free(Compiler *compiler)
 	free(compiler);
 }
 
-static void compile_node(Compiler *compiler, AST *ast);
+static void compile_node(Compiler *compiler, AST *ast, bool toplevel);
 static void compile_program(Compiler *compiler, Program *program);
 static void compile_magic(Compiler *compiler);
 
 static void compile_load(Compiler *compiler, AST *ast);
 static void compile_assignment(Compiler *compiler, AST *ast);
 
+static void compile_call(Compiler *compiler, AST *ast);
+
 static void compile_block(Compiler *compiler, AST *ast);
 static void compile_if(Compiler *compiler, AST *ast);
 static void compile_while(Compiler *compiler, AST *ast);
 static void compile_def(Compiler *compiler, AST *ast);
+static void compile_return(Compiler *compiler, AST *ast);
 
 /*
  * Each compiled file should begin with the
@@ -106,11 +109,16 @@ static void compile_raw(Compiler *compiler, Program *program)
 
 	struct ast_list *ast_node = program;
 	while (ast_node != NULL) {
-		compile_node(compiler, ast_node->ast);
+		compile_node(compiler, ast_node->ast, true);
 		ast_node = ast_node->next;
 	}
 
-	write_byte(compiler, INS_RETURN);
+	const Code *code = &compiler->code;
+
+	if (code->bc[code->size - 1] != INS_RETURN) {
+		write_byte(compiler, INS_LOAD_NULL);
+		write_byte(compiler, INS_RETURN);
+	}
 }
 
 static void compile_program(Compiler *compiler, Program *program)
@@ -173,11 +181,11 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	const unsigned int ref_id = id_for_var(compiler->st, ast->left->v.ident);
 
 	if (type == NODE_ASSIGN) {
-		compile_node(compiler, ast->right);
+		compile_node(compiler, ast->right, false);
 	} else {
 		/* compound assignment */
 		compile_load(compiler, ast->left);
-		compile_node(compiler, ast->right);
+		compile_node(compiler, ast->right, false);
 		write_byte(compiler, to_opcode(type));
 	}
 
@@ -185,12 +193,28 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	write_int(compiler, ref_id);
 }
 
+static void compile_call(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_CALL);
+
+	byte argcount = 0;
+
+	for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
+		compile_node(compiler, node->ast, false);
+		++argcount;
+	}
+
+	compile_node(compiler, ast->left, false);  // callable
+	write_byte(compiler, INS_CALL);
+	write_byte(compiler, argcount);
+}
+
 static void compile_block(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_BLOCK);
 
 	for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
-		compile_node(compiler, node->ast);
+		compile_node(compiler, node->ast, false);
 	}
 }
 
@@ -198,7 +222,7 @@ static void compile_if(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_IF);
 
-	compile_node(compiler, ast->left);
+	compile_node(compiler, ast->left, false);
 	write_byte(compiler, INS_JMP_IF_FALSE);
 
 	// jump placeholder:
@@ -206,7 +230,7 @@ static void compile_if(Compiler *compiler, AST *ast)
 	write_byte(compiler, INS_NOP);
 	// ~~~
 
-	compile_node(compiler, ast->right);
+	compile_node(compiler, ast->right, false);
 
 	// fill in placeholder:
 	compiler->code.bc[jmp_stub_idx] = (byte)(compiler->code.size - jmp_stub_idx - 1);
@@ -223,12 +247,12 @@ static void compile_while(Compiler *compiler, AST *ast)
 	write_byte(compiler, INS_NOP);
 	// ~~~
 
-	compile_node(compiler, ast->right);  // body
+	compile_node(compiler, ast->right, false);  // body
 
 	// fill in placeholder:
 	compiler->code.bc[jmp_ucond_stub_idx] = (byte)(compiler->code.size - jmp_ucond_stub_idx - 1);
 
-	compile_node(compiler, ast->left);   // condition
+	compile_node(compiler, ast->left, false);   // condition
 
 	write_byte(compiler, INS_JMP_BACK_IF_TRUE);
 	write_byte(compiler, compiler->code.size - jmp_ucond_stub_idx);
@@ -246,6 +270,13 @@ static void compile_def(Compiler *compiler, AST *ast)
 	compile_const(compiler, ast->right);
 	write_byte(compiler, INS_STORE);
 	write_int(compiler, ref_id);
+}
+
+static void compile_return(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_RETURN);
+	compile_node(compiler, ast->left, false);
+	write_byte(compiler, INS_RETURN);
 }
 
 /*
@@ -332,7 +363,7 @@ static Opcode to_opcode(NodeType type)
 	}
 }
 
-static void compile_node(Compiler *compiler, AST *ast)
+static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 {
 	if (ast == NULL) {
 		return;
@@ -366,8 +397,8 @@ static void compile_node(Compiler *compiler, AST *ast)
 	case NODE_GT:
 	case NODE_LE:
 	case NODE_GE:
-		compile_node(compiler, ast->left);
-		compile_node(compiler, ast->right);
+		compile_node(compiler, ast->left, false);
+		compile_node(compiler, ast->right, false);
 		write_byte(compiler, to_opcode(ast->type));
 		break;
 	case NODE_ASSIGN:
@@ -388,11 +419,11 @@ static void compile_node(Compiler *compiler, AST *ast)
 	case NODE_NOT:
 	case NODE_UPLUS:
 	case NODE_UMINUS:
-		compile_node(compiler, ast->left);
+		compile_node(compiler, ast->left, false);
 		write_byte(compiler, to_opcode(ast->type));
 		break;
 	case NODE_PRINT:
-		compile_node(compiler, ast->left);
+		compile_node(compiler, ast->left, false);
 		write_byte(compiler, INS_PRINT);
 		break;
 	case NODE_IF:
@@ -404,12 +435,17 @@ static void compile_node(Compiler *compiler, AST *ast)
 	case NODE_DEF:
 		compile_def(compiler, ast);
 		break;
+	case NODE_RETURN:
+		compile_return(compiler, ast);
+		break;
 	case NODE_BLOCK:
 		compile_block(compiler, ast);
 		break;
 	case NODE_CALL:
-		compile_node(compiler, ast->left);
-		write_byte(compiler, INS_CALL);
+		compile_call(compiler, ast);
+		if (toplevel) {
+			write_byte(compiler, INS_POP);
+		}
 		break;
 	default:
 		INTERNAL_ERROR();
@@ -446,16 +482,25 @@ static void fill_st_from_ast(Compiler *compiler, AST *ast)
 		return;
 	}
 
-	if (ast->type == NODE_IDENT) {
+	const NodeType type = ast->type;
+
+	if (type == NODE_IDENT) {
 		id_for_var(compiler->st, ast->v.ident);
-	} else if (ast->type == NODE_BLOCK) {
+	} else if (type == NODE_BLOCK) {
 		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
 			fill_st_from_ast(compiler, node->ast);
 		}
 	}
 
 	fill_st_from_ast(compiler, ast->left);
-	fill_st_from_ast(compiler, ast->right);
+
+	/*
+	 * We mustn't recurse into function bodies when filling
+	 * the symbol table.
+	 */
+	if (type != NODE_DEF) {
+		fill_st_from_ast(compiler, ast->right);
+	}
 }
 
 static void fill_st(Compiler *compiler, Program *program)
@@ -502,7 +547,13 @@ static void write_const_table(Compiler *compiler)
 			break;
 		case CT_CODEOBJ:
 			code_write_byte(&compiler->code, CT_ENTRY_CODEOBJ);
-			code_write_int(&compiler->code, sorted[i].value.c->size);
+
+			/*
+			 * CodeObject bytecode begins with an int indicating how many
+			 * arguments the code object takes.
+			 */
+
+			code_write_int(&compiler->code, sorted[i].value.c->size - INT_SIZE);
 			code_append(&compiler->code, sorted[i].value.c);
 			code_dealloc(sorted[i].value.c);
 			break;
@@ -537,13 +588,32 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 	case NODE_DEF: {
 		value.type = CT_CODEOBJ;
 		Compiler *sub = compiler_new();
+		SymTable *sub_st = sub->st;
+
+		unsigned int nargs = 0;
+		ParamList *params = ast->v.params;
+
+		while (params != NULL) {
+			id_for_var(sub_st, params->ast->v.ident);
+			params = params->next;
+			++nargs;
+		}
+
 		compile_raw(sub, ast->right->v.block);
+		Code *subcode = &sub->code;
 		Code *fncode = malloc(sizeof(Code));
-		*fncode = sub->code;
+		code_init(fncode, sub->code.size + INT_SIZE);
+		code_write_int(fncode, nargs);
+		code_append(fncode, subcode);
 		compiler_free(sub);
 		value.value.c = fncode;
 		break;
 	}
+	case NODE_CALL:
+		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
+			fill_ct_from_ast(compiler, node->ast);
+		}
+		goto end;
 	case NODE_BLOCK:
 		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);

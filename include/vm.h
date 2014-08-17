@@ -14,14 +14,13 @@ typedef struct frame {
 	const char *name;
 	CodeObject *co;
 
-	//Value *constants;
 	Value *globals;
-	//struct str_array local_symtab;
 	Value *locals;
 
 	Value *valuestack;
 	size_t stack_capacity;
 
+	Value return_value;
 	struct frame *prev;
 } Frame;
 

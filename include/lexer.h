@@ -64,6 +64,10 @@ typedef enum {
 	TOK_IF,
 	TOK_WHILE,
 	TOK_DEF,
+	TOK_RETURN,
+
+	/* miscellaneous tokens */
+	TOK_COMMA,
 
 	/* statement terminators */
 	TOK_SEMICOLON,
@@ -115,6 +119,10 @@ typedef struct {
 
 	/* name of the file out of which the source was read */
 	const char *name;
+
+	/* parse flags */
+	unsigned in_function : 1;
+	unsigned in_loop : 1;
 } Lexer;
 
 Lexer *lex_new(char *str, const size_t length, const char *name);

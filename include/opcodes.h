@@ -3,9 +3,8 @@
 
 typedef enum {
 	INS_NOP = 0x30,
-	INS_ILOAD,
-	INS_FLOAD,
 	INS_LOAD_CONST,
+	INS_LOAD_NULL,
 	INS_ADD,
 	INS_SUB,
 	INS_MUL,
@@ -50,7 +49,8 @@ typedef enum {
 	INS_JMP_BACK_IF_TRUE,
 	INS_JMP_BACK_IF_FALSE,
 	INS_CALL,
-	INS_RETURN
+	INS_RETURN,
+	INS_POP
 } Opcode;
 
 typedef enum {

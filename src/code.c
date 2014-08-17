@@ -78,6 +78,14 @@ byte code_fwd(Code *code)
 	return *code->bc++;
 }
 
+byte code_read_byte(Code *code)
+{
+	code->size -= 1;
+	const byte ret = *code->bc;
+	code->bc += 1;
+	return ret;
+}
+
 int code_read_int(Code *code)
 {
 	code->size -= INT_SIZE;

@@ -46,6 +46,8 @@ Code code_sub(Code *code, const unsigned int off, const size_t len);
 
 byte code_fwd(Code *code);
 
+byte code_read_byte(Code *code);
+
 int code_read_int(Code *code);
 
 double code_read_double(Code *code);

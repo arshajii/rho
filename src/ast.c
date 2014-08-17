@@ -36,8 +36,10 @@ static void ast_print_at(AST *ast, unsigned int level)
 		printf("%f", ast->v.float_val);
 		break;
 	case NODE_STRING:
+		printf("%s", ast->v.str_val->value);
 		break;
 	case NODE_IDENT:
+		printf("%s", ast->v.ident->value);
 		break;
 	case NODE_ADD:
 		printf("+");
@@ -161,6 +163,9 @@ static void ast_print_at(AST *ast, unsigned int level)
 		break;
 	case NODE_DEF:
 		printf("def");
+		break;
+	case NODE_RETURN:
+		printf("return");
 		break;
 	case NODE_BLOCK:
 		printf("{}");
