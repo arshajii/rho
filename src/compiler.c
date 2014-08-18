@@ -469,7 +469,7 @@ static void write_sym_table(Compiler *compiler)
 	}
 
 	for (size_t i = 0; i < size; i++) {
-		code_write_string(&compiler->code, sorted[i]);
+		code_write_str(&compiler->code, sorted[i]);
 	}
 	free(sorted);
 
@@ -543,7 +543,7 @@ static void write_const_table(Compiler *compiler)
 			break;
 		case CT_STRING:
 			code_write_byte(&compiler->code, CT_ENTRY_STRING);
-			code_write_string(&compiler->code, sorted[i].value.s);
+			code_write_str(&compiler->code, sorted[i].value.s);
 			break;
 		case CT_CODEOBJ:
 			code_write_byte(&compiler->code, CT_ENTRY_CODEOBJ);
@@ -619,7 +619,7 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		const size_t name_len = ast->left->v.ident->len;
 
 		code_init(fncode, name_len + INT_SIZE + sub->code.size);
-		code_write_string(fncode, ast->left->v.ident);
+		code_write_str(fncode, ast->left->v.ident);
 		code_write_int(fncode, nargs);
 		code_append(fncode, subcode);
 

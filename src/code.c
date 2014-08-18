@@ -47,7 +47,7 @@ void code_write_double(Code *code, const double d)
 	code->size += DOUBLE_SIZE;
 }
 
-void code_write_string(Code *code, const Str *str)
+void code_write_str(Code *code, const Str *str)
 {
 	const size_t len = str->len;
 	code_ensure_capacity(code, code->size + len + 1);
@@ -72,18 +72,10 @@ Code code_sub(Code *code, const unsigned int off, const size_t len)
 	return (Code){.bc = code->bc + off, .size = len, .capacity = code->capacity - off};
 }
 
-byte code_fwd(Code *code)
+byte code_read_byte(Code *code)
 {
 	--code->size;
 	return *code->bc++;
-}
-
-byte code_read_byte(Code *code)
-{
-	code->size -= 1;
-	const byte ret = *code->bc;
-	code->bc += 1;
-	return ret;
 }
 
 int code_read_int(Code *code)
@@ -100,6 +92,23 @@ double code_read_double(Code *code)
 	const double ret = read_double(code->bc);
 	code->bc += DOUBLE_SIZE;
 	return ret;
+}
+
+const char *code_read_str(Code *code)
+{
+	size_t len = 0;
+
+	while (code->bc[len] != '\0') {
+		++len;
+	}
+
+	char *str = malloc(len + 1);
+	for (size_t j = 0; j < len; j++) {
+		str[j] = code_read_byte(code);
+	}
+	code_read_byte(code);  /* skip the string termination byte */
+	str[len] = '\0';
+	return str;
 }
 
 void code_cpy(Code *dst, Code *src)

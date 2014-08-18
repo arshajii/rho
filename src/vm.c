@@ -92,7 +92,7 @@ void execute(FILE *compiled)
 
 	/* verify magic code */
 	for (size_t i = 0; i < magic_size; i++) {
-		if (code_fwd(&code) != magic[i]) {
+		if (code_read_byte(&code) != magic[i]) {
 			fatal_error("verification error");
 		}
 	}

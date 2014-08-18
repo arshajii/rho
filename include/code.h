@@ -38,19 +38,19 @@ void code_write_int(Code *code, const int n);
 
 void code_write_double(Code *code, const double d);
 
-void code_write_string(Code *code, const Str *str);
+void code_write_str(Code *code, const Str *str);
 
 void code_append(Code *code, const Code *append);
 
 Code code_sub(Code *code, const unsigned int off, const size_t len);
-
-byte code_fwd(Code *code);
 
 byte code_read_byte(Code *code);
 
 int code_read_int(Code *code);
 
 double code_read_double(Code *code);
+
+const char *code_read_str(Code *code);
 
 void code_cpy(Code *dst, Code *src);
 
