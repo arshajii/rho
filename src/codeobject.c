@@ -21,9 +21,10 @@
  * +-----------------+
  *
  * When a CodeObject is saved in a constant table and the written to the
- * bytecode, that CodeObject's code should start with a 4-byte int indicating
- * how many arguments that code object takes. The symbol table of CodeObjects
- * should start with its arguments names (in order).
+ * bytecode, that CodeObject's code should start with a null-terminated
+ * string representing the CodeObject's name, followed by a 4-byte int
+ * indicating how many arguments the CodeObject takes. The symbol table
+ * of a CodeObject should start with its arguments names (in order).
  */
 
 static struct str_array read_sym_table(Code *code);
