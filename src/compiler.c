@@ -549,13 +549,25 @@ static void write_const_table(Compiler *compiler)
 			code_write_byte(&compiler->code, CT_ENTRY_CODEOBJ);
 
 			/*
-			 * CodeObject bytecode begins with an int indicating how many
-			 * arguments the code object takes.
+			 * CodeObject bytecode begins with a name, followed by a
+			 * 4-byte int indicating how many arguments it takes.
 			 */
 
-			code_write_int(&compiler->code, sorted[i].value.c->size - INT_SIZE);
-			code_append(&compiler->code, sorted[i].value.c);
-			code_dealloc(sorted[i].value.c);
+			Code *co_code = sorted[i].value.c;
+
+			size_t name_len = 0;
+			while (co_code->bc[name_len] != '\0') {
+				++name_len;
+			}
+
+			/*
+			 * Write size of actual CodeObject bytecode, excluding
+			 * metadata (name, argcount):
+			 */
+			code_write_int(&compiler->code, co_code->size - (name_len + 1) - INT_SIZE);
+
+			code_append(&compiler->code, co_code);
+			code_dealloc(co_code);
 			break;
 		}
 	}
@@ -600,11 +612,17 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		}
 
 		compile_raw(sub, ast->right->v.block);
+
 		Code *subcode = &sub->code;
 		Code *fncode = malloc(sizeof(Code));
-		code_init(fncode, sub->code.size + INT_SIZE);
+
+		const size_t name_len = ast->left->v.ident->len;
+
+		code_init(fncode, name_len + INT_SIZE + sub->code.size);
+		code_write_string(fncode, ast->left->v.ident);
 		code_write_int(fncode, nargs);
 		code_append(fncode, subcode);
+
 		compiler_free(sub);
 		value.value.c = fncode;
 		break;

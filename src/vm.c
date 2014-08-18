@@ -23,12 +23,7 @@ void vm_free(VM *vm)
 	free(vm);
 }
 
-static void vm_pushframe(
-	VM *vm,
-	const char *name,
-	CodeObject *co,
-	size_t nglobal
-);
+static void vm_pushframe(VM *vm, CodeObject *co, size_t nglobal);
 
 /* pushes top-level frame */
 static void vm_push_module_frame(VM *vm, Code *code);
@@ -36,7 +31,6 @@ static void vm_push_module_frame(VM *vm, Code *code);
 static void vm_popframe(VM *vm);
 
 static void vm_pushframe(VM *vm,
-                         const char *name,
                          CodeObject *co,
                          size_t nglobal)
 {
@@ -44,14 +38,10 @@ static void vm_pushframe(VM *vm,
 	 * dictionary to avoid creating frames anew on
 	 * each function call.
 	 */
-	nglobal = 0;  // XXX avoid unused warning
-	//const size_t nconst = constants.length;
-	//const size_t nlocal = local_symtab.length;
+	UNUSED(nglobal);
 
 	Frame *frame = malloc(sizeof(Frame));
-	frame->name = name;
 	frame->co = co;
-	//frame->constants = realloc(constants.array, sizeof(Value) * (nconst + nlocal + DEFAULT_VSTACK_DEPTH));
 	frame->globals = NULL;  /* for now */
 
 	frame->locals = calloc(co->names.length, sizeof(Value));
@@ -121,11 +111,10 @@ void execute(FILE *compiled)
  */
 static void vm_push_module_frame(VM *vm, Code *code)
 {
-	CodeObject *co = codeobj_make(code, 0);
+	CodeObject *co = codeobj_make(code, "<module>", 0);
 
 	vm_pushframe(
 		vm,
-		"<module>",
 		co,
 		0
 	);
@@ -678,7 +667,7 @@ static void eval_frame(VM *vm)
 			const unsigned int id = read_int(bc + pos);
 
 			if (frame->locals[id].type == VAL_TYPE_EMPTY) {
-				runtime_error(RT_ERR_UNBOUND_VAR, symbols.array[id].str);
+				unbound_error(symbols.array[id].str);
 			}
 
 			STACK_PUSH(frame->locals[id]);
@@ -737,11 +726,10 @@ static void eval_frame(VM *vm)
 			CodeObject *co = v1->data.o;
 
 			if (co->argcount != argcount) {
-				fprintf(stderr, "Error: expected %d arguments, got %d.", co->argcount, argcount);
-				exit(EXIT_FAILURE);
+				call_error_args(co->name, co->argcount, argcount);
 			}
 
-			vm_pushframe(vm, "test", co, 10);
+			vm_pushframe(vm, co, 10);
 
 			Frame *top = vm->callstack;
 			for (byte i = 0; i < argcount; i++) {

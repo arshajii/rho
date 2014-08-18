@@ -29,10 +29,11 @@
 static struct str_array read_sym_table(Code *code);
 static struct value_array read_const_table(Code *code);
 
-CodeObject *codeobj_make(Code *code, int argcount)
+CodeObject *codeobj_make(Code *code, const char *name, int argcount)
 {
 	CodeObject *co = malloc(sizeof(CodeObject));
 	co->base = (Object){.class = &co_class, .refcnt = 0};
+	co->name = name;
 	co->names = read_sym_table(code);
 	co->consts = read_const_table(code);
 	co->bc = code->bc;
@@ -44,6 +45,7 @@ void codeobj_free(Value *this)
 {
 	CodeObject *co = this->data.o;
 	free(co->bc);
+	free((char *)co->name);
 	free(co->names.array);
 	free(co->consts.array);
 	free(co);
@@ -115,31 +117,48 @@ static struct value_array read_const_table(Code *code)
 			break;
 		case CT_ENTRY_STRING: {
 			constants[i].type = VAL_TYPE_OBJECT;
-			size_t strlen = 0;
+			size_t str_len = 0;
 
-			while (*(code->bc + strlen) != '\0') {
-				++strlen;
+			while (code->bc[str_len] != '\0') {
+				++str_len;
 			}
 
-			char *str = malloc(strlen + 1);
-			for (size_t j = 0; j < strlen; j++) {
+			char *str = malloc(str_len + 1);
+			for (size_t j = 0; j < str_len; j++) {
 				str[j] = code_fwd(code);
 			}
-			str[strlen] = '\0';
-			constants[i] = strobj_make(str_new_direct(str, strlen));
+			str[str_len] = '\0';
 			code_fwd(code);  /* skip the string termination byte */
+			constants[i] = strobj_make(str_new_direct(str, str_len));
 			break;
 		}
 		case CT_ENTRY_CODEOBJ: {
 			constants[i].type = VAL_TYPE_OBJECT;
 			size_t colen = code_read_int(code);
+
+			size_t name_len = 0;
+
+			while (code->bc[name_len] != '\0') {
+				++name_len;
+			}
+
+			char *name = malloc(name_len + 1);
+			for (size_t j = 0; j < name_len; j++) {
+				name[j] = code_fwd(code);
+			}
+			code_fwd(code);  /* skip the string termination byte */
+			name[name_len] = '\0';
+
 			int argcount = code_read_int(code);
+
 			Code sub;
 			code_init(&sub, colen);
 			for (size_t i = 0; i < colen; i++) {
-				code_write_byte(&sub, code_fwd(code));
+				byte b = code_fwd(code);
+				code_write_byte(&sub, b);
 			}
-			constants[i].data.o = codeobj_make(&sub, argcount);
+
+			constants[i].data.o = codeobj_make(&sub, name, argcount);
 			break;
 		}
 		case CT_ENTRY_END:

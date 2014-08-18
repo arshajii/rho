@@ -11,7 +11,6 @@
 #define DEFAULT_VSTACK_DEPTH 10
 
 typedef struct frame {
-	const char *name;
 	CodeObject *co;
 
 	Value *globals;

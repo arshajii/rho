@@ -10,6 +10,9 @@ extern Class co_class;
 typedef struct {
 	Object base;
 
+	/* name of this code object */
+	const char *name;
+
 	/* code segment */
 	byte *bc;
 
@@ -23,6 +26,6 @@ typedef struct {
 	struct value_array consts;
 } CodeObject;
 
-CodeObject *codeobj_make(Code *code, int argcount);
+CodeObject *codeobj_make(Code *code, const char *name, int argcount);
 
 #endif /* CODEOBJECT_H */
