@@ -41,3 +41,15 @@ Examples
 	    print a
 	    a = a - 1
     }
+    
+#### Functions
+
+    # hypotenuse function
+    def hypot(a, b) {
+        # functions can be nested:
+        def square(x) {
+            return x**2
+        }
+        
+        return (square(a) + square(b)) ** 0.5
+    }
