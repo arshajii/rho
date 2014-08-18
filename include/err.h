@@ -4,9 +4,6 @@
 #include "code.h"
 #include "object.h"
 
-#define RT_ERR_UNBOUND_VAR "Unbound variable"
-#define RT_ERR_TYPE        "Type error"
-
 /*
  * Syntax error message header. First format specifier
  * corresponds to the file, second corresponds to the
@@ -19,13 +16,12 @@ void err_on_char(const char *culprit,
                  const char *end,
                  unsigned int target_line);
 
+void unbound_error(const char *var);
 void type_assert(Value *val, Class *type);
-
 void type_error(const char *msg);
 void type_error_unsupported_1(const char *op, const Class *c1);
 void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2);
-
-void runtime_error(const char *type, const char *msg);
+void call_error_args(const char *fn, int expected, int got);
 
 void fatal_error(const char *msg);
 

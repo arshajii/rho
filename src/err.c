@@ -1,10 +1,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "intobject.h"
+#include "floatobject.h"
 #include "object.h"
 #include "err.h"
 
 #define TYPE_ERROR_HEADER "Type Error: "
+#define NAME_ERROR_HEADER "Name Error: "
+#define FATAL_ERROR_HEADER "Fatal Error: "
 
 void err_on_char(const char *culprit,
                  const char *code,
@@ -61,75 +65,76 @@ void err_on_char(const char *culprit,
 #undef MAX_LEN
 }
 
+void unbound_error(const char *var)
+{
+	fprintf(stderr,
+	        NAME_ERROR_HEADER "cannot reference unbound variable %s",
+	        var);
+
+	exit(EXIT_FAILURE);
+}
+
 void type_assert(Value *val, Class *type)
 {
-	bool fail = false;
-	const char *name;
-	switch (val->type) {
-	case VAL_TYPE_EMPTY:
-		fail = true;
-		name = "<empty>";
-		break;
-	case VAL_TYPE_INT:
-		// TODO: use int pseudo-class
-		break;
-	case VAL_TYPE_FLOAT:
-		// TODO: use double pseudo-class
-		break;
-	case VAL_TYPE_OBJECT: {
-		Object *o = val->data.o;
-		name = o->class->name;
-		fail = !instanceof(o, type);
-		break;
-	}
+	if (getclass(val) == type) {
+		return;
 	}
 
-	if (fail) {
-		fprintf(stderr, TYPE_ERROR_HEADER "expected %s, got %s", type->name, name);
-		abort();
-	}
+	fprintf(stderr,
+	        TYPE_ERROR_HEADER "expected %s, got %s",
+	        type->name,
+	        getclass(val)->name);
+
+	exit(EXIT_FAILURE);
 }
 
 void type_error(const char *msg)
 {
 	fprintf(stderr, TYPE_ERROR_HEADER "%s\n", msg);
-	abort();
+	exit(EXIT_FAILURE);
 }
 
 void type_error_unsupported_1(const char *op, const Class *c1)
 {
 	fprintf(stderr,
-			TYPE_ERROR_HEADER "unsupported operand type for %s: %s\n",
+	        TYPE_ERROR_HEADER "unsupported operand type for %s: %s\n",
 	        op,
 	        c1->name);
-	abort();
+
+	exit(EXIT_FAILURE);
 }
 
 void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2)
 {
 	fprintf(stderr,
-			TYPE_ERROR_HEADER "unsupported operand types for %s: %s and %s\n",
+	        TYPE_ERROR_HEADER "unsupported operand types for %s: %s and %s\n",
 	        op,
 	        c1->name,
 	        c2->name);
-	abort();
+
+	exit(EXIT_FAILURE);
 }
 
-void runtime_error(const char *type, const char *msg)
+void call_error_args(const char *fn, int expected, int got)
 {
-	fprintf(stderr, "%s: %s", type, msg);
-	abort();
+	fprintf(stderr,
+	        TYPE_ERROR_HEADER "function %s(): expected %d arguments, got %d\n",
+	        fn,
+	        expected,
+	        got);
+
+	exit(EXIT_FAILURE);
 }
 
 void fatal_error(const char *msg)
 {
-	fprintf(stderr, "fatal error: %s", msg);
-	abort();
+	fprintf(stderr, FATAL_ERROR_HEADER "%s", msg);
+	exit(EXIT_FAILURE);
 }
 
 void unexpected_byte(const char *fn, const byte p)
 {
-	char buf[50];
+	char buf[64];
 	sprintf("unexpected byte in %s: %02x", fn, p);
 	fatal_error(buf);
 }
@@ -137,5 +142,5 @@ void unexpected_byte(const char *fn, const byte p)
 void internal_error(const char *fn, const unsigned int lineno)
 {
 	fprintf(stderr, "internal error in %s on line %d\n", fn, lineno);
-	abort();
+	exit(EXIT_FAILURE);
 }
