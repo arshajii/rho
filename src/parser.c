@@ -10,7 +10,7 @@
 typedef struct {
 	TokType type;
 	unsigned int prec;  // precedence of operator
-	bool assoc;	        // associativity: true = left, false = right
+	bool assoc;         // associativity: true = left, false = right
 } Op;
 
 static Op op_from_tok_type(TokType type);
