@@ -44,6 +44,14 @@ Examples
     
 #### Functions
 
+    # factorial function
+    def fact(n) {
+        if n < 2 {
+            return 1
+        }
+        return n * fact(n - 1)
+    }
+
     # hypotenuse function
     def hypot(a, b) {
         # functions can be nested:
