@@ -13,7 +13,6 @@
 typedef struct frame {
 	CodeObject *co;
 
-	Value *globals;
 	Value *locals;
 
 	Value *valuestack;
@@ -24,6 +23,7 @@ typedef struct frame {
 } Frame;
 
 typedef struct {
+	Frame *module;
 	Frame *callstack;
 } VM;
 

@@ -47,17 +47,17 @@ static void write_byte(Compiler *compiler, byte p)
  * Compilation
  */
 static void fill_ct(Compiler *compiler, Program *program);
-static void fill_st(Compiler *compiler, Program *program);
 static void write_sym_table(Compiler *compiler);
 static void write_const_table(Compiler *compiler);
 
 static Opcode to_opcode(NodeType type);
 
-static Compiler *compiler_new(void)
+static Compiler *compiler_new(const char *filename, SymTable *st)
 {
 	Compiler *compiler = malloc(sizeof(Compiler));
+	compiler->filename = filename;
 	code_init(&compiler->code, DEFAULT_BC_CAPACITY);
-	compiler->st = st_new();
+	compiler->st = st;
 	compiler->ct = ct_new();
 
 	return compiler;
@@ -67,9 +67,11 @@ static Compiler *compiler_new(void)
  * Note: this does not deallocate the compiler's code
  * field.
  */
-static void compiler_free(Compiler *compiler)
+static void compiler_free(Compiler *compiler, bool free_st)
 {
-	st_free(compiler->st);
+	if (free_st) {
+		st_free(compiler->st);
+	}
 	ct_free(compiler->ct);
 	free(compiler);
 }
@@ -102,7 +104,6 @@ static void compile_magic(Compiler *compiler)
 
 static void compile_raw(Compiler *compiler, Program *program)
 {
-	fill_st(compiler, program);
 	fill_ct(compiler, program);
 	write_sym_table(compiler);
 	write_const_table(compiler);
@@ -124,6 +125,7 @@ static void compile_raw(Compiler *compiler, Program *program)
 static void compile_program(Compiler *compiler, Program *program)
 {
 	compile_magic(compiler);
+	populate_symtable(compiler->st, program);
 	compile_raw(compiler, program);
 }
 
@@ -166,9 +168,24 @@ static void compile_load(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_IDENT);
 
-	write_byte(compiler, INS_LOAD);
-	const unsigned int ref_id = id_for_var(compiler->st, ast->v.ident);
-	write_int(compiler, ref_id);
+	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->v.ident);
+
+	if (sym == NULL) {
+		INTERNAL_ERROR();
+	}
+
+	if (sym->bound_here) {
+		write_byte(compiler, INS_LOAD);
+	} else if (sym->global_var) {
+		write_byte(compiler, INS_LOAD_GLOBAL);
+	} else {
+		/*
+		 * TODO: non-global free variables
+		 */
+		assert(0);
+	}
+
+	write_int(compiler, sym->id);
 }
 
 static void compile_assignment(Compiler *compiler, AST *ast)
@@ -178,7 +195,18 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 		INTERNAL_ERROR();
 	}
 
-	const unsigned int ref_id = id_for_var(compiler->st, ast->left->v.ident);
+	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
+
+	if (sym == NULL) {
+		INTERNAL_ERROR();
+	}
+
+	if (!sym->bound_here) {
+		/*
+		 * TODO: non-local assignments
+		 */
+		assert(0);
+	}
 
 	if (type == NODE_ASSIGN) {
 		compile_node(compiler, ast->right, false);
@@ -190,7 +218,7 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	}
 
 	write_byte(compiler, INS_STORE);
-	write_int(compiler, ref_id);
+	write_int(compiler, sym->id);
 }
 
 static void compile_call(Compiler *compiler, AST *ast)
@@ -266,10 +294,15 @@ static void compile_def(Compiler *compiler, AST *ast)
 	 * A function definition is essentially the assignment of
 	 * a code object to a variable.
 	 */
-	const unsigned int ref_id = id_for_var(compiler->st, ast->left->v.ident);
+	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
+
+	if (sym == NULL) {
+		INTERNAL_ERROR();
+	}
+
 	compile_const(compiler, ast->right);
 	write_byte(compiler, INS_STORE);
-	write_int(compiler, ref_id);
+	write_int(compiler, sym->id);
 }
 
 static void compile_return(Compiler *compiler, AST *ast)
@@ -454,60 +487,30 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 
 static void write_sym_table(Compiler *compiler)
 {
-	const size_t size = compiler->st->size;
+	const STEntry *ste = compiler->st->ste_current;
+	const size_t n_locals = ste->n_locals;
 
 	code_write_byte(&compiler->code, ST_ENTRY_BEGIN);
-	code_write_int(&compiler->code, size);
+	code_write_int(&compiler->code, n_locals);
 
-	Str **sorted = malloc(size * sizeof(Str *));
+	Str **sorted = malloc(n_locals * sizeof(Str *));
 
-	const size_t capacity = compiler->st->capacity;
+	const size_t capacity = ste->capacity;
+
 	for (size_t i = 0; i < capacity; i++) {
-		for (STEntry *e = compiler->st->table[i]; e != NULL; e = e->next) {
-			sorted[e->value] = e->key;
+		for (STSymbol *e = ste->table[i]; e != NULL; e = e->next) {
+			if (e->bound_here) {
+				sorted[e->id] = e->key;
+			}
 		}
 	}
 
-	for (size_t i = 0; i < size; i++) {
+	for (size_t i = 0; i < n_locals; i++) {
 		code_write_str(&compiler->code, sorted[i]);
 	}
 	free(sorted);
 
 	code_write_byte(&compiler->code, ST_ENTRY_END);
-}
-
-static void fill_st_from_ast(Compiler *compiler, AST *ast)
-{
-	if (ast == NULL) {
-		return;
-	}
-
-	const NodeType type = ast->type;
-
-	if (type == NODE_IDENT) {
-		id_for_var(compiler->st, ast->v.ident);
-	} else if (type == NODE_BLOCK) {
-		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
-			fill_st_from_ast(compiler, node->ast);
-		}
-	}
-
-	fill_st_from_ast(compiler, ast->left);
-
-	/*
-	 * We mustn't recurse into function bodies when filling
-	 * the symbol table.
-	 */
-	if (type != NODE_DEF) {
-		fill_st_from_ast(compiler, ast->right);
-	}
-}
-
-static void fill_st(Compiler *compiler, Program *program)
-{
-	for (struct ast_list *node = program; node != NULL; node = node->next) {
-		fill_st_from_ast(compiler, node->ast);
-	}
 }
 
 static void write_const_table(Compiler *compiler)
@@ -599,19 +602,23 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		break;
 	case NODE_DEF: {
 		value.type = CT_CODEOBJ;
-		Compiler *sub = compiler_new();
-		SymTable *sub_st = sub->st;
+
+		SymTable *st = compiler->st;
+		STEntry *parent = compiler->st->ste_current;
+		STEntry *child = parent->children[parent->child_pos++];
 
 		unsigned int nargs = 0;
 		ParamList *params = ast->v.params;
 
 		while (params != NULL) {
-			id_for_var(sub_st, params->ast->v.ident);
 			params = params->next;
 			++nargs;
 		}
 
+		st->ste_current = child;
+		Compiler *sub = compiler_new(compiler->filename, st);
 		compile_raw(sub, ast->right->v.block);
+		st->ste_current = parent;
 
 		Code *subcode = &sub->code;
 		Code *fncode = malloc(sizeof(Code));
@@ -623,7 +630,7 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		code_write_int(fncode, nargs);
 		code_append(fncode, subcode);
 
-		compiler_free(sub);
+		compiler_free(sub, false);
 		value.value.c = fncode;
 		break;
 	}
@@ -671,7 +678,7 @@ void compile(FILE *src, FILE *out, const char *name)
 
 	Lexer *lex = lex_new(code, numbytes, name);
 	Program *program = parse(lex);
-	Compiler *compiler = compiler_new();
+	Compiler *compiler = compiler_new(name, st_new(name));
 
 	compile_program(compiler, program);
 
@@ -679,6 +686,6 @@ void compile(FILE *src, FILE *out, const char *name)
 
 	fwrite(compiler->code.bc, 1, compiler->code.size, out);
 
-	compiler_free(compiler);
+	compiler_free(compiler, true);
 	lex_free(lex);
 }

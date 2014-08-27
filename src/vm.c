@@ -23,7 +23,7 @@ void vm_free(VM *vm)
 	free(vm);
 }
 
-static void vm_pushframe(VM *vm, CodeObject *co, size_t nglobal);
+static void vm_pushframe(VM *vm, CodeObject *co);
 
 /* pushes top-level frame */
 static void vm_push_module_frame(VM *vm, Code *code);
@@ -31,18 +31,15 @@ static void vm_push_module_frame(VM *vm, Code *code);
 static void vm_popframe(VM *vm);
 
 static void vm_pushframe(VM *vm,
-                         CodeObject *co,
-                         size_t nglobal)
+                         CodeObject *co)
 {
 	/* XXX: maintain a bytecode address to Frame
 	 * dictionary to avoid creating frames anew on
 	 * each function call.
 	 */
-	UNUSED(nglobal);
 
 	Frame *frame = malloc(sizeof(Frame));
 	frame->co = co;
-	frame->globals = NULL;  /* for now */
 
 	frame->locals = calloc(co->names.length, sizeof(Value));
 	frame->valuestack = malloc(DEFAULT_VSTACK_DEPTH * sizeof(Value));
@@ -115,9 +112,10 @@ static void vm_push_module_frame(VM *vm, Code *code)
 
 	vm_pushframe(
 		vm,
-		co,
-		0
+		co
 	);
+
+	vm->module = vm->callstack;
 }
 
 /* utility function for pushing onto value stack */
@@ -143,14 +141,20 @@ static void eval_frame(VM *vm)
 #define STACK_PUSH(v) (frame_vstack_push(frame, (v), &stack))
 
 	Frame *frame = vm->callstack;
+	Frame *module = vm->module;
 
-	/* position in the bytecode */
-	unsigned int pos = 0;
+	Value *locals = frame->locals;
+	Value *globals = module->locals;
 
 	struct str_array symbols = frame->co->names;
+	struct str_array global_symbols = module->co->names;
+
 	Value *constants = frame->co->consts.array;
 	byte *bc = frame->co->bc;
 	Value *stack = frame->valuestack;
+
+	/* position in the bytecode */
+	size_t pos = 0;
 
 	while (true) {
 		const byte opcode = bc[pos++];
@@ -658,7 +662,7 @@ static void eval_frame(VM *vm)
 		case INS_STORE: {
 			Value *v1 = STACK_POP();
 			const unsigned int id = read_int(bc + pos);
-			frame->locals[id] = *v1;
+			locals[id] = *v1;
 			incref(v1);
 			pos += INT_SIZE;
 			break;
@@ -666,11 +670,22 @@ static void eval_frame(VM *vm)
 		case INS_LOAD: {
 			const unsigned int id = read_int(bc + pos);
 
-			if (frame->locals[id].type == VAL_TYPE_EMPTY) {
+			if (locals[id].type == VAL_TYPE_EMPTY) {
 				unbound_error(symbols.array[id].str);
 			}
 
-			STACK_PUSH(frame->locals[id]);
+			STACK_PUSH(locals[id]);
+			pos += INT_SIZE;
+			break;
+		}
+		case INS_LOAD_GLOBAL: {
+			const unsigned int id = read_int(bc + pos);
+
+			if (globals[id].type == VAL_TYPE_EMPTY) {
+				unbound_error(global_symbols.array[id].str);
+			}
+
+			STACK_PUSH(globals[id]);
 			pos += INT_SIZE;
 			break;
 		}
@@ -729,7 +744,7 @@ static void eval_frame(VM *vm)
 				call_error_args(co->name, co->argcount, argcount);
 			}
 
-			vm_pushframe(vm, co, 10);
+			vm_pushframe(vm, co);
 
 			Frame *top = vm->callstack;
 			for (byte i = 0; i < argcount; i++) {

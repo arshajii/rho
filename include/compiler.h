@@ -12,6 +12,7 @@ extern const size_t magic_size;
 #define DEFAULT_BC_CAPACITY 100
 
 typedef struct {
+	const char *filename;
 	Code code;
 	SymTable *st;
 	ConstTable *ct;
