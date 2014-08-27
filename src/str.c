@@ -10,7 +10,8 @@ Str *str_new(const char *value, size_t len)
 	str->value = value;
 	str->len = len;
 	str->hash = 0;
-	str->hashed = false;
+	str->hashed = 0;
+	str->freeable = 0;
 	return str;
 }
 
@@ -20,7 +21,8 @@ Str str_new_direct(const char *value, size_t len)
 	str.value = value;
 	str.len = len;
 	str.hash = 0;
-	str.hashed = false;
+	str.hashed = 0;
+	str.freeable = 0;
 	return str;
 }
 
@@ -34,7 +36,8 @@ Str *str_new_copy(const char *value, size_t len)
 
 	str->len = len;
 	str->hash = 0;
-	str->hashed = false;
+	str->hashed = 0;
+	str->freeable = 0;
 
 	return str;
 }

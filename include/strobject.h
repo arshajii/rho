@@ -12,7 +12,7 @@ extern Class str_class;
 typedef struct {
 	Object base;
 	Str str;
-	bool freeable;
+	bool freeable;  /* whether the underlying buffer should be freed */
 } StrObject;
 
 Value strobj_make(Str value);

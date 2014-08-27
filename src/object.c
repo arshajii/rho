@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "err.h"
 #include "util.h"
 #include "intobject.h"
@@ -15,6 +16,15 @@ static bool obj_eq(Value *this, Value *other)
 {
 	type_assert(other, &obj_class);
 	return this->data.o == other->data.o;
+}
+
+static Str *obj_str(Value *this)
+{
+	char *buf = malloc(32);
+	sprintf(buf, "<%s at %p>", getclass(this)->name, this->data.o);
+	Str *str = str_new(buf, strlen(buf));
+	str->freeable = 1;
+	return str;
 }
 
 static void obj_free(Value *this)
@@ -81,7 +91,7 @@ Class obj_class = {
 	.eq = obj_eq,
 	.hash = obj_hash,
 	.cmp = NULL,
-	.str = NULL,
+	.str = obj_str,
 	.call = NULL,
 
 	.num_methods = &obj_num_methods,
@@ -151,7 +161,7 @@ type resolve_##name(const Class *class) { \
 MAKE_METHOD_RESOLVER_DIRECT(eq, BoolBinOp)
 MAKE_METHOD_RESOLVER_DIRECT(hash, IntUnOp)
 MAKE_METHOD_RESOLVER_DIRECT(cmp, IntBinOp)
-MAKE_METHOD_RESOLVER_DIRECT(str, UnOp)
+MAKE_METHOD_RESOLVER_DIRECT(str, StrUnOp)
 MAKE_METHOD_RESOLVER_DIRECT(call, BinOp)
 
 MAKE_METHOD_RESOLVER(plus, num_methods, UnOp)

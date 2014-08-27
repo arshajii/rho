@@ -790,8 +790,16 @@ static void print(Value *v)
 		printf("%f\n", v->data.f);
 		break;
 	case VAL_TYPE_OBJECT: {
-		Object *o = v->data.o;
-		printf("%s\n", ((StrObject *) o->class->str(v).data.o)->str.value);
+		const Object *o = v->data.o;
+		const StrUnOp op = resolve_str(o->class);
+		Str *str = op(v);
+
+		printf("%s\n", str->value);
+
+		if (str->freeable) {
+			str_free(str);
+		}
+
 		break;
 	}
 	}

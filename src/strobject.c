@@ -47,9 +47,10 @@ static void strobj_free(Value *this)
 	s->base.class->super->del(this);
 }
 
-static Value strobj_str(Value *this)
+static Str *strobj_str(Value *this)
 {
-	return *this;
+	StrObject *s = this->data.o;
+	return &s->str;
 }
 
 static Value strobj_cat(Value *this, Value *other)

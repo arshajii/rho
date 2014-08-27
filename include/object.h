@@ -14,6 +14,7 @@ typedef int (*IntUnOp)(Value *this);
 typedef int (*IntBinOp)(Value *this, Value *other);
 typedef bool (*BoolUnOp)(Value *this);
 typedef bool (*BoolBinOp)(Value *this, Value *other);
+typedef Str *(*StrUnOp)(Value *this);
 
 struct num_methods {
 	UnOp plus;
@@ -74,7 +75,7 @@ typedef struct class {
 	BoolBinOp eq;
 	IntUnOp hash;
 	IntBinOp cmp;
-	UnOp str;
+	StrUnOp str;
 	BinOp call;
 
 	struct num_methods *num_methods;
@@ -128,7 +129,7 @@ bool instanceof(Object *o, Class *class);
 BoolBinOp resolve_eq(const Class *class);
 IntUnOp resolve_hash(const Class *class);
 IntBinOp resolve_cmp(const Class *class);
-UnOp resolve_str(const Class *class);
+StrUnOp resolve_str(const Class *class);
 BinOp resolve_call(const Class *class);
 
 UnOp resolve_plus(const Class *class);

@@ -9,7 +9,8 @@ typedef struct {
 	size_t len;
 
 	int hash;
-	bool hashed;
+	int hashed : 1;
+	int freeable : 1;
 } Str;
 
 Str *str_new(const char *value, size_t len);
