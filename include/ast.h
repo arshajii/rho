@@ -80,6 +80,7 @@ typedef struct AST {
 		double float_val;
 		Str *str_val;
 		Str *ident;
+		struct AST *middle;
 		Block *block;
 		ParamList *params;
 	} v;  // value

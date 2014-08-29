@@ -103,8 +103,13 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 			}
 		}
 
-		return;
+		break;
 	}
+	case NODE_IF:
+		populate_symtable_from_node(st, ast->left);
+		populate_symtable_from_node(st, ast->right);
+		populate_symtable_from_node(st, ast->v.middle);
+		break;
 	case NODE_ASSIGN:
 		if (ast->left->type == NODE_IDENT) {
 			populate_symtable_from_node(st, ast->right);
@@ -112,12 +117,12 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 			populate_symtable_from_node(st, ast->left);
 			populate_symtable_from_node(st, ast->right);
 		}
-		return;
+		break;
 	case NODE_BLOCK:
 		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
 			populate_symtable_from_node(st, node->ast);
 		}
-		return;
+		break;
 	case NODE_DEF: {
 		assert(ast->left->type == NODE_IDENT);
 		assert(ast->right->type == NODE_BLOCK);
@@ -128,7 +133,7 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 		st->ste_current = child;
 		populate_symtable_from_node(st, ast->right);
 		st->ste_current = parent;
-		return;
+		break;
 	}
 	default:
 		populate_symtable_from_node(st, ast->left);
@@ -165,15 +170,18 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 			}
 			ste_register_ident(st->ste_current, ast->left->v.ident, flag);
 			register_bindings_from_node(st, ast->right);
-		} else {
-			break;
 		}
-		return;
+		break;
+	case NODE_IF:
+		register_bindings_from_node(st, ast->left);
+		register_bindings_from_node(st, ast->right);
+		register_bindings_from_node(st, ast->v.middle);
+		break;
 	case NODE_BLOCK:
 		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
 			register_bindings_from_node(st, node->ast);
 		}
-		return;
+		break;
 	case NODE_DEF: {
 		assert(ast->left->type == NODE_IDENT);
 		assert(ast->right->type == NODE_BLOCK);
@@ -195,7 +203,7 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 		st->ste_current = child;
 		register_bindings_from_node(st, ast->right);
 		st->ste_current = child->parent;
-		return;
+		break;
 	}
 	default:
 		register_bindings_from_node(st, ast->left);

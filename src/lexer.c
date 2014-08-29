@@ -444,6 +444,7 @@ static Token next_word(Lexer *lex)
 	} keywords[] = {
 		{"print", TOK_PRINT},
 		{"if",    TOK_IF},
+		{"else",  TOK_ELSE},
 		{"while", TOK_WHILE},
 		{"def",   TOK_DEF},
 		{"return",TOK_RETURN},
@@ -824,6 +825,8 @@ const char *type_to_str(TokType type)
 		return "print";
 	case TOK_IF:
 		return "if";
+	case TOK_ELSE:
+		return "else";
 	case TOK_WHILE:
 		return "while";
 	case TOK_DEF:

@@ -246,18 +246,32 @@ static void compile_if(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_IF);
 
+	const bool has_else = (ast->v.middle != NULL);
+
 	compile_node(compiler, ast->left, false);
 	write_byte(compiler, INS_JMP_IF_FALSE);
 
 	// jump placeholder:
-	const unsigned int jmp_stub_idx = compiler->code.size;
+	const size_t jmp_stub_idx = compiler->code.size;
 	write_byte(compiler, INS_NOP);
 	// ~~~
 
 	compile_node(compiler, ast->right, false);
 
 	// fill in placeholder:
-	compiler->code.bc[jmp_stub_idx] = (byte)(compiler->code.size - jmp_stub_idx - 1);
+	if (has_else) {
+		write_byte(compiler, INS_JMP);
+		const size_t jmp_stub_idx_2 = compiler->code.size;
+		write_byte(compiler, INS_NOP);
+
+		compiler->code.bc[jmp_stub_idx] = (byte)(compiler->code.size - jmp_stub_idx - 1);
+
+		compile_node(compiler, ast->v.middle, false);
+
+		compiler->code.bc[jmp_stub_idx_2] = (byte)(compiler->code.size - jmp_stub_idx_2 - 1);
+	} else {
+		compiler->code.bc[jmp_stub_idx] = (byte)(compiler->code.size - jmp_stub_idx - 1);
+	}
 }
 
 static void compile_while(Compiler *compiler, AST *ast)
@@ -267,7 +281,7 @@ static void compile_while(Compiler *compiler, AST *ast)
 	write_byte(compiler, INS_JMP);
 
 	// unconditional jump placeholder:
-	const unsigned int jmp_ucond_stub_idx = compiler->code.size;
+	const size_t jmp_ucond_stub_idx = compiler->code.size;
 	write_byte(compiler, INS_NOP);
 	// ~~~
 
@@ -630,6 +644,11 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		value.value.c = fncode;
 		break;
 	}
+	case NODE_IF:
+		fill_ct_from_ast(compiler, ast->left);
+		fill_ct_from_ast(compiler, ast->right);
+		fill_ct_from_ast(compiler, ast->v.middle);
+		return;
 	case NODE_CALL:
 		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);

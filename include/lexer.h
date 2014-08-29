@@ -62,6 +62,7 @@ typedef enum {
 	/* keywords */
 	TOK_PRINT,
 	TOK_IF,
+	TOK_ELSE,
 	TOK_WHILE,
 	TOK_DEF,
 	TOK_RETURN,

@@ -474,6 +474,13 @@ static AST *parse_if(Lexer *lex)
 	ast->left = parse_expr(lex);   // cond
 	ast->right = parse_block(lex); // body
 
+	if (lex_peek_token(lex)->type == TOK_ELSE) {
+		expect(lex, TOK_ELSE);
+		ast->v.middle = parse_block(lex);  // else body
+	} else {
+		ast->v.middle = NULL;
+	}
+
 	return ast;
 }
 
