@@ -114,12 +114,8 @@ static void compile_raw(Compiler *compiler, Program *program)
 		ast_node = ast_node->next;
 	}
 
-	const Code *code = &compiler->code;
-
-	if (code->bc[code->size - 1] != INS_RETURN) {
-		write_byte(compiler, INS_LOAD_NULL);
-		write_byte(compiler, INS_RETURN);
-	}
+	write_byte(compiler, INS_LOAD_NULL);
+	write_byte(compiler, INS_RETURN);
 }
 
 static void compile_program(Compiler *compiler, Program *program)
