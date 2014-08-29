@@ -46,10 +46,7 @@ Examples
 
     # factorial function
     def fact(n) {
-        if n < 2 {
-            return 1
-        }
-        return n * fact(n - 1)
+        if n < 2 { return 1 } else { return n * fact(n - 1) }
     }
 
     # hypotenuse function
