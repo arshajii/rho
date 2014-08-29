@@ -130,31 +130,34 @@ bool instanceof(Object *o, Class *class)
 }
 
 #define MAKE_METHOD_RESOLVER_DIRECT(name, type) \
-type resolve_##name(const Class *class) { \
-	if (class == NULL) { \
+type resolve_##name(Class *class) { \
+	Class *target = class; \
+	type op; \
+	while (target != NULL && (op = target->name) == NULL) { \
+		target = target->super; \
+	} \
+\
+	if (target == NULL) { \
 		return NULL; \
 	} \
 \
-	type op; \
-	if ((op = class->name) == NULL) { \
-		return resolve_##name(class->super); \
-	} \
-\
+	class->name = op; \
 	return op; \
 }
 
 #define MAKE_METHOD_RESOLVER(name, category, type) \
-type resolve_##name(const Class *class) { \
-	if (class == NULL) { \
+type resolve_##name(Class *class) { \
+	Class *target = class; \
+	type op; \
+	while (target != NULL && (op = target->category->name) == NULL) { \
+		target = target->super; \
+	} \
+\
+	if (target == NULL) { \
 		return NULL; \
 	} \
 \
-	type op; \
-	if (class->category == NULL || \
-	    (op = class->category->name) == NULL) { \
-		return resolve_##name(class->super); \
-	} \
-\
+	class->category->name = op; \
 	return op; \
 }
 

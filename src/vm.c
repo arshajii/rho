@@ -174,7 +174,7 @@ static void eval_frame(VM *vm)
 		case INS_ADD: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp add = resolve_add(class);
 
 			if (!add) {
@@ -187,7 +187,7 @@ static void eval_frame(VM *vm)
 		case INS_SUB: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp sub = resolve_sub(class);
 
 			if (!sub) {
@@ -200,7 +200,7 @@ static void eval_frame(VM *vm)
 		case INS_MUL: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp mul = resolve_mul(class);
 
 			if (!mul) {
@@ -213,7 +213,7 @@ static void eval_frame(VM *vm)
 		case INS_DIV: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp div = resolve_div(class);
 
 			if (!div) {
@@ -226,7 +226,7 @@ static void eval_frame(VM *vm)
 		case INS_MOD: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp mod = resolve_mod(class);
 
 			if (!mod) {
@@ -239,7 +239,7 @@ static void eval_frame(VM *vm)
 		case INS_POW: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp pow = resolve_pow(class);
 
 			if (!pow) {
@@ -252,7 +252,7 @@ static void eval_frame(VM *vm)
 		case INS_BITAND: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp and = resolve_and(class);
 
 			if (!and) {
@@ -265,7 +265,7 @@ static void eval_frame(VM *vm)
 		case INS_BITOR: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp or = resolve_or(class);
 
 			if (!or) {
@@ -278,7 +278,7 @@ static void eval_frame(VM *vm)
 		case INS_XOR: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp xor = resolve_xor(class);
 
 			if (!xor) {
@@ -290,7 +290,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_BITNOT: {
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const UnOp not = resolve_not(class);
 
 			if (!not) {
@@ -303,7 +303,7 @@ static void eval_frame(VM *vm)
 		case INS_SHIFTL: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp shiftl = resolve_shiftl(class);
 
 			if (!shiftl) {
@@ -316,7 +316,7 @@ static void eval_frame(VM *vm)
 		case INS_SHIFTR: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BinOp shiftr = resolve_shiftr(class);
 
 			if (!shiftr) {
@@ -329,8 +329,8 @@ static void eval_frame(VM *vm)
 		case INS_AND: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class1 = getclass(v1);
-			const Class *class2 = getclass(v2);
+			Class *class1 = getclass(v1);
+			Class *class2 = getclass(v2);
 
 			const BoolUnOp bool_v1 = resolve_nonzero(class1);
 
@@ -350,8 +350,8 @@ static void eval_frame(VM *vm)
 		case INS_OR: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class1 = getclass(v1);
-			const Class *class2 = getclass(v2);
+			Class *class1 = getclass(v1);
+			Class *class2 = getclass(v2);
 
 			const BoolUnOp bool_v1 = resolve_nonzero(class1);
 
@@ -370,7 +370,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_NOT: {
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 
 			const BoolUnOp bool_v1 = resolve_nonzero(class);
 
@@ -384,7 +384,7 @@ static void eval_frame(VM *vm)
 		case INS_EQUAL: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BoolBinOp eq = resolve_eq(class);
 
 			if (!eq) {
@@ -397,7 +397,7 @@ static void eval_frame(VM *vm)
 		case INS_NOTEQ: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const BoolBinOp eq = resolve_eq(class);
 
 			if (!eq) {
@@ -410,7 +410,7 @@ static void eval_frame(VM *vm)
 		case INS_LT: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
 			if (!cmp) {
@@ -423,7 +423,7 @@ static void eval_frame(VM *vm)
 		case INS_GT: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
 			if (!cmp) {
@@ -436,7 +436,7 @@ static void eval_frame(VM *vm)
 		case INS_LE: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
 			if (!cmp) {
@@ -449,7 +449,7 @@ static void eval_frame(VM *vm)
 		case INS_GE: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
 			if (!cmp) {
@@ -461,7 +461,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_UPLUS: {
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const UnOp plus = resolve_plus(class);
 
 			if (!plus) {
@@ -473,7 +473,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_UMINUS: {
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			const UnOp minus = resolve_minus(class);
 
 			if (!minus) {
@@ -486,7 +486,7 @@ static void eval_frame(VM *vm)
 		case INS_IADD: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp add = resolve_iadd(class);
 
 			if (!add) {
@@ -502,7 +502,7 @@ static void eval_frame(VM *vm)
 		case INS_ISUB: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp sub = resolve_isub(class);
 
 			if (!sub) {
@@ -518,7 +518,7 @@ static void eval_frame(VM *vm)
 		case INS_IMUL: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp mul = resolve_imul(class);
 
 			if (!mul) {
@@ -534,7 +534,7 @@ static void eval_frame(VM *vm)
 		case INS_IDIV: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp div = resolve_idiv(class);
 
 			if (!div) {
@@ -550,7 +550,7 @@ static void eval_frame(VM *vm)
 		case INS_IMOD: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp mod = resolve_imod(class);
 
 			if (!mod) {
@@ -566,7 +566,7 @@ static void eval_frame(VM *vm)
 		case INS_IPOW: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp pow = resolve_ipow(class);
 
 			if (!pow) {
@@ -582,7 +582,7 @@ static void eval_frame(VM *vm)
 		case INS_IBITAND: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp and = resolve_iand(class);
 
 			if (!and) {
@@ -598,7 +598,7 @@ static void eval_frame(VM *vm)
 		case INS_IBITOR: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp or = resolve_ior(class);
 
 			if (!or) {
@@ -614,7 +614,7 @@ static void eval_frame(VM *vm)
 		case INS_IXOR: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp xor = resolve_ixor(class);
 
 			if (!xor) {
@@ -630,7 +630,7 @@ static void eval_frame(VM *vm)
 		case INS_ISHIFTL: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp shiftl = resolve_ishiftl(class);
 
 			if (!shiftl) {
@@ -646,7 +646,7 @@ static void eval_frame(VM *vm)
 		case INS_ISHIFTR: {
 			Value *v2 = STACK_POP();
 			Value *v1 = STACK_POP();
-			const Class *class = getclass(v1);
+			Class *class = getclass(v1);
 			BinOp shiftr = resolve_ishiftr(class);
 
 			if (!shiftr) {
