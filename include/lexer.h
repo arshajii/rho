@@ -36,6 +36,7 @@ typedef enum {
 	TOK_GT,
 	TOK_LE,
 	TOK_GE,
+	TOK_DOT,
 
 	/* assignments */
 	TOK_ASSIGNMENTS_START,

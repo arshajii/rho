@@ -3,10 +3,13 @@
 
 #include <stdbool.h>
 #include "str.h"
+#include "attr.h"
 
 typedef struct value Value;
 
 const struct value SENTINEL;
+
+typedef Value (*Function)(Value **args, size_t nargs);
 
 typedef Value (*UnOp)(Value *this);
 typedef Value (*BinOp)(Value *this, Value *other);
@@ -80,6 +83,10 @@ typedef struct class {
 
 	struct num_methods *num_methods;
 	struct seq_methods *seq_methods;
+
+	struct attr_member *members;
+	struct attr_method *methods;
+	AttrDict attr_dict;
 } Class;
 
 struct object;
@@ -178,5 +185,7 @@ struct value_array {
 	Value *array;
 	size_t length;
 };
+
+void class_init(Class *class);
 
 #endif /* OBJECT_H */

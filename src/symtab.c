@@ -16,19 +16,23 @@
 #define FLAG_FREE_VAR                 (1 << 4)
 #define FLAG_FUNC_PARAM               (1 << 5)
 #define FLAG_DECL_CONST               (1 << 6)
+#define FLAG_ATTRIBUTE                (1 << 7)
 
 #define HASH(ident) (secondary_hash(str_hash((ident))))
 
 static STEntry *ste_new(const char *name, STEContext context);
 
 static void ste_grow(STEntry *ste, const size_t new_capacity);
-static void ste_add_child(STEntry *ste, STEntry *child);
+static void ste_grow_attr(STEntry *ste, const size_t new_capacity);
+
 static void ste_register_ident(STEntry *ste, Str *ident, int flags);
+static void ste_register_attr(STEntry *ste, Str *ident);
 
 static void populate_symtable_from_node(SymTable *st, AST *ast);
 static void register_bindings(SymTable *st, Program *program);
 static void register_bindings_from_node(SymTable *st, AST *ast);
 
+static void ste_add_child(STEntry *ste, STEntry *child);
 static void clear_child_pos(SymTable *st);
 static void clear_child_pos_of_entry(STEntry *ste);
 
@@ -38,8 +42,15 @@ SymTable *st_new(const char *filename)
 {
 	SymTable *st = malloc(sizeof(SymTable));
 	st->filename = filename;
-	st->ste_module = ste_new("<module>", MODULE);
+
+	STEntry *ste_module = ste_new("<module>", MODULE);
+	STEntry *ste_attributes = ste_new("<attributes>", -1);
+
+	ste_module->sym_table = ste_attributes->sym_table = st;
+
+	st->ste_module = ste_module;
 	st->ste_current = st->ste_module;
+	st->ste_attributes = ste_attributes;
 
 	return st;
 }
@@ -53,11 +64,16 @@ static STEntry *ste_new(const char *name, STEContext context)
 	ste->name = name;
 	ste->context = context;
 	ste->table = calloc(STE_INIT_CAPACITY, sizeof(STSymbol *));
-	ste->size = 0;
-	ste->capacity = STE_INIT_CAPACITY;
-	ste->threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
+	ste->table_size = 0;
+	ste->table_capacity = STE_INIT_CAPACITY;
+	ste->table_threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
+	ste->table_next_id = 0;
 	ste->n_locals = 0;
-	ste->next_id = 0;
+	ste->attributes = calloc(STE_INIT_CAPACITY, sizeof(STSymbol *));
+	ste->attr_size = 0;
+	ste->attr_capacity = STE_INIT_CAPACITY;
+	ste->attr_threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
+	ste->attr_next_id = 0;
 	ste->parent = NULL;
 	ste->children = malloc(STE_INIT_CHILDVEC_CAPACITY * sizeof(STEntry));
 	ste->n_children = 0;
@@ -105,18 +121,23 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 
 		break;
 	}
+	case NODE_DOT: {
+		STEntry *current = st->ste_current;
+		Str *attr = ast->right->v.ident;
+		ste_register_attr(current, attr);
+		populate_symtable_from_node(st, ast->left);
+		break;
+	}
 	case NODE_IF:
 		populate_symtable_from_node(st, ast->left);
 		populate_symtable_from_node(st, ast->right);
 		populate_symtable_from_node(st, ast->v.middle);
 		break;
 	case NODE_ASSIGN:
-		if (ast->left->type == NODE_IDENT) {
-			populate_symtable_from_node(st, ast->right);
-		} else {
+		if (ast->left->type != NODE_IDENT) {
 			populate_symtable_from_node(st, ast->left);
-			populate_symtable_from_node(st, ast->right);
 		}
+		populate_symtable_from_node(st, ast->right);
 		break;
 	case NODE_BLOCK:
 		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
@@ -212,13 +233,31 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 	}
 }
 
+/*
+ * XXX: There's a lot of code duplication here.
+ */
+
 STSymbol *ste_get_symbol(STEntry *ste, Str *ident)
 {
 	const int hash = HASH(ident);
-	const size_t index = hash & (ste->capacity - 1);
+	const size_t index = hash & (ste->table_capacity - 1);
 
 	for (STSymbol *sym = ste->table[index]; sym != NULL; sym = sym->next) {
 		if (hash == sym->hash && str_eq(ident, sym->key)) {
+			return sym;
+		}
+	}
+
+	return NULL;
+}
+
+STSymbol *ste_get_attr_symbol(STEntry *ste, Str *attr)
+{
+	const int hash = HASH(attr);
+	const size_t index = hash & (ste->attr_capacity - 1);
+
+	for (STSymbol *sym = ste->attributes[index]; sym != NULL; sym = sym->next) {
+		if (hash == sym->hash && str_eq(attr, sym->key)) {
 			return sym;
 		}
 	}
@@ -232,13 +271,15 @@ static void ste_register_ident(STEntry *ste, Str *ident, int flags)
 
 	if (symbol == NULL) {
 		const int hash = HASH(ident);
-		const size_t index = hash & (ste->capacity - 1);
+		const size_t index = hash & (ste->table_capacity - 1);
 
-		symbol = malloc(sizeof(STSymbol));
+		symbol = calloc(1, sizeof(STSymbol));
 		symbol->key = ident;
 
-		if (flags & FLAG_BOUND_HERE) {
-			symbol->id = ste->next_id++;
+		if (flags & FLAG_ATTRIBUTE) {
+			symbol->id = ste->table_next_id++;
+		} else if (flags & FLAG_BOUND_HERE) {
+			symbol->id = ste->table_next_id++;
 			++ste->n_locals;
 		} else if (flags & FLAG_GLOBAL_VAR) {
 			STEntry *module = ste;
@@ -263,10 +304,10 @@ static void ste_register_ident(STEntry *ste, Str *ident, int flags)
 
 		ste->table[index] = symbol;
 
-		++ste->size;
+		++ste->table_size;
 
-		if (ste->size > ste->threshold) {
-			ste_grow(ste, 2 * ste->capacity);
+		if (ste->table_size > ste->table_threshold) {
+			ste_grow(ste, 2 * ste->table_capacity);
 		}
 	}
 
@@ -274,16 +315,48 @@ static void ste_register_ident(STEntry *ste, Str *ident, int flags)
 		symbol->bound_here = 1;
 	}
 
-	if (flags & FLAG_DECL_CONST) {
-		symbol->decl_const = 1;
-	}
-
 	if (flags & FLAG_GLOBAL_VAR) {
 		symbol->global_var = 1;
 	}
 
+	if (flags & FLAG_FREE_VAR) {
+		symbol->free_var = 1;
+	}
+
 	if (flags & FLAG_FUNC_PARAM) {
 		symbol->func_param = 1;
+	}
+
+	if (flags & FLAG_DECL_CONST) {
+		symbol->decl_const = 1;
+	}
+
+	if (flags & FLAG_ATTRIBUTE) {
+		INTERNAL_ERROR();
+	}
+}
+
+static void ste_register_attr(STEntry *ste, Str *attr)
+{
+	STSymbol *symbol = ste_get_attr_symbol(ste, attr);
+
+	if (symbol == NULL) {
+		const int hash = HASH(attr);
+		const size_t index = hash & (ste->attr_capacity - 1);
+
+		symbol = calloc(1, sizeof(STSymbol));
+		symbol->key = attr;
+		symbol->attribute = 1;
+		symbol->id = ste->attr_next_id++;
+		symbol->hash = HASH(attr);
+		symbol->next = ste->attributes[index];
+		ste->attributes[index] = symbol;
+
+		++ste->attr_size;
+
+		if (ste->attr_size > ste->attr_threshold) {
+			ste_grow_attr(ste, 2 * ste->attr_capacity);
+		}
 	}
 }
 
@@ -308,7 +381,7 @@ static void ste_grow(STEntry *ste, const size_t new_capacity)
 
 	STSymbol **new_table = calloc(capacity_real, sizeof(STSymbol *));
 
-	const size_t capacity = ste->capacity;
+	const size_t capacity = ste->table_capacity;
 
 	for (size_t i = 0; i < capacity; i++) {
 		STSymbol *e = ste->table[i];
@@ -324,12 +397,55 @@ static void ste_grow(STEntry *ste, const size_t new_capacity)
 
 	free(ste->table);
 	ste->table = new_table;
-	ste->capacity = capacity_real;
-	ste->threshold = (size_t)(capacity_real * STE_LOADFACTOR);
+	ste->table_capacity = capacity_real;
+	ste->table_threshold = (size_t)(capacity_real * STE_LOADFACTOR);
+}
+
+static void ste_grow_attr(STEntry *ste, const size_t new_capacity)
+{
+	if (new_capacity == 0) {
+		return;
+	}
+
+	// the capacity should be a power of 2:
+	size_t capacity_real;
+
+	if ((new_capacity & (new_capacity - 1)) == 0) {
+		capacity_real = new_capacity;
+	} else {
+		capacity_real = 1;
+
+		while (capacity_real < new_capacity) {
+			capacity_real <<= 1;
+		}
+	}
+
+	STSymbol **new_attributes = calloc(capacity_real, sizeof(STSymbol *));
+
+	const size_t capacity = ste->attr_capacity;
+
+	for (size_t i = 0; i < capacity; i++) {
+		STSymbol *e = ste->attributes[i];
+
+		while (e != NULL) {
+			STSymbol *next = e->next;
+			const size_t index = (e->hash & (capacity_real - 1));
+			e->next = new_attributes[index];
+			new_attributes[index] = e;
+			e = next;
+		}
+	}
+
+	free(ste->attributes);
+	ste->attributes = new_attributes;
+	ste->attr_capacity = capacity_real;
+	ste->attr_threshold = (size_t)(capacity_real * STE_LOADFACTOR);
 }
 
 static void ste_add_child(STEntry *ste, STEntry *child)
 {
+	child->sym_table = ste->sym_table;
+
 	if (ste->n_children == ste->children_capacity) {
 		ste->children_capacity = (ste->children_capacity * 3)/2 + 1;
 		ste->children = realloc(ste->children, ste->children_capacity);
@@ -363,7 +479,7 @@ void st_free(SymTable *st)
 
 static void ste_free(STEntry *ste)
 {
-	const size_t capacity = ste->capacity;
+	const size_t capacity = ste->table_capacity;
 
 	for (size_t i = 0; i < capacity; i++) {
 		STSymbol *entry = ste->table[i];

@@ -91,6 +91,8 @@ static void compile_while(Compiler *compiler, AST *ast);
 static void compile_def(Compiler *compiler, AST *ast);
 static void compile_return(Compiler *compiler, AST *ast);
 
+static void compile_get_attr(Compiler *compiler, AST *ast);
+
 /*
  * Each compiled file should begin with the
  * "magic code".
@@ -189,6 +191,13 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	const NodeType type = ast->type;
 	if (!IS_ASSIGNMENT(type)) {
 		INTERNAL_ERROR();
+	}
+
+	if (ast->left->type == NODE_DOT) {
+		/*
+		 * TODO: attribute setting
+		 */
+		assert(0);
 	}
 
 	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
@@ -322,6 +331,18 @@ static void compile_return(Compiler *compiler, AST *ast)
 	write_byte(compiler, INS_RETURN);
 }
 
+static void compile_get_attr(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_DOT);
+
+	Str *attr = ast->right->v.ident;
+	STSymbol *attr_sym = ste_get_attr_symbol(compiler->st->ste_current, attr);
+
+	compile_node(compiler, ast->left, false);
+	write_byte(compiler, INS_LOAD_ATTR);
+	write_int(compiler, attr_sym->id);
+}
+
 /*
  * Converts AST node type to corresponding (most relevant) opcode.
  * For compound-assignment types, converts to the corresponding
@@ -444,6 +465,9 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 		compile_node(compiler, ast->right, false);
 		write_byte(compiler, to_opcode(ast->type));
 		break;
+	case NODE_DOT:
+		compile_get_attr(compiler, ast);
+		break;
 	case NODE_ASSIGN:
 	case NODE_ASSIGN_ADD:
 	case NODE_ASSIGN_SUB:
@@ -495,32 +519,63 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	}
 }
 
+/*
+ * Symbol table format:
+ *
+ * - ST_ENTRY_BEGIN
+ * - 4-byte int: no. of locals (N)
+ * - N null-terminated strings representing local variable names
+ *   ...
+ * - 4-byte int: no. of attributes (M)
+ * - M null-terminated strings representing attribute names
+ *   ...
+ * - ST_ENTRY_END
+ */
 static void write_sym_table(Compiler *compiler)
 {
 	const STEntry *ste = compiler->st->ste_current;
 	const size_t n_locals = ste->n_locals;
+	const size_t n_attrs = ste->attr_size;
 
-	code_write_byte(&compiler->code, ST_ENTRY_BEGIN);
-	code_write_int(&compiler->code, n_locals);
+	Str **locals_sorted = malloc(n_locals * sizeof(Str *));
 
-	Str **sorted = malloc(n_locals * sizeof(Str *));
+	const size_t table_capacity = ste->table_capacity;
 
-	const size_t capacity = ste->capacity;
-
-	for (size_t i = 0; i < capacity; i++) {
+	for (size_t i = 0; i < table_capacity; i++) {
 		for (STSymbol *e = ste->table[i]; e != NULL; e = e->next) {
 			if (e->bound_here) {
-				sorted[e->id] = e->key;
+				locals_sorted[e->id] = e->key;
 			}
 		}
 	}
 
-	for (size_t i = 0; i < n_locals; i++) {
-		code_write_str(&compiler->code, sorted[i]);
+	Str **attrs_sorted = malloc(n_attrs * sizeof(Str *));
+
+	const size_t attr_capacity = ste->attr_capacity;
+
+	for (size_t i = 0; i < attr_capacity; i++) {
+		for (STSymbol *e = ste->attributes[i]; e != NULL; e = e->next) {
+			attrs_sorted[e->id] = e->key;
+		}
 	}
-	free(sorted);
+
+	code_write_byte(&compiler->code, ST_ENTRY_BEGIN);
+	code_write_int(&compiler->code, n_locals);
+
+	for (size_t i = 0; i < n_locals; i++) {
+		code_write_str(&compiler->code, locals_sorted[i]);
+	}
+
+	code_write_int(&compiler->code, n_attrs);
+
+	for (size_t i = 0; i < n_attrs; i++) {
+		code_write_str(&compiler->code, attrs_sorted[i]);
+	}
 
 	code_write_byte(&compiler->code, ST_ENTRY_END);
+
+	free(locals_sorted);
+	free(attrs_sorted);
 }
 
 static void write_const_table(Compiler *compiler)

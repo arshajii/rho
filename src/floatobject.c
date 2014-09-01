@@ -210,5 +210,8 @@ Class float_class = {
 	.call = NULL,
 
 	.num_methods = &float_num_methods,
-	.seq_methods  = NULL
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL
 };

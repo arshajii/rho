@@ -55,6 +55,7 @@ static bool is_op_char(const char c)
 	case '=':
 	case '<':
 	case '>':
+	case '.':
 		return true;
 	default:
 		return false;
@@ -245,6 +246,13 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 				break;
 			}
 			break;
+		}
+		break;
+	case '.':
+		if (len == 1)
+			return TOK_DOT;
+
+		switch (str[1]) {
 		}
 		break;
 	}
@@ -783,6 +791,8 @@ const char *type_to_str(TokType type)
 		return "<=";
 	case TOK_GE:
 		return ">=";
+	case TOK_DOT:
+		return ".";
 	case TOK_ASSIGNMENTS_START:
 		return "TOK_ASSIGNMENTS_START";
 	case TOK_ASSIGN:

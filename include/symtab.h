@@ -19,6 +19,7 @@ typedef struct st_symbol {
 	unsigned free_var   : 1;
 	unsigned func_param : 1;
 	unsigned decl_const : 1;
+	unsigned attribute  : 1;
 } STSymbol;
 
 typedef enum {
@@ -27,21 +28,32 @@ typedef enum {
 	CLASS      /* class body */
 } STEContext;
 
+struct sym_table;
+
 typedef struct st_entry {
 	const char *name;
 	STEContext context;
 
 	/* name-to-symbol hash table */
 	STSymbol **table;
-	size_t size;
-	size_t capacity;
-	size_t threshold;
+	size_t table_size;
+	size_t table_capacity;
+	size_t table_threshold;
 
+	unsigned int table_next_id;  /* used internally for assigning IDs to locals */
 	size_t n_locals;
 
-	unsigned int next_id;  /* used internally for assigning IDs to locals */
+	/* attribute-to-symbol hash table */
+	STSymbol **attributes;
+	size_t attr_size;
+	size_t attr_capacity;
+	size_t attr_threshold;
+
+	/* used internally for assigning IDs to attributes: */
+	unsigned int attr_next_id;
 
 	struct st_entry *parent;
+	struct sym_table *sym_table;
 
 	/* child vector */
 	struct st_entry **children;
@@ -51,11 +63,13 @@ typedef struct st_entry {
 	size_t child_pos;  /* used internally for traversing symbol tables */
 } STEntry;
 
-typedef struct {
+typedef struct sym_table {
 	const char *filename;
 
 	STEntry *ste_module;
 	STEntry *ste_current;
+
+	STEntry *ste_attributes;
 } SymTable;
 
 SymTable *st_new(const char *filename);
@@ -63,6 +77,8 @@ SymTable *st_new(const char *filename);
 void populate_symtable(SymTable *st, Program *program);
 
 STSymbol *ste_get_symbol(STEntry *ste, Str *ident);
+
+STSymbol *ste_get_attr_symbol(STEntry *ste, Str *ident);
 
 void st_free(SymTable *st);
 

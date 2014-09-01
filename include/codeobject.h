@@ -22,6 +22,9 @@ typedef struct {
 	/* enumerated variable names */
 	struct str_array names;
 
+	/* enumerated attributes used */
+	struct str_array attrs;
+
 	/* enumerated constants */
 	struct value_array consts;
 } CodeObject;

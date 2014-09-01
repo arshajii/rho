@@ -27,16 +27,16 @@
  * of a CodeObject should start with its arguments names (in order).
  */
 
-static struct str_array read_sym_table(Code *code);
-static struct value_array read_const_table(Code *code);
+static void read_sym_table(CodeObject *co, Code *code);
+static void read_const_table(CodeObject *co, Code *code);
 
 CodeObject *codeobj_make(Code *code, const char *name, int argcount)
 {
 	CodeObject *co = malloc(sizeof(CodeObject));
 	co->base = (Object){.class = &co_class, .refcnt = 0};
 	co->name = name;
-	co->names = read_sym_table(code);
-	co->consts = read_const_table(code);
+	read_sym_table(co, code);
+	read_const_table(co, code);
 	co->bc = code->bc;
 	co->argcount = argcount;
 	return co;
@@ -53,7 +53,7 @@ void codeobj_free(Value *this)
 	co->base.class->super->del(this);
 }
 
-static struct str_array read_sym_table(Code *code)
+static void read_sym_table(CodeObject *co, Code *code)
 {
 	if (code_read_byte(code) != ST_ENTRY_BEGIN) {
 		fatal_error("symbol table expected");
@@ -63,17 +63,16 @@ static struct str_array read_sym_table(Code *code)
 
 	while (code_read_byte(code) != ST_ENTRY_END);  /* get past the symbol table */
 
-	unsigned int count = 0;
-	unsigned int off = 0;
+	size_t off = 0;
 
-	const size_t symtab_len = read_int(symtab_bc);
+	const size_t n_locals = read_int(symtab_bc);
 	off += INT_SIZE;
 
-	struct str_array table;
-	table.array = malloc(sizeof(*table.array) * symtab_len);
-	table.length = symtab_len;
+	struct str_array names;
+	names.array = malloc(sizeof(*names.array) * n_locals);
+	names.length = n_locals;
 
-	while (symtab_bc[off] != ST_ENTRY_END) {
+	for (size_t i = 0; i < n_locals; i++) {
 		size_t len = 0;
 
 		while (symtab_bc[off + len] != '\0') {
@@ -82,16 +81,37 @@ static struct str_array read_sym_table(Code *code)
 
 		assert(len > 0);
 
-		table.array[count].str = (char *)symtab_bc + off;
-		table.array[count].length = len;
-		++count;
+		names.array[i].str = (char *)symtab_bc + off;
+		names.array[i].length = len;
 		off += len + 1;
 	}
 
-	return table;
+	const size_t n_attrs = read_int(symtab_bc + off);
+	off += INT_SIZE;
+
+	struct str_array attrs;
+	attrs.array = malloc(sizeof(*attrs.array) * n_attrs);
+	attrs.length = n_attrs;
+
+	for (size_t i = 0; i < n_attrs; i++) {
+		size_t len = 0;
+
+		while (symtab_bc[off + len] != '\0') {
+			++len;
+		}
+
+		assert(len > 0);
+
+		attrs.array[i].str = (char *)symtab_bc + off;
+		attrs.array[i].length = len;
+		off += len + 1;
+	}
+
+	co->names = names;
+	co->attrs = attrs;
 }
 
-static struct value_array read_const_table(Code *code)
+static void read_const_table(CodeObject *co, Code *code)
 {
 	/* read the constant table */
 	if (code_read_byte(code) != CT_ENTRY_BEGIN) {
@@ -164,7 +184,7 @@ static struct value_array read_const_table(Code *code)
 	}
 	code_read_byte(code);
 
-	return (struct value_array){.array = constants, .length = ct_size};
+	co->consts = (struct value_array){.array = constants, .length = ct_size};
 }
 
 Class co_class = {
@@ -183,4 +203,7 @@ Class co_class = {
 
 	.num_methods = NULL,
 	.seq_methods = NULL,
+
+	.members = NULL,
+	.methods = NULL
 };

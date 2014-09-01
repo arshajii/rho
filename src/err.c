@@ -8,6 +8,7 @@
 
 #define TYPE_ERROR_HEADER "Type Error: "
 #define NAME_ERROR_HEADER "Name Error: "
+#define ATTR_ERROR_HEADER "Attribute Error: "
 #define FATAL_ERROR_HEADER "Fatal Error: "
 
 void err_on_char(const char *culprit,
@@ -122,6 +123,16 @@ void call_error_args(const char *fn, int expected, int got)
 	        fn,
 	        expected,
 	        got);
+
+	exit(EXIT_FAILURE);
+}
+
+void attr_error(const Class *type, const char *attr)
+{
+	fprintf(stderr,
+	        ATTR_ERROR_HEADER "object of type %s has no attribute '%s'\n",
+	        type->name,
+	        attr);
 
 	exit(EXIT_FAILURE);
 }

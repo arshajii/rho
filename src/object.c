@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "attr.h"
 #include "err.h"
 #include "util.h"
 #include "intobject.h"
@@ -95,7 +96,10 @@ Class obj_class = {
 	.call = NULL,
 
 	.num_methods = &obj_num_methods,
-	.seq_methods = &obj_seq_methods
+	.seq_methods = &obj_seq_methods,
+
+	.members = NULL,
+	.methods = NULL
 };
 
 Class *getclass(Value *val)
@@ -240,4 +244,26 @@ void destroy(Value *v)
 	Object *o = v->data.o;
 	o->class->del(v);
 	v->data.o = NULL;
+}
+
+void class_init(Class *class)
+{
+	/* initialize attributes */
+	size_t max_size = 0;
+
+	if (class->members != NULL) {
+		for (size_t i = 0; class->members[i].name != NULL; i++) {
+			++max_size;
+		}
+	}
+
+	if (class->methods != NULL) {
+		for (struct attr_method *m = class->methods; m->name != NULL; m++) {
+			++max_size;
+		}
+	}
+
+	attr_dict_init(&class->attr_dict, max_size);
+	attr_dict_register_members(&class->attr_dict, class->members);
+	attr_dict_register_methods(&class->attr_dict, class->methods);
 }

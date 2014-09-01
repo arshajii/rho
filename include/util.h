@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#define getmember(instance, offset, type) (*(type *)((char *)instance + offset))
+
 #define UNUSED(x) (void)(x)
 
 #define DECL_MIN_FUNC(name, type) \

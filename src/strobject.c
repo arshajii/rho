@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <stdbool.h>
+#include "attr.h"
 #include "err.h"
 #include "str.h"
 #include "object.h"
@@ -127,6 +129,11 @@ struct seq_methods str_seq_methods = {
 	NULL,    /* iternext */
 };
 
+struct attr_member str_members[] = {
+		{"len", ATTR_T_SIZE_T, offsetof(StrObject, str) + offsetof(Str, len), 0},
+		{NULL, 0, 0, 0}
+};
+
 Class str_class = {
 	.name = "Str",
 
@@ -142,5 +149,8 @@ Class str_class = {
 	.call = NULL,
 
 	.num_methods = &str_num_methods,
-	.seq_methods  = &str_seq_methods
+	.seq_methods  = &str_seq_methods,
+
+	.members = str_members,
+	.methods = NULL
 };

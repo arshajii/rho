@@ -33,6 +33,7 @@ typedef enum {
 	NODE_GT,
 	NODE_LE,
 	NODE_GE,
+	NODE_DOT,
 
 	NODE_ASSIGNMENTS_START,
 	NODE_ASSIGN,
@@ -106,6 +107,6 @@ void ast_free(AST *ast);
 #define IS_ASSIGNMENT(type) (NODE_ASSIGNMENTS_START < (type) && (type) < NODE_ASSIGNMENTS_END)
 #define IS_CALL(type) ((type) == NODE_CALL)
 #define IS_EXPR_STMT(type) (IS_CALL(type) || IS_ASSIGNMENT(type))
-#define IS_ASSIGNABLE(type) ((type) == NODE_IDENT)
+#define IS_ASSIGNABLE(type) ((type) == NODE_IDENT || (type) == NODE_DOT)
 
 #endif /* AST_H */

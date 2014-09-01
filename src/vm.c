@@ -1,19 +1,42 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <math.h>
+#include <string.h>
 #include <assert.h>
 #include "compiler.h"
 #include "opcodes.h"
 #include "str.h"
+#include "object.h"
+#include "intobject.h"
+#include "floatobject.h"
 #include "strobject.h"
+#include "codeobject.h"
+#include "attr.h"
 #include "err.h"
 #include "code.h"
 #include "util.h"
 #include "vm.h"
 
+bool classes_init = false;
+
+static Class *classes[] = {
+		&obj_class,
+		&int_class,
+		&float_class,
+		&str_class,
+		&co_class,
+		NULL
+};
+
 VM *vm_new(void)
 {
+	if (!classes_init) {
+		for (Class **class = &classes[0]; *class != NULL; class++) {
+			class_init(*class);
+		}
+		classes_init = true;
+	}
+
 	VM *vm = malloc(sizeof(VM));
 	return vm;
 }
@@ -146,11 +169,13 @@ static void eval_frame(VM *vm)
 	Value *locals = frame->locals;
 	Value *globals = module->locals;
 
-	struct str_array symbols = frame->co->names;
+	const CodeObject *co = frame->co;
+	struct str_array symbols = co->names;
+	struct str_array attrs = co->attrs;
 	struct str_array global_symbols = module->co->names;
 
-	Value *constants = frame->co->consts.array;
-	byte *bc = frame->co->bc;
+	Value *constants = co->consts.array;
+	byte *bc = co->bc;
 	Value *stack = frame->valuestack;
 
 	/* position in the bytecode */
@@ -687,6 +712,124 @@ static void eval_frame(VM *vm)
 
 			STACK_PUSH(globals[id]);
 			pos += INT_SIZE;
+			break;
+		}
+		case INS_LOAD_ATTR: {
+			Value *v1 = STACK_POP();
+			Class *class = getclass(v1);
+
+			const unsigned int id = read_int(bc + pos);
+			pos += INT_SIZE;
+
+			const char *attr = attrs.array[id].str;
+
+			if (!isobject(v1)) {
+				goto attr_error;
+			}
+
+			const unsigned int value = attr_dict_get(&class->attr_dict, attr);
+
+			if (!(value & ATTR_DICT_FLAG_FOUND)) {
+				goto attr_error;
+			}
+
+			const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
+			const unsigned int idx = (value >> 2);
+
+			if (is_method) {
+				// TODO
+				assert(0);
+			} else {
+				const struct attr_member *member = &class->members[idx];
+				const size_t offset = member->offset;
+				const Object *o = v1->data.o;
+
+				switch (member->type) {
+				case ATTR_T_CHAR: {
+					char *c = malloc(1);
+					*c = getmember(o, offset, char);
+					STACK_PUSH(strobj_make((Str){.value = c, .len = 1, .hashed = 0, .freeable = 1}));
+					break;
+				}
+				case ATTR_T_BYTE: {
+					const int n = getmember(o, offset, char);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_SHORT: {
+					const int n = getmember(o, offset, short);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_INT: {
+					const int n = getmember(o, offset, int);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_LONG: {
+					const int n = getmember(o, offset, long);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_UBYTE: {
+					const int n = getmember(o, offset, unsigned char);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_USHORT: {
+					const int n = getmember(o, offset, unsigned short);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_UINT: {
+					const int n = getmember(o, offset, unsigned int);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_ULONG: {
+					const int n = getmember(o, offset, unsigned long);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_SIZE_T: {
+					const int n = getmember(o, offset, size_t);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_BOOL: {
+					const int n = getmember(o, offset, bool);
+					STACK_PUSH(makeint(n));
+					break;
+				}
+				case ATTR_T_FLOAT: {
+					const int n = getmember(o, offset, float);
+					STACK_PUSH(makefloat(n));
+					break;
+				}
+				case ATTR_T_DOUBLE: {
+					const int n = getmember(o, offset, double);
+					STACK_PUSH(makefloat(n));
+					break;
+				}
+				case ATTR_T_STRING: {
+					char *str = getmember(o, offset, char *);
+					const size_t len = strlen(str);
+					char *copy = malloc(len);
+					memcpy(copy, str, len);
+					STACK_PUSH(strobj_make((Str){.value = copy, .len = len, .hashed = 0, .freeable = 0}));
+					break;
+				}
+				case ATTR_T_OBJECT: {
+					Object *obj = getmember(o, offset, Object *);
+					STACK_PUSH(makeobj(obj));
+					break;
+				}
+				}
+			}
+			break;
+
+			attr_error:
+			attr_error(class, attr);
 			break;
 		}
 		case INS_PRINT: {

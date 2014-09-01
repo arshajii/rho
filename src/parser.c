@@ -50,6 +50,7 @@ const Op ops[] = {
 	{TOK_ASSIGN_XOR,    10,          true},
 	{TOK_ASSIGN_SHIFTL, 10,          true},
 	{TOK_ASSIGN_SHIFTR, 10,          true},
+	{TOK_DOT,           99,          true},
 };
 
 const size_t ops_size = (sizeof(ops) / sizeof(Op));
@@ -687,6 +688,8 @@ static NodeType nodetype_from_op(Op op)
 		return NODE_LE;
 	case TOK_GE:
 		return NODE_GE;
+	case TOK_DOT:
+		return NODE_DOT;
 	case TOK_ASSIGN:
 		return NODE_ASSIGN;
 	case TOK_ASSIGN_ADD:

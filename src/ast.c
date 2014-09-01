@@ -104,6 +104,9 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_GE:
 		printf(">=");
 		break;
+	case NODE_DOT:
+		printf(".");
+		break;
 	case NODE_ASSIGNMENTS_START:
 		printf("NODE_ASSIGNMENTS_START");
 		break;

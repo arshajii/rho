@@ -294,5 +294,8 @@ Class int_class = {
 	.call = NULL,
 
 	.num_methods = &int_num_methods,
-	.seq_methods  = NULL
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL
 };
