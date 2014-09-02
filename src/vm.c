@@ -188,8 +188,9 @@ static void eval_frame(VM *vm)
 		case INS_NOP:
 			break;
 		case INS_LOAD_CONST: {
-			const unsigned int val = bc[pos++];
-			STACK_PUSH(constants[val]);
+			const unsigned int id = read_uint16(bc + pos);
+			pos += 2;
+			STACK_PUSH(constants[id]);
 			break;
 		}
 		case INS_LOAD_NULL: {
@@ -686,40 +687,40 @@ static void eval_frame(VM *vm)
 		}
 		case INS_STORE: {
 			Value *v1 = STACK_POP();
-			const unsigned int id = read_int(bc + pos);
+			const unsigned int id = read_uint16(bc + pos);
 			locals[id] = *v1;
 			incref(v1);
-			pos += INT_SIZE;
+			pos += 2;
 			break;
 		}
 		case INS_LOAD: {
-			const unsigned int id = read_int(bc + pos);
+			const unsigned int id = read_uint16(bc + pos);
 
 			if (locals[id].type == VAL_TYPE_EMPTY) {
 				unbound_error(symbols.array[id].str);
 			}
 
 			STACK_PUSH(locals[id]);
-			pos += INT_SIZE;
+			pos += 2;
 			break;
 		}
 		case INS_LOAD_GLOBAL: {
-			const unsigned int id = read_int(bc + pos);
+			const unsigned int id = read_uint16(bc + pos);
 
 			if (globals[id].type == VAL_TYPE_EMPTY) {
 				unbound_error(global_symbols.array[id].str);
 			}
 
 			STACK_PUSH(globals[id]);
-			pos += INT_SIZE;
+			pos += 2;
 			break;
 		}
 		case INS_LOAD_ATTR: {
 			Value *v1 = STACK_POP();
 			Class *class = getclass(v1);
 
-			const unsigned int id = read_int(bc + pos);
-			pos += INT_SIZE;
+			const unsigned int id = read_uint16(bc + pos);
+			pos += 2;
 
 			const char *attr = attrs.array[id].str;
 

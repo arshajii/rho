@@ -23,6 +23,18 @@ int read_int(byte *bytes)
 	return n;
 }
 
+void write_uint16(Compiler *c, const size_t n)
+{
+	code_write_uint16(&c->code, n);
+}
+
+unsigned int read_uint16(byte *bytes)
+{
+	unsigned int n;
+	memcpy(&n, bytes, 2);
+	return n;
+}
+
 void write_double(Compiler *c, const double d)
 {
 	code_write_double(&c->code, d);
@@ -148,18 +160,18 @@ static void compile_const(Compiler *compiler, AST *ast)
 		/*
 		 * a block indicates a function
 		 */
-		const byte const_id = ct_poll_codeobj(compiler->ct);
+		const unsigned int const_id = ct_poll_codeobj(compiler->ct);
 		write_byte(compiler, INS_LOAD_CONST);
-		write_byte(compiler, const_id);
+		write_uint16(compiler, const_id);
 		return;
 	}
 	default:
 		INTERNAL_ERROR();
 	}
 
-	const byte const_id = ct_id_for_const(compiler->ct, value);
+	const unsigned int const_id = ct_id_for_const(compiler->ct, value);
 	write_byte(compiler, INS_LOAD_CONST);
-	write_byte(compiler, const_id);
+	write_uint16(compiler, const_id);
 }
 
 static void compile_load(Compiler *compiler, AST *ast)
@@ -183,7 +195,7 @@ static void compile_load(Compiler *compiler, AST *ast)
 		assert(0);
 	}
 
-	write_int(compiler, sym->id);
+	write_uint16(compiler, sym->id);
 }
 
 static void compile_assignment(Compiler *compiler, AST *ast)
@@ -223,7 +235,7 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	}
 
 	write_byte(compiler, INS_STORE);
-	write_int(compiler, sym->id);
+	write_uint16(compiler, sym->id);
 }
 
 static void compile_call(Compiler *compiler, AST *ast)
@@ -321,7 +333,7 @@ static void compile_def(Compiler *compiler, AST *ast)
 
 	compile_const(compiler, ast->right);
 	write_byte(compiler, INS_STORE);
-	write_int(compiler, sym->id);
+	write_uint16(compiler, sym->id);
 }
 
 static void compile_return(Compiler *compiler, AST *ast)
@@ -340,7 +352,7 @@ static void compile_get_attr(Compiler *compiler, AST *ast)
 
 	compile_node(compiler, ast->left, false);
 	write_byte(compiler, INS_LOAD_ATTR);
-	write_int(compiler, attr_sym->id);
+	write_uint16(compiler, attr_sym->id);
 }
 
 /*
@@ -560,13 +572,13 @@ static void write_sym_table(Compiler *compiler)
 	}
 
 	code_write_byte(&compiler->code, ST_ENTRY_BEGIN);
-	code_write_int(&compiler->code, n_locals);
+	code_write_uint16(&compiler->code, n_locals);
 
 	for (size_t i = 0; i < n_locals; i++) {
 		code_write_str(&compiler->code, locals_sorted[i]);
 	}
 
-	code_write_int(&compiler->code, n_attrs);
+	code_write_uint16(&compiler->code, n_attrs);
 
 	for (size_t i = 0; i < n_attrs; i++) {
 		code_write_str(&compiler->code, attrs_sorted[i]);
@@ -584,7 +596,7 @@ static void write_const_table(Compiler *compiler)
 	const size_t size = ct->table_size + ct->codeobjs_size;
 
 	code_write_byte(&compiler->code, CT_ENTRY_BEGIN);
-	code_write_int(&compiler->code, size);
+	code_write_uint16(&compiler->code, size);
 
 	CTConst *sorted = malloc(size * sizeof(CTConst));
 
@@ -632,7 +644,7 @@ static void write_const_table(Compiler *compiler)
 			 * Write size of actual CodeObject bytecode, excluding
 			 * metadata (name, argcount):
 			 */
-			code_write_int(&compiler->code, co_code->size - (name_len + 1) - INT_SIZE);
+			code_write_uint16(&compiler->code, co_code->size - (name_len + 1) - 2);  // -2 for argcount
 
 			code_append(&compiler->code, co_code);
 			code_dealloc(co_code);
@@ -692,7 +704,7 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 
 		code_init(fncode, name_len + INT_SIZE + sub->code.size);
 		code_write_str(fncode, ast->left->v.ident);
-		code_write_int(fncode, nargs);
+		code_write_uint16(fncode, nargs);
 		code_append(fncode, subcode);
 
 		compiler_free(sub, false);

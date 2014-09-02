@@ -36,6 +36,8 @@ void code_write_byte(Code *code, byte b);
 
 void code_write_int(Code *code, const int n);
 
+void code_write_uint16(Code *code, const size_t n);
+
 void code_write_double(Code *code, const double d);
 
 void code_write_str(Code *code, const Str *str);
@@ -47,6 +49,8 @@ Code code_sub(Code *code, const unsigned int off, const size_t len);
 byte code_read_byte(Code *code);
 
 int code_read_int(Code *code);
+
+unsigned int code_read_uint16(Code *code);
 
 double code_read_double(Code *code);
 

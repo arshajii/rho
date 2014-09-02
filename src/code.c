@@ -1,5 +1,6 @@
 #include <string.h>
 #include "compiler.h"
+#include "err.h"
 #include "code.h"
 
 void code_init(Code *code, size_t capacity)
@@ -31,6 +32,23 @@ void code_write_byte(Code *code, const byte b)
 {
 	code_ensure_capacity(code, code->size + 1);
 	code->bc[code->size++] = b;
+}
+
+/*
+ * This is typically used for writing "sizes" to the bytecode
+ * (for example, the size of the symbol table), which is why
+ * `n` is of type `size_t`. An error will be emitted if `n`
+ * is too large, however.
+ */
+void code_write_uint16(Code *code, const size_t n)
+{
+	if (n > 0xffff) {
+		INTERNAL_ERROR();
+	}
+
+	code_ensure_capacity(code, code->size + 2);
+	memcpy(code->bc + code->size, &n, 2);
+	code->size += 2;
 }
 
 void code_write_int(Code *code, const int n)
@@ -83,6 +101,14 @@ int code_read_int(Code *code)
 	code->size -= INT_SIZE;
 	const int ret = read_int(code->bc);
 	code->bc += INT_SIZE;
+	return ret;
+}
+
+unsigned int code_read_uint16(Code *code)
+{
+	code->size -= 2;
+	const unsigned int ret = read_uint16(code->bc);
+	code->bc += 2;
 	return ret;
 }
 

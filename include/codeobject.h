@@ -29,6 +29,6 @@ typedef struct {
 	struct value_array consts;
 } CodeObject;
 
-CodeObject *codeobj_make(Code *code, const char *name, int argcount);
+CodeObject *codeobj_make(Code *code, const char *name, unsigned int argcount);
 
 #endif /* CODEOBJECT_H */

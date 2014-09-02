@@ -30,7 +30,7 @@
 static void read_sym_table(CodeObject *co, Code *code);
 static void read_const_table(CodeObject *co, Code *code);
 
-CodeObject *codeobj_make(Code *code, const char *name, int argcount)
+CodeObject *codeobj_make(Code *code, const char *name, unsigned int argcount)
 {
 	CodeObject *co = malloc(sizeof(CodeObject));
 	co->base = (Object){.class = &co_class, .refcnt = 0};
@@ -65,8 +65,8 @@ static void read_sym_table(CodeObject *co, Code *code)
 
 	size_t off = 0;
 
-	const size_t n_locals = read_int(symtab_bc);
-	off += INT_SIZE;
+	const size_t n_locals = read_uint16(symtab_bc);
+	off += 2;
 
 	struct str_array names;
 	names.array = malloc(sizeof(*names.array) * n_locals);
@@ -86,8 +86,8 @@ static void read_sym_table(CodeObject *co, Code *code)
 		off += len + 1;
 	}
 
-	const size_t n_attrs = read_int(symtab_bc + off);
-	off += INT_SIZE;
+	const size_t n_attrs = read_uint16(symtab_bc + off);
+	off += 2;
 
 	struct str_array attrs;
 	attrs.array = malloc(sizeof(*attrs.array) * n_attrs);
@@ -118,7 +118,7 @@ static void read_const_table(CodeObject *co, Code *code)
 		fatal_error("constant table expected");
 	}
 
-	const size_t ct_size = code_read_int(code);
+	const size_t ct_size = code_read_uint16(code);
 	Value *constants = malloc(ct_size * sizeof(Value));
 
 	for (size_t i = 0; i < ct_size; i++) {
@@ -160,14 +160,14 @@ static void read_const_table(CodeObject *co, Code *code)
 		}
 		case CT_ENTRY_CODEOBJ: {
 			constants[i].type = VAL_TYPE_OBJECT;
-			size_t colen = code_read_int(code);
+			size_t colen = code_read_uint16(code);
 			const char *name = code_read_str(code);
-			int argcount = code_read_int(code);
+			unsigned int argcount = code_read_uint16(code);
 
 			Code sub;
 			code_init(&sub, colen);
 			for (size_t i = 0; i < colen; i++) {
-				byte b = code_read_byte(code);
+				const byte b = code_read_byte(code);
 				code_write_byte(&sub, b);
 			}
 
