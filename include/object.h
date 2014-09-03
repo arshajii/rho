@@ -19,6 +19,8 @@ typedef bool (*BoolUnOp)(Value *this);
 typedef bool (*BoolBinOp)(Value *this, Value *other);
 typedef Str *(*StrUnOp)(Value *this);
 
+typedef Value (*CallFunc)(Value *this, Value *args, size_t nargs);
+
 struct num_methods {
 	UnOp plus;
 	UnOp minus;
@@ -79,7 +81,7 @@ typedef struct class {
 	IntUnOp hash;
 	IntBinOp cmp;
 	StrUnOp str;
-	BinOp call;
+	CallFunc call;
 
 	struct num_methods *num_methods;
 	struct seq_methods *seq_methods;
@@ -123,7 +125,7 @@ struct value {
 
 #define intvalue(val)		((val)->data.i)
 #define floatvalue(val)		((val)->data.f)
-#define objectvalue(val)	((val)->data.o)
+#define objvalue(val)	    ((val)->data.o)
 
 #define makeint(val)	((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
 #define makefloat(val)	((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
@@ -137,7 +139,7 @@ BoolBinOp resolve_eq(Class *class);
 IntUnOp resolve_hash(Class *class);
 IntBinOp resolve_cmp(Class *class);
 StrUnOp resolve_str(Class *class);
-BinOp resolve_call(Class *class);
+CallFunc resolve_call(Class *class);
 
 UnOp resolve_plus(Class *class);
 UnOp resolve_minus(Class *class);
@@ -177,8 +179,12 @@ BinOp resolve_contains (Class *class);
 UnOp resolve_iter(Class *class);
 UnOp resolve_iternext(Class *class);
 
-void decref(Value *v);
-void incref(Value *v);
+void retaino(Object *o);
+void releaseo(Object *o);
+void destroyo(Object *o);
+
+void retain(Value *v);
+void release(Value *v);
 void destroy(Value *v);
 
 struct value_array {

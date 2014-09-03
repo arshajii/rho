@@ -11,6 +11,7 @@
 #include "floatobject.h"
 #include "strobject.h"
 #include "codeobject.h"
+#include "method.h"
 #include "attr.h"
 #include "err.h"
 #include "code.h"
@@ -25,6 +26,7 @@ static Class *classes[] = {
 		&float_class,
 		&str_class,
 		&co_class,
+		&method_class,
 		NULL
 };
 
@@ -689,7 +691,7 @@ static void eval_frame(VM *vm)
 			Value *v1 = STACK_POP();
 			const unsigned int id = read_uint16(bc + pos);
 			locals[id] = *v1;
-			incref(v1);
+			retain(v1);
 			pos += 2;
 			break;
 		}
@@ -737,13 +739,14 @@ static void eval_frame(VM *vm)
 			const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
 			const unsigned int idx = (value >> 2);
 
+			Object *o = objvalue(v1);
+
 			if (is_method) {
-				// TODO
-				assert(0);
+				const struct attr_method *method = &class->methods[idx];
+				STACK_PUSH(methobj_make(o, method->meth));
 			} else {
 				const struct attr_member *member = &class->members[idx];
 				const size_t offset = member->offset;
-				const Object *o = v1->data.o;
 
 				switch (member->type) {
 				case ATTR_T_CHAR: {
@@ -882,23 +885,34 @@ static void eval_frame(VM *vm)
 		case INS_CALL: {
 			const byte argcount = bc[pos++];
 			Value *v1 = STACK_POP();
-			CodeObject *co = v1->data.o;
+			Class *class = getclass(v1);
+			if (class == &co_class) {
+				CodeObject *co = objvalue(v1);
 
-			if (co->argcount != argcount) {
-				call_error_args(co->name, co->argcount, argcount);
+				if (co->argcount != argcount) {
+					call_error_args(co->name, co->argcount, argcount);
+				}
+
+				vm_pushframe(vm, co);
+
+				Frame *top = vm->callstack;
+				for (byte i = 0; i < argcount; i++) {
+					Value *v = STACK_POP();
+					top->locals[i] = *v;
+				}
+
+				eval_frame(vm);
+				STACK_PUSH(top->return_value);
+				vm_popframe(vm);
+			} else {
+				CallFunc call = resolve_call(class);
+
+				if (!call) {
+					type_error_not_callable(class);
+				}
+
+				STACK_PUSH(call(v1, stack - argcount, argcount));
 			}
-
-			vm_pushframe(vm, co);
-
-			Frame *top = vm->callstack;
-			for (byte i = 0; i < argcount; i++) {
-				Value *v = STACK_POP();
-				top->locals[i] = *v;
-			}
-
-			eval_frame(vm);
-			STACK_PUSH(top->return_value);
-			vm_popframe(vm);
 			break;
 		}
 		case INS_RETURN: {

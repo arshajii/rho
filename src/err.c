@@ -116,6 +116,15 @@ void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2)
 	exit(EXIT_FAILURE);
 }
 
+void type_error_not_callable(const Class *c1)
+{
+	fprintf(stderr,
+	        TYPE_ERROR_HEADER "object of type %s is not callable\n",
+	        c1->name);
+
+	exit(EXIT_FAILURE);
+}
+
 void call_error_args(const char *fn, int expected, int got)
 {
 	fprintf(stderr,

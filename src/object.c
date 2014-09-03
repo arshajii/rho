@@ -169,7 +169,7 @@ MAKE_METHOD_RESOLVER_DIRECT(eq, BoolBinOp)
 MAKE_METHOD_RESOLVER_DIRECT(hash, IntUnOp)
 MAKE_METHOD_RESOLVER_DIRECT(cmp, IntBinOp)
 MAKE_METHOD_RESOLVER_DIRECT(str, StrUnOp)
-MAKE_METHOD_RESOLVER_DIRECT(call, BinOp)
+MAKE_METHOD_RESOLVER_DIRECT(call, CallFunc)
 
 MAKE_METHOD_RESOLVER(plus, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(minus, num_methods, UnOp)
@@ -212,27 +212,40 @@ MAKE_METHOD_RESOLVER(iternext, seq_methods, UnOp)
 #undef MAKE_METHOD_RESOLVER_DIRECT
 #undef MAKE_METHOD_RESOLVER
 
-void decref(Value *v)
+void retaino(Object *o)
 {
-	if (v == NULL || v->type != VAL_TYPE_OBJECT) {
-		return;
-	}
+	++o->refcnt;
+}
 
-	Object *o = v->data.o;
-
+void releaseo(Object *o)
+{
 	if (--o->refcnt == 0) {
-		destroy(v);
+		destroyo(o);
 	}
 }
 
-void incref(Value *v)
+void destroyo(Object *o)
+{
+	o->class->del(&makeobj(o));
+}
+
+void retain(Value *v)
 {
 	if (v == NULL || v->type != VAL_TYPE_OBJECT) {
 		return;
 	}
 
-	Object *o = v->data.o;
-	++o->refcnt;
+	retaino(objvalue(v));
+}
+
+
+void release(Value *v)
+{
+	if (v == NULL || v->type != VAL_TYPE_OBJECT) {
+		return;
+	}
+
+	releaseo(objvalue(v));
 }
 
 void destroy(Value *v)
@@ -241,9 +254,8 @@ void destroy(Value *v)
 		return;
 	}
 
-	Object *o = v->data.o;
+	Object *o = objvalue(v);
 	o->class->del(v);
-	v->data.o = NULL;
 }
 
 void class_init(Class *class)

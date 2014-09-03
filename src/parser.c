@@ -302,10 +302,25 @@ static AST *parse_atom(Lexer *lex)
 	tok = lex_peek_token(lex);
 
 	/*
-	 * XXX ideally there should be a while-loop here to
-	 * parse consecutive calls of the form `func()()...`.
+	 * Dots have high priority, so
+	 * we deal with them specially.
 	 */
-	if (tok->type == TOK_PAREN_OPEN) {
+	while (tok->type == TOK_DOT) {
+		expect(lex, TOK_DOT);
+
+		AST *dot = ast_new();
+		dot->type = NODE_DOT;
+		dot->left = ast;
+		dot->right = parse_ident(lex);
+		ast = dot;
+
+		tok = lex_peek_token(lex);
+	}
+
+	/*
+	 * Deal with function calls...
+	 */
+	while (tok->type == TOK_PAREN_OPEN) {
 		Token *paren_open = expect(lex, TOK_PAREN_OPEN);
 
 		ParamList *params_head = NULL;
@@ -356,6 +371,8 @@ static AST *parse_atom(Lexer *lex)
 		call->left = ast;
 		call->right = NULL;
 		ast = call;
+
+		tok = lex_peek_token(lex);
 	}
 
 	end:

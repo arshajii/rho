@@ -31,7 +31,7 @@ struct attr_member {
 };
 
 struct value;
-typedef struct value (*Method)(struct value *this, struct value **args, size_t nargs);
+typedef struct value (*MethodFunc)(struct value *this, struct value *args, size_t nargs);
 
 /*
  * A class's method attributes are delineated via
@@ -39,7 +39,7 @@ typedef struct value (*Method)(struct value *this, struct value **args, size_t n
  */
 struct attr_method {
 	const char *name;
-	const Method *meth;
+	const MethodFunc meth;
 };
 
 typedef struct attr_dict_entry {
