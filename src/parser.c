@@ -245,13 +245,38 @@ static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec)
  *           i-c) string literal
  *  ii.  parenthesized expression
  *  iii. variable
- *  iv.  block
+ *  iv.  dot operation [1]
  *
- *  Atoms can also consist of multiple prefix
+ *  Atoms can also consist of multiple postfix
  *  components:
  *
  *  i.   Call (e.g. "foo(a)(b, c)")
  *  ii.  Index (e.g. "foo[a][b][c]")
+ *
+ *  [1] Because of the high precedence of the dot
+ *  operator, `parse_atom` treats an expression
+ *  of the form `a.b.c` as one atom, and would,
+ *  when parsing such an expression, return the
+ *  following tree:
+ *
+ *          .
+ *         / \
+ *        .   c
+ *       / \
+ *      a   b
+ *
+ *  As a second example, consider `a.b(x.y)`. In
+ *  this case, the following tree would be produced
+ *  and returned:
+ *
+ *         ( ) --------> .
+ *          |           / \
+ *          .          x   y
+ *         / \
+ *        a   b
+ *
+ *  The horizontal arrow represents the parameters of
+ *  the function call.
  */
 static AST *parse_atom(Lexer *lex)
 {
@@ -285,10 +310,6 @@ static AST *parse_atom(Lexer *lex)
 	case TOK_MINUS: {
 		ast = parse_unop(lex);
 		break;
-	}
-	case TOK_BRACKET_OPEN: {
-		ast = parse_block(lex);
-		goto end;
 	}
 	default:
 		parse_err_unexpected_token(lex, tok);
