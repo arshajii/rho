@@ -41,12 +41,9 @@
 ehthumbs.db
 Thumbs.db
 
-# IDE generated files #
-#######################
-.project
-.cproject
-Debug/*
-
 # Other #
 #########
-misc/*
+.project
+.cproject
+/misc/
+/Debug/
