@@ -33,8 +33,9 @@ static void read_const_table(CodeObject *co, Code *code);
 CodeObject *codeobj_make(Code *code, const char *name, unsigned int argcount)
 {
 	CodeObject *co = malloc(sizeof(CodeObject));
-	co->base = (Object){.class = &co_class, .refcnt = 0};
+	co->base = OBJ_INIT(&co_class);
 	co->name = name;
+	co->head = code->bc;
 	read_sym_table(co, code);
 	read_const_table(co, code);
 	co->bc = code->bc;
@@ -44,12 +45,20 @@ CodeObject *codeobj_make(Code *code, const char *name, unsigned int argcount)
 
 void codeobj_free(Value *this)
 {
-	CodeObject *co = this->data.o;
-	free(co->bc);
-	free((char *)co->name);
+	CodeObject *co = objvalue(this);
+	free(co->head);
 	free(co->names.array);
-	free(co->consts.array);
-	free(co);
+
+	struct value_array *consts = &co->consts;
+	Value *consts_array = consts->array;
+	const size_t consts_size = consts->length;
+
+	for (size_t i = 0; i < consts_size; i++) {
+		release(&consts_array[i]);
+	}
+
+	free(consts_array);
+
 	co->base.class->super->del(this);
 }
 
@@ -187,6 +196,54 @@ static void read_const_table(CodeObject *co, Code *code)
 	co->consts = (struct value_array){.array = constants, .length = ct_size};
 }
 
+struct num_methods co_num_methods = {
+	NULL,    /* plus */
+	NULL,    /* minus */
+	NULL,    /* abs */
+
+	NULL,    /* add */
+	NULL,    /* sub */
+	NULL,    /* mul */
+	NULL,    /* div */
+	NULL,    /* mod */
+	NULL,    /* pow */
+
+	NULL,    /* not */
+	NULL,    /* and */
+	NULL,    /* or */
+	NULL,    /* xor */
+	NULL,    /* shiftl */
+	NULL,    /* shiftr */
+
+	NULL,    /* iadd */
+	NULL,    /* isub */
+	NULL,    /* imul */
+	NULL,    /* idiv */
+	NULL,    /* imod */
+	NULL,    /* ipow */
+
+	NULL,    /* iand */
+	NULL,    /* ior */
+	NULL,    /* ixor */
+	NULL,    /* ishiftl */
+	NULL,    /* ishiftr */
+
+	NULL,    /* nonzero */
+
+	NULL,    /* to_int */
+	NULL,    /* to_float */
+};
+
+struct seq_methods co_seq_methods = {
+	NULL,    /* len */
+	NULL,    /* conctat */
+	NULL,    /* get */
+	NULL,    /* set */
+	NULL,    /* contains */
+	NULL,    /* iter */
+	NULL,    /* iternext */
+};
+
 Class co_class = {
 	.name = "CodeObject",
 
@@ -201,8 +258,8 @@ Class co_class = {
 	.str = NULL,
 	.call = NULL,
 
-	.num_methods = NULL,
-	.seq_methods = NULL,
+	.num_methods = &co_num_methods,
+	.seq_methods = &co_seq_methods,
 
 	.members = NULL,
 	.methods = NULL

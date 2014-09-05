@@ -28,6 +28,12 @@ static Str *obj_str(Value *this)
 	return str;
 }
 
+static bool obj_nonzero(Value *this)
+{
+	UNUSED(this);
+	return true;
+}
+
 static void obj_free(Value *this)
 {
 	free(this->data.o);
@@ -65,7 +71,7 @@ struct num_methods obj_num_methods = {
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */
 
-	NULL,    /* nonzero */
+	obj_nonzero,    /* nonzero */
 
 	NULL,    /* to_int */
 	NULL,    /* to_float */

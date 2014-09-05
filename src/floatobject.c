@@ -195,6 +195,16 @@ struct num_methods float_num_methods = {
 	float_to_float,    /* to_float */
 };
 
+struct seq_methods float_seq_methods = {
+	NULL,    /* len */
+	NULL,    /* conctat */
+	NULL,    /* get */
+	NULL,    /* set */
+	NULL,    /* contains */
+	NULL,    /* iter */
+	NULL,    /* iternext */
+};
+
 Class float_class = {
 	.name = "Float",
 
@@ -210,7 +220,7 @@ Class float_class = {
 	.call = NULL,
 
 	.num_methods = &float_num_methods,
-	.seq_methods  = NULL,
+	.seq_methods  = &float_seq_methods,
 
 	.members = NULL,
 	.methods = NULL

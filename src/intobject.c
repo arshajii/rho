@@ -279,6 +279,16 @@ struct num_methods int_num_methods = {
 	int_to_float,    /* to_float */
 };
 
+struct seq_methods int_seq_methods = {
+	NULL,    /* len */
+	NULL,    /* conctat */
+	NULL,    /* get */
+	NULL,    /* set */
+	NULL,    /* contains */
+	NULL,    /* iter */
+	NULL,    /* iternext */
+};
+
 Class int_class = {
 	.name = "Int",
 
@@ -294,7 +304,7 @@ Class int_class = {
 	.call = NULL,
 
 	.num_methods = &int_num_methods,
-	.seq_methods  = NULL,
+	.seq_methods  = &int_seq_methods,
 
 	.members = NULL,
 	.methods = NULL
