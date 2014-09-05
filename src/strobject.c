@@ -11,8 +11,8 @@
 Value strobj_make(Str value)
 {
 	StrObject *s = malloc(sizeof(StrObject));
-	s->base = (Object){.class = &str_class, .refcnt = 0};
-	s->freeable = true;
+	s->base = OBJ_INIT(&str_class);
+	s->freeable = false;
 	s->str = value;
 	return makeobj(s);
 }
@@ -20,28 +20,34 @@ Value strobj_make(Str value)
 static bool strobj_eq(Value *this, Value *other)
 {
 	type_assert(other, &str_class);
-	StrObject *s1 = this->data.o;
-	StrObject *s2 = this->data.o;
+	StrObject *s1 = objvalue(this);
+	StrObject *s2 = objvalue(other);
 	return str_eq(&s1->str, &s2->str);
 }
 
 static int strobj_cmp(Value *this, Value *other)
 {
 	type_assert(other, &str_class);
-	StrObject *s1 = this->data.o;
-	StrObject *s2 = this->data.o;
+	StrObject *s1 = objvalue(this);
+	StrObject *s2 = objvalue(other);
 	return str_cmp(&s1->str, &s2->str);
 }
 
 static int strobj_hash(Value *this)
 {
-	StrObject *s = this->data.o;
+	StrObject *s = objvalue(this);
 	return str_hash(&s->str);
+}
+
+static bool strobj_nonzero(Value *this)
+{
+	StrObject *s = objvalue(this);
+	return (s->str.len != 0);
 }
 
 static void strobj_free(Value *this)
 {
-	StrObject *s = this->data.o;
+	StrObject *s = objvalue(this);
 	if (s->freeable) {
 		free((char *) s->str.value);
 	}
@@ -51,7 +57,7 @@ static void strobj_free(Value *this)
 
 static Str *strobj_str(Value *this)
 {
-	StrObject *s = this->data.o;
+	StrObject *s = objvalue(this);
 	return &s->str;
 }
 
@@ -59,8 +65,8 @@ static Value strobj_cat(Value *this, Value *other)
 {
 	type_assert(other, &str_class);
 
-	Str *s1 = &((StrObject *) this->data.o)->str;
-	Str *s2 = &((StrObject *) other->data.o)->str;
+	Str *s1 = &((StrObject *) objvalue(this))->str;
+	Str *s2 = &((StrObject *) objvalue(other))->str;
 
 	const size_t len1 = s1->len;
 	const size_t len2 = s2->len;
@@ -113,7 +119,7 @@ struct num_methods str_num_methods = {
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */
 
-	NULL,    /* nonzero */
+	strobj_nonzero,    /* nonzero */
 
 	NULL,    /* to_int */
 	NULL,    /* to_float */

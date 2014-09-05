@@ -103,6 +103,8 @@ struct object {
 	unsigned int refcnt;
 };
 
+#define OBJ_INIT(type) ((Object){.class = (type), .refcnt = 1})
+
 struct value {
 	enum {
 		VAL_TYPE_EMPTY = 0,  // indicates nonexistent value (should always be 0)

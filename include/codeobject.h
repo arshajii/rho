@@ -13,6 +13,9 @@ typedef struct {
 	/* name of this code object */
 	const char *name;
 
+	/* full code (including tables) */
+	byte *head;
+
 	/* code segment */
 	byte *bc;
 

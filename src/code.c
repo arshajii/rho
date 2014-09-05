@@ -122,19 +122,11 @@ double code_read_double(Code *code)
 
 const char *code_read_str(Code *code)
 {
-	size_t len = 0;
+	const char *start = (const char *)code->bc;
 
-	while (code->bc[len] != '\0') {
-		++len;
-	}
+	while (*(code->bc++) != '\0');
 
-	char *str = malloc(len + 1);
-	for (size_t j = 0; j < len; j++) {
-		str[j] = code_read_byte(code);
-	}
-	code_read_byte(code);  /* skip the string termination byte */
-	str[len] = '\0';
-	return str;
+	return start;
 }
 
 void code_cpy(Code *dst, Code *src)
