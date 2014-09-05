@@ -1079,13 +1079,13 @@ static void print(Value *v)
 		fatal_error("unexpected value type VAL_TYPE_EMPTY");
 		break;
 	case VAL_TYPE_INT:
-		printf("%d\n", v->data.i);
+		printf("%d\n", intvalue(v));
 		break;
 	case VAL_TYPE_FLOAT:
-		printf("%f\n", v->data.f);
+		printf("%f\n", floatvalue(v));
 		break;
 	case VAL_TYPE_OBJECT: {
-		const Object *o = v->data.o;
+		const Object *o = objvalue(v);
 		const StrUnOp op = resolve_str(o->class);
 		Str *str = op(v);
 

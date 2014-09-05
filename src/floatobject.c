@@ -20,10 +20,10 @@
 
 #define FLOAT_IBINOP_FUNC_BODY(op) \
 	if (isint(other)) { \
-		this->data.f = this->data.f op intvalue(other); \
+		floatvalue(this) = floatvalue(this) op intvalue(other); \
 		return *this; \
 	} else if (isfloat(other)) { \
-		this->data.f = this->data.f op floatvalue(other); \
+		floatvalue(this) = floatvalue(this) op floatvalue(other); \
 		return *this; \
 	} else { \
 		type_error(TYPE_ERR_STR(op)); \
@@ -131,10 +131,10 @@ static Value float_idiv(Value *this, Value *other)
 static Value float_ipow(Value *this, Value *other)
 {
 	if (isint(other)) {
-		this->data.f = pow(this->data.f, intvalue(other));
+		floatvalue(this) = pow(floatvalue(this), intvalue(other));
 		return *this;
 	} else if (isfloat(other)) {
-		this->data.f = pow(this->data.f, floatvalue(other));
+		floatvalue(this) = pow(floatvalue(this), floatvalue(other));
 		return *this;
 	} else {
 		type_error(TYPE_ERR_STR(**));

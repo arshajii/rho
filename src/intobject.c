@@ -28,11 +28,11 @@
 
 #define INT_IBINOP_FUNC_BODY(op) \
 	if (isint(other)) { \
-		this->data.i = this->data.i op intvalue(other); \
+		intvalue(this) = intvalue(this) op intvalue(other); \
 		return *this; \
 	} else if (isfloat(other)) { \
 		this->type = VAL_TYPE_FLOAT; \
-		this->data.f = this->data.i op floatvalue(other); \
+		floatvalue(this) = intvalue(this) op floatvalue(other); \
 		return *this; \
 	} else { \
 		type_error(TYPE_ERR_STR(op)); \
@@ -41,7 +41,7 @@
 
 #define INT_IBINOP_FUNC_BODY_NOFLOAT(op) \
 	if (isint(other)) { \
-		this->data.i = this->data.i op intvalue(other); \
+		intvalue(this) = intvalue(this) op intvalue(other); \
 		return *this; \
 	} else { \
 		type_error(TYPE_ERR_STR(op)); \
@@ -189,11 +189,11 @@ static Value int_imod(Value *this, Value *other)
 static Value int_ipow(Value *this, Value *other)
 {
 	if (isint(other)) {
-		this->data.i = pow(this->data.i, intvalue(other));
+		intvalue(this) = pow(intvalue(this), intvalue(other));
 		return *this;
 	} else if (isfloat(other)) {
 		this->type = VAL_TYPE_FLOAT;
-		this->data.f = pow(this->data.i, floatvalue(other));
+		floatvalue(this) = pow(intvalue(this), floatvalue(other));
 		return *this;
 	} else {
 		type_error(TYPE_ERR_STR(**));

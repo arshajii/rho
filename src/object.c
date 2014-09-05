@@ -10,19 +10,19 @@
 
 static int obj_hash(Value *this)
 {
-	return hash_ptr(this->data.o);
+	return hash_ptr(objvalue(this));
 }
 
 static bool obj_eq(Value *this, Value *other)
 {
 	type_assert(other, &obj_class);
-	return this->data.o == other->data.o;
+	return objvalue(this) == objvalue(other);
 }
 
 static Str *obj_str(Value *this)
 {
 	char *buf = malloc(32);
-	sprintf(buf, "<%s at %p>", getclass(this)->name, this->data.o);
+	sprintf(buf, "<%s at %p>", getclass(this)->name, objvalue(this));
 	Str *str = str_new(buf, strlen(buf));
 	str->freeable = 1;
 	return str;
@@ -36,7 +36,7 @@ static bool obj_nonzero(Value *this)
 
 static void obj_free(Value *this)
 {
-	free(this->data.o);
+	free(objvalue(this));
 }
 
 struct num_methods obj_num_methods = {
@@ -122,7 +122,7 @@ Class *getclass(Value *val)
 	case VAL_TYPE_FLOAT:
 		return &float_class;
 	case VAL_TYPE_OBJECT: {
-		const Object *o = val->data.o;
+		const Object *o = objvalue(val);
 		return o->class;
 	}
 	}
