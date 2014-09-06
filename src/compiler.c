@@ -242,7 +242,7 @@ static void compile_call(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_CALL);
 
-	byte argcount = 0;
+	size_t argcount = 0;
 
 	for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
 		compile_node(compiler, node->ast, false);
@@ -251,7 +251,7 @@ static void compile_call(Compiler *compiler, AST *ast)
 
 	compile_node(compiler, ast->left, false);  // callable
 	write_byte(compiler, INS_CALL);
-	write_byte(compiler, argcount);
+	write_uint16(compiler, argcount);
 }
 
 static void compile_block(Compiler *compiler, AST *ast)

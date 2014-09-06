@@ -22,7 +22,7 @@ void type_error(const char *msg);
 void type_error_unsupported_1(const char *op, const Class *c1);
 void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2);
 void type_error_not_callable(const Class *c1);
-void call_error_args(const char *fn, int expected, int got);
+void call_error_args(const char *fn, unsigned int expected, unsigned int got);
 void attr_error(const Class *type, const char *attr);
 
 void fatal_error(const char *msg);

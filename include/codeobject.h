@@ -20,7 +20,7 @@ typedef struct {
 	byte *bc;
 
 	/* number of arguments */
-	unsigned char argcount;
+	unsigned int argcount;
 
 	/* enumerated variable names */
 	struct str_array names;

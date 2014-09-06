@@ -1015,7 +1015,8 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_CALL: {
-			const byte argcount = bc[pos++];
+			const unsigned int argcount = read_uint16(bc + pos);
+			pos += 2;
 			Value *v1 = STACK_POP();
 			Class *class = getclass(v1);
 			if (class == &co_class) {
@@ -1028,9 +1029,8 @@ static void eval_frame(VM *vm)
 				vm_pushframe(vm, co);
 
 				Frame *top = vm->callstack;
-				for (byte i = 0; i < argcount; i++) {
-					Value *v = STACK_POP();
-					top->locals[i] = *v;
+				for (unsigned int i = 0; i < argcount; i++) {
+					top->locals[i] = *STACK_POP();
 				}
 
 				eval_frame(vm);
@@ -1046,6 +1046,9 @@ static void eval_frame(VM *vm)
 
 				Value result = call(v1, stack - argcount, argcount);
 				retain(&result);
+				for (unsigned int i = 0; i < argcount; i++) {
+					release(STACK_POP());
+				}
 				STACK_PUSH(result);
 				release(v1);
 			}

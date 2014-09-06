@@ -125,10 +125,10 @@ void type_error_not_callable(const Class *c1)
 	exit(EXIT_FAILURE);
 }
 
-void call_error_args(const char *fn, int expected, int got)
+void call_error_args(const char *fn, unsigned int expected, unsigned int got)
 {
 	fprintf(stderr,
-	        TYPE_ERROR_HEADER "function %s(): expected %d arguments, got %d\n",
+	        TYPE_ERROR_HEADER "function %s(): expected %u arguments, got %u\n",
 	        fn,
 	        expected,
 	        got);
