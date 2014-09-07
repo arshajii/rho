@@ -28,6 +28,11 @@ void write_uint16(Compiler *c, const size_t n)
 	code_write_uint16(&c->code, n);
 }
 
+void write_uint16_at(Compiler *c, const size_t n, const size_t pos)
+{
+	code_write_uint16_at(&c->code, n, pos);
+}
+
 unsigned int read_uint16(byte *bytes)
 {
 	unsigned int n;
@@ -274,7 +279,7 @@ static void compile_if(Compiler *compiler, AST *ast)
 
 	// jump placeholder:
 	const size_t jmp_stub_idx = compiler->code.size;
-	write_byte(compiler, INS_NOP);
+	write_uint16(compiler, 0);
 	// ~~~
 
 	compile_node(compiler, ast->right, false);
@@ -283,15 +288,15 @@ static void compile_if(Compiler *compiler, AST *ast)
 	if (has_else) {
 		write_byte(compiler, INS_JMP);
 		const size_t jmp_stub_idx_2 = compiler->code.size;
-		write_byte(compiler, INS_NOP);
+		write_uint16(compiler, 0);
 
-		compiler->code.bc[jmp_stub_idx] = (byte)(compiler->code.size - jmp_stub_idx - 1);
+		write_uint16_at(compiler, compiler->code.size - jmp_stub_idx - 2, jmp_stub_idx);
 
 		compile_node(compiler, ast->v.middle, false);
 
-		compiler->code.bc[jmp_stub_idx_2] = (byte)(compiler->code.size - jmp_stub_idx_2 - 1);
+		write_uint16_at(compiler, compiler->code.size - jmp_stub_idx_2 - 2, jmp_stub_idx_2);
 	} else {
-		compiler->code.bc[jmp_stub_idx] = (byte)(compiler->code.size - jmp_stub_idx - 1);
+		write_uint16_at(compiler, compiler->code.size - jmp_stub_idx - 2, jmp_stub_idx);
 	}
 }
 
@@ -303,18 +308,18 @@ static void compile_while(Compiler *compiler, AST *ast)
 
 	// unconditional jump placeholder:
 	const size_t jmp_ucond_stub_idx = compiler->code.size;
-	write_byte(compiler, INS_NOP);
+	write_uint16(compiler, 0);
 	// ~~~
 
 	compile_node(compiler, ast->right, false);  // body
 
 	// fill in placeholder:
-	compiler->code.bc[jmp_ucond_stub_idx] = (byte)(compiler->code.size - jmp_ucond_stub_idx - 1);
+	write_uint16_at(compiler, compiler->code.size - jmp_ucond_stub_idx - 2, jmp_ucond_stub_idx);
 
 	compile_node(compiler, ast->left, false);   // condition
 
 	write_byte(compiler, INS_JMP_BACK_IF_TRUE);
-	write_byte(compiler, compiler->code.size - jmp_ucond_stub_idx);
+	write_uint16(compiler, compiler->code.size - jmp_ucond_stub_idx);
 }
 
 static void compile_def(Compiler *compiler, AST *ast)

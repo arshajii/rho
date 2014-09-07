@@ -42,13 +42,27 @@ void code_write_byte(Code *code, const byte b)
  */
 void code_write_uint16(Code *code, const size_t n)
 {
+	code_write_uint16_at(code, n, code->size);
+}
+
+void code_write_uint16_at(Code *code, const size_t n, const size_t pos)
+{
 	if (n > 0xffff) {
 		INTERNAL_ERROR();
 	}
 
-	code_ensure_capacity(code, code->size + 2);
-	memcpy(code->bc + code->size, &n, 2);
-	code->size += 2;
+	const size_t code_size = code->size;
+
+	if (pos > code_size) {
+		INTERNAL_ERROR();
+	}
+
+	if (code_size < 2 || pos > code_size - 2) {
+		code_ensure_capacity(code, pos + 2);
+		code->size += (pos + 2 - code_size);
+	}
+
+	memcpy(code->bc + pos, &n, 2);
 }
 
 void code_write_int(Code *code, const int n)

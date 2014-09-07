@@ -38,6 +38,8 @@ void code_write_int(Code *code, const int n);
 
 void code_write_uint16(Code *code, const size_t n);
 
+void code_write_uint16_at(Code *code, const size_t n, const size_t pos);
+
 void code_write_double(Code *code, const double d);
 
 void code_write_str(Code *code, const Str *str);

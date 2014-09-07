@@ -156,8 +156,18 @@ static void frame_vstack_push(Frame *frame, Value v, Value **stack)
 	++*stack;
 }
 
+static unsigned int read_uint16_from_bc(byte *bc, size_t *pos)
+{
+	const unsigned int n = read_uint16(bc + *pos);
+	(*pos) += 2;
+	return n;
+}
+
 static void eval_frame(VM *vm)
 {
+#define GET_BYTE() (bc[pos++])
+#define GET_UINT16() (read_uint16_from_bc(bc, &pos))
+
 #define STACK_POP() (--stack)
 #define STACK_PEEK() (&stack[-1])
 #define STACK_PUSH(v) (frame_vstack_push(frame, (v), &stack))
@@ -181,14 +191,13 @@ static void eval_frame(VM *vm)
 	size_t pos = 0;
 
 	while (true) {
-		const byte opcode = bc[pos++];
+		const byte opcode = GET_BYTE();
 
 		switch (opcode) {
 		case INS_NOP:
 			break;
 		case INS_LOAD_CONST: {
-			const unsigned int id = read_uint16(bc + pos);
-			pos += 2;
+			const unsigned int id = GET_UINT16();
 			Value *v1 = &constants[id];
 			retain(v1);
 			STACK_PUSH(*v1);
@@ -808,15 +817,14 @@ static void eval_frame(VM *vm)
 		}
 		case INS_STORE: {
 			Value *v1 = STACK_POP();
-			const unsigned int id = read_uint16(bc + pos);
+			const unsigned int id = GET_UINT16();
 			Value old = locals[id];
 			locals[id] = *v1;
 			release(&old);
-			pos += 2;
 			break;
 		}
 		case INS_LOAD: {
-			const unsigned int id = read_uint16(bc + pos);
+			const unsigned int id = GET_UINT16();
 			Value *v1 = &locals[id];
 
 			if (v1->type == VAL_TYPE_EMPTY) {
@@ -825,11 +833,10 @@ static void eval_frame(VM *vm)
 
 			retain(v1);
 			STACK_PUSH(*v1);
-			pos += 2;
 			break;
 		}
 		case INS_LOAD_GLOBAL: {
-			const unsigned int id = read_uint16(bc + pos);
+			const unsigned int id = GET_UINT16();
 			Value *v1 = &globals[id];
 
 			if (v1->type == VAL_TYPE_EMPTY) {
@@ -838,15 +845,13 @@ static void eval_frame(VM *vm)
 
 			retain(v1);
 			STACK_PUSH(*v1);
-			pos += 2;
 			break;
 		}
 		case INS_LOAD_ATTR: {
 			Value *v1 = STACK_POP();
 			Class *class = getclass(v1);
 
-			const unsigned int id = read_uint16(bc + pos);
-			pos += 2;
+			const unsigned int id = GET_UINT16();
 
 			const char *attr = attrs.array[id].str;
 
@@ -969,18 +974,18 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_JMP: {
-			const unsigned int jmp = bc[pos++];
+			const unsigned int jmp = GET_UINT16();
 			pos += jmp;
 			break;
 		}
 		case INS_JMP_BACK: {
-			const unsigned int jmp = bc[pos++];
+			const unsigned int jmp = GET_UINT16();
 			pos -= jmp;
 			break;
 		}
 		case INS_JMP_IF_TRUE: {
 			Value *v1 = STACK_POP();
-			const unsigned int jmp = bc[pos++];
+			const unsigned int jmp = GET_UINT16();
 			if (resolve_nonzero(getclass(v1))(v1)) {
 				pos += jmp;
 			}
@@ -989,7 +994,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_JMP_IF_FALSE: {
 			Value *v1 = STACK_POP();
-			const unsigned int jmp = bc[pos++];
+			const unsigned int jmp = GET_UINT16();
 			if (!resolve_nonzero(getclass(v1))(v1)) {
 				pos += jmp;
 			}
@@ -998,7 +1003,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_JMP_BACK_IF_TRUE: {
 			Value *v1 = STACK_POP();
-			const unsigned int jmp = bc[pos++];
+			const unsigned int jmp = GET_UINT16();
 			if (resolve_nonzero(getclass(v1))(v1)) {
 				pos -= jmp;
 			}
@@ -1007,7 +1012,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_JMP_BACK_IF_FALSE: {
 			Value *v1 = STACK_POP();
-			const unsigned int jmp = bc[pos++];
+			const unsigned int jmp = GET_UINT16();
 			if (!resolve_nonzero(getclass(v1))(v1)) {
 				pos -= jmp;
 			}
@@ -1015,8 +1020,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_CALL: {
-			const unsigned int argcount = read_uint16(bc + pos);
-			pos += 2;
+			const unsigned int argcount = GET_UINT16();
 			Value *v1 = STACK_POP();
 			Class *class = getclass(v1);
 			if (class == &co_class) {
