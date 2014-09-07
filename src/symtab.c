@@ -25,8 +25,8 @@ static STEntry *ste_new(const char *name, STEContext context);
 static void ste_grow(STEntry *ste, const size_t new_capacity);
 static void ste_grow_attr(STEntry *ste, const size_t new_capacity);
 
-static void ste_register_ident(STEntry *ste, Str *ident, int flags);
-static void ste_register_attr(STEntry *ste, Str *ident);
+static bool ste_register_ident(STEntry *ste, Str *ident, int flags);
+static bool ste_register_attr(STEntry *ste, Str *ident);
 
 static void populate_symtable_from_node(SymTable *st, AST *ast);
 static void register_bindings(SymTable *st, Program *program);
@@ -216,7 +216,15 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 
 		ParamList *params = ast->v.params;
 		while (params != NULL) {
-			ste_register_ident(child, params->ast->v.ident, FLAG_BOUND_HERE | FLAG_FUNC_PARAM);
+			Str *ident = params->ast->v.ident;
+
+			bool param_seen = ste_register_ident(child, ident, FLAG_BOUND_HERE | FLAG_FUNC_PARAM);
+
+			/* we can't have duplicate parameter names */
+			if (param_seen) {
+				def_error_dup_params(child->name, ident->value);
+			}
+
 			params = params->next;
 		}
 
@@ -265,11 +273,17 @@ STSymbol *ste_get_attr_symbol(STEntry *ste, Str *attr)
 	return NULL;
 }
 
-static void ste_register_ident(STEntry *ste, Str *ident, int flags)
+/*
+ * Registers the given identifier; returns whether the identifier
+ * had been previously registered.
+ */
+static bool ste_register_ident(STEntry *ste, Str *ident, int flags)
 {
 	STSymbol *symbol = ste_get_symbol(ste, ident);
+	bool found = true;
 
 	if (symbol == NULL) {
+		found = false;
 		const int hash = HASH(ident);
 		const size_t index = hash & (ste->table_capacity - 1);
 
@@ -331,16 +345,25 @@ static void ste_register_ident(STEntry *ste, Str *ident, int flags)
 		symbol->decl_const = 1;
 	}
 
+	/* this should be handled seperately */
 	if (flags & FLAG_ATTRIBUTE) {
 		INTERNAL_ERROR();
 	}
+
+	return found;
 }
 
-static void ste_register_attr(STEntry *ste, Str *attr)
+/*
+ * Registers the given attribute; returns whether the attribute
+ * had been previously registered.
+ */
+static bool ste_register_attr(STEntry *ste, Str *attr)
 {
 	STSymbol *symbol = ste_get_attr_symbol(ste, attr);
+	bool found = true;
 
 	if (symbol == NULL) {
+		found = false;
 		const int hash = HASH(attr);
 		const size_t index = hash & (ste->attr_capacity - 1);
 
@@ -358,6 +381,8 @@ static void ste_register_attr(STEntry *ste, Str *attr)
 			ste_grow_attr(ste, 2 * ste->attr_capacity);
 		}
 	}
+
+	return found;
 }
 
 static void ste_grow(STEntry *ste, const size_t new_capacity)

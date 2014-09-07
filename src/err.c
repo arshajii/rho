@@ -6,6 +6,7 @@
 #include "object.h"
 #include "err.h"
 
+#define FUNC_ERROR_HEADER "Function Error: "
 #define TYPE_ERROR_HEADER "Type Error: "
 #define NAME_ERROR_HEADER "Name Error: "
 #define ATTR_ERROR_HEADER "Attribute Error: "
@@ -121,6 +122,16 @@ void type_error_not_callable(const Class *c1)
 	fprintf(stderr,
 	        TYPE_ERROR_HEADER "object of type %s is not callable\n",
 	        c1->name);
+
+	exit(EXIT_FAILURE);
+}
+
+void def_error_dup_params(const char *fn, const char *param_name)
+{
+	fprintf(stderr,
+			FUNC_ERROR_HEADER "function %s has duplicate parameter name '%s'\n",
+	        fn,
+	        param_name);
 
 	exit(EXIT_FAILURE);
 }
