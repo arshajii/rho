@@ -249,7 +249,9 @@ Class co_class = {
 
 	.super = &obj_class,
 
-	.new = NULL,
+	.instance_size = sizeof(CodeObject),
+
+	.init = NULL,
 	.del = codeobj_free,
 
 	.eq = NULL,

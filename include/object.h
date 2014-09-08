@@ -19,7 +19,10 @@ typedef bool (*BoolUnOp)(Value *this);
 typedef bool (*BoolBinOp)(Value *this, Value *other);
 typedef Str *(*StrUnOp)(Value *this);
 
+typedef void (*InitFunc)(Value *this, Value *args, size_t nargs);
+typedef void (*DelFunc)(Value *this);
 typedef Value (*CallFunc)(Value *this, Value *args, size_t nargs);
+typedef void (*SeqSetFunc)(Value *this, Value *idx, Value *v);
 
 struct num_methods {
 	UnOp plus;
@@ -63,8 +66,8 @@ struct seq_methods {
 	UnOp len;
 	BinOp concat;
 	BinOp get;
-	BinOp set;
-	BinOp contains;
+	SeqSetFunc set;
+	BoolBinOp contains;
 	UnOp iter;
 	UnOp iternext;
 };
@@ -74,8 +77,10 @@ typedef struct class {
 
 	struct class *super;
 
-	Value (*new)(Value *args, size_t nargs);
-	void (*del)(Value *this);
+	const size_t instance_size;
+
+	InitFunc init;
+	DelFunc del;
 
 	BoolBinOp eq;
 	IntUnOp hash;
@@ -176,10 +181,12 @@ UnOp resolve_to_float(Class *class);
 UnOp resolve_len(Class *class);
 BinOp resolve_concat(Class *class);
 BinOp resolve_get(Class *class);
-BinOp resolve_set(Class *class);
-BinOp resolve_contains (Class *class);
+SeqSetFunc resolve_set(Class *class);
+BoolBinOp resolve_contains (Class *class);
 UnOp resolve_iter(Class *class);
 UnOp resolve_iternext(Class *class);
+
+Value instantiate(Class *class, Value *args, size_t nargs);
 
 void retaino(Object *o);
 void releaseo(Object *o);

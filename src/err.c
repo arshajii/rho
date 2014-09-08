@@ -117,6 +117,15 @@ void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2)
 	exit(EXIT_FAILURE);
 }
 
+void type_error_cannot_instantiate(const Class *c1)
+{
+	fprintf(stderr,
+	        TYPE_ERROR_HEADER "class %s cannot be instantiated\n",
+	        c1->name);
+
+	exit(EXIT_FAILURE);
+}
+
 void type_error_not_callable(const Class *c1)
 {
 	fprintf(stderr,

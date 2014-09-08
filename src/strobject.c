@@ -145,7 +145,9 @@ Class str_class = {
 
 	.super = &obj_class,
 
-	.new = NULL,
+	.instance_size = sizeof(StrObject),
+
+	.init = NULL,
 	.del = strobj_free,
 
 	.eq = strobj_eq,

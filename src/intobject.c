@@ -294,7 +294,9 @@ Class int_class = {
 
 	.super = &obj_class,
 
-	.new = NULL,
+	.instance_size = 0,
+
+	.init = NULL,
 	.del = NULL,
 
 	.eq = int_eq,

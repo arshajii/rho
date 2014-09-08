@@ -78,7 +78,9 @@ Class method_class = {
 
 	.super = &obj_class,
 
-	.new = NULL,
+	.instance_size = sizeof(Method),
+
+	.init = NULL,
 	.del = methobj_free,
 
 	.eq = NULL,

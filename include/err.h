@@ -21,6 +21,7 @@ void type_assert(Value *val, Class *type);
 void type_error(const char *msg);
 void type_error_unsupported_1(const char *op, const Class *c1);
 void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2);
+void type_error_cannot_instantiate(const Class *c1);
 void type_error_not_callable(const Class *c1);
 void def_error_dup_params(const char *fn, const char *param_name);
 void call_error_args(const char *fn, unsigned int expected, unsigned int got);

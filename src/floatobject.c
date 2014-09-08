@@ -210,7 +210,9 @@ Class float_class = {
 
 	.super = &obj_class,
 
-	.new = NULL,
+	.instance_size = 0,
+
+	.init = NULL,
 	.del = NULL,
 
 	.eq = float_eq,

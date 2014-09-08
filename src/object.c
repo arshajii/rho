@@ -8,6 +8,13 @@
 #include "floatobject.h"
 #include "object.h"
 
+static void obj_init(Value *this, Value *args, size_t nargs)
+{
+	UNUSED(this);
+	UNUSED(args);
+	UNUSED(nargs);
+}
+
 static int obj_hash(Value *this)
 {
 	return hash_ptr(objvalue(this));
@@ -92,7 +99,9 @@ Class obj_class = {
 
 	.super = NULL,
 
-	.new = NULL,
+	.instance_size = sizeof(Object),
+
+	.init = obj_init,
 	.del = obj_free,
 
 	.eq = obj_eq,
@@ -210,13 +219,30 @@ MAKE_METHOD_RESOLVER(to_float, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(len, seq_methods, UnOp)
 MAKE_METHOD_RESOLVER(concat, seq_methods, BinOp)
 MAKE_METHOD_RESOLVER(get, seq_methods, BinOp)
-MAKE_METHOD_RESOLVER(set, seq_methods, BinOp)
-MAKE_METHOD_RESOLVER(contains, seq_methods, BinOp)
+MAKE_METHOD_RESOLVER(set, seq_methods, SeqSetFunc)
+MAKE_METHOD_RESOLVER(contains, seq_methods, BoolBinOp)
 MAKE_METHOD_RESOLVER(iter, seq_methods, UnOp)
 MAKE_METHOD_RESOLVER(iternext, seq_methods, UnOp)
 
 #undef MAKE_METHOD_RESOLVER_DIRECT
 #undef MAKE_METHOD_RESOLVER
+
+Value instantiate(Class *class, Value *args, size_t nargs)
+{
+	if (class == &int_class) {
+		return makeint(0);
+	} else if (class == &float_class) {
+		return makefloat(0);
+	} else {
+		if (class->init == NULL) {
+			type_error_cannot_instantiate(class);
+		}
+
+		Value instance = makeobj(malloc(class->instance_size));
+		class->init(&instance, args, nargs);
+		return instance;
+	}
+}
 
 void retaino(Object *o)
 {
