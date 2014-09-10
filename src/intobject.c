@@ -66,9 +66,9 @@ static int int_hash(Value *this)
 
 static int int_cmp(Value *this, Value *other)
 {
-	const int x = intvalue(this);
+	const long x = intvalue(this);
 	if (isint(other)) {
-		const int y = intvalue(other);
+		const long y = intvalue(other);
 		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else if (isfloat(other)) {
 		const double y = floatvalue(other);

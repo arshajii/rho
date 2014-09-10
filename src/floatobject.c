@@ -50,7 +50,7 @@ static int float_cmp(Value *this, Value *other)
 {
 	const double x = floatvalue(this);
 	if (isint(other)) {
-		const int y = intvalue(other);
+		const long y = intvalue(other);
 		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else if (isfloat(other)) {
 		const double y = floatvalue(other);

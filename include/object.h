@@ -119,7 +119,7 @@ struct value {
 	} type;
 
 	union {
-		int i;
+		long i;
 		double f;
 		void *o;
 	} data;

@@ -885,63 +885,63 @@ static void eval_frame(VM *vm)
 					break;
 				}
 				case ATTR_T_BYTE: {
-					const int n = getmember(o, offset, char);
+					const long n = getmember(o, offset, char);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_SHORT: {
-					const int n = getmember(o, offset, short);
+					const long n = getmember(o, offset, short);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_INT: {
-					const int n = getmember(o, offset, int);
+					const long n = getmember(o, offset, int);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_LONG: {
-					const int n = getmember(o, offset, long);
+					const long n = getmember(o, offset, long);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_UBYTE: {
-					const int n = getmember(o, offset, unsigned char);
+					const long n = getmember(o, offset, unsigned char);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_USHORT: {
-					const int n = getmember(o, offset, unsigned short);
+					const long n = getmember(o, offset, unsigned short);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_UINT: {
-					const int n = getmember(o, offset, unsigned int);
+					const long n = getmember(o, offset, unsigned int);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_ULONG: {
-					const int n = getmember(o, offset, unsigned long);
+					const long n = getmember(o, offset, unsigned long);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_SIZE_T: {
-					const int n = getmember(o, offset, size_t);
+					const long n = getmember(o, offset, size_t);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_BOOL: {
-					const int n = getmember(o, offset, bool);
+					const long n = getmember(o, offset, bool);
 					STACK_PUSH(makeint(n));
 					break;
 				}
 				case ATTR_T_FLOAT: {
-					const int n = getmember(o, offset, float);
-					STACK_PUSH(makefloat(n));
+					const double d = getmember(o, offset, float);
+					STACK_PUSH(makefloat(d));
 					break;
 				}
 				case ATTR_T_DOUBLE: {
-					const int n = getmember(o, offset, double);
-					STACK_PUSH(makefloat(n));
+					const double d = getmember(o, offset, double);
+					STACK_PUSH(makefloat(d));
 					break;
 				}
 				case ATTR_T_STRING: {
@@ -1086,7 +1086,7 @@ static void print(Value *v)
 		fatal_error("unexpected value type VAL_TYPE_EMPTY");
 		break;
 	case VAL_TYPE_INT:
-		printf("%d\n", intvalue(v));
+		printf("%ld\n", intvalue(v));
 		break;
 	case VAL_TYPE_FLOAT:
 		printf("%f\n", floatvalue(v));
