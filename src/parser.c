@@ -640,12 +640,23 @@ static AST *parse_block(Lexer *lex)
 			break;
 		}
 
+		AST *stmt = parse_stmt(lex);
+
+		/*
+		 * We don't include empty statements
+		 * in the syntax tree.
+		 */
+		if (stmt->type == NODE_EMPTY) {
+			free(stmt);
+			continue;
+		}
+
 		if (block->ast != NULL) {
 			block->next = ast_list_new();
 			block = block->next;
 		}
 
-		block->ast = parse_stmt(lex);
+		block->ast = stmt;
 	} while (true);
 
 	expect(lex, TOK_BRACKET_CLOSE);
@@ -663,8 +674,7 @@ static AST *parse_empty(Lexer *lex)
 	expect(lex, TOK_SEMICOLON);
 	AST *ast = ast_new();
 	ast->type = NODE_EMPTY;
-	ast->left = NULL;
-	ast->right = NULL;
+	ast->left = ast->right = NULL;
 	return ast;
 }
 
