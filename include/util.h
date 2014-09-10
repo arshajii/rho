@@ -14,6 +14,7 @@
 	static inline type name(const type a, const type b) { return a > b ? a : b; }
 
 int hash_int(const int i);
+int hash_long(const long l);
 int hash_double(const double d);
 int hash_float(const float f);
 int hash_bool(const bool b);

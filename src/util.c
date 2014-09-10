@@ -13,18 +13,23 @@ int hash_int(const int i)
 	return i;
 }
 
+int hash_long(const long l)
+{
+	return (int)(l ^ ((unsigned long)l >> 32));
+}
+
 int hash_double(const double d)
 {
-	unsigned long long l;
+	unsigned long long l = 0;
 	memcpy(&l, &d, sizeof(double));
-	return l ^ (l >> 32);
+	return (int)(l ^ (l >> 32));
 }
 
 int hash_float(const float f)
 {
-	unsigned long long l;
+	unsigned long long l = 0;
 	memcpy(&l, &f, sizeof(float));
-	return l ^ (l >> 32);
+	return (int)(l ^ (l >> 32));
 }
 
 int hash_bool(const bool b)
@@ -35,7 +40,7 @@ int hash_bool(const bool b)
 int hash_ptr(const void *p)
 {
 	uintptr_t ad = (uintptr_t)p;
-	return (size_t)((13*ad) ^ (ad >> 15));
+	return (int)((13*ad) ^ (ad >> 15));
 }
 
 /* Adapted from java.util.HashMap#hash */

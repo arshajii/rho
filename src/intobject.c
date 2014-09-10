@@ -61,7 +61,7 @@ static bool int_eq(Value *this, Value *other)
 
 static int int_hash(Value *this)
 {
-	return hash_int(intvalue(this));
+	return hash_long(intvalue(this));
 }
 
 static int int_cmp(Value *this, Value *other)
