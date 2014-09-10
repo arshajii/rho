@@ -11,16 +11,14 @@
 #include "code.h"
 #include "compiler.h"
 
+static void write_byte(Compiler *compiler, byte p)
+{
+	code_write_byte(&compiler->code, p);
+}
+
 void write_int(Compiler *c, const int n)
 {
 	code_write_int(&c->code, n);
-}
-
-int read_int(byte *bytes)
-{
-	int n;
-	memcpy(&n, bytes, INT_SIZE);
-	return n;
 }
 
 void write_uint16(Compiler *c, const size_t n)
@@ -33,32 +31,13 @@ void write_uint16_at(Compiler *c, const size_t n, const size_t pos)
 	code_write_uint16_at(&c->code, n, pos);
 }
 
-unsigned int read_uint16(byte *bytes)
-{
-	unsigned int n;
-	memcpy(&n, bytes, 2);
-	return n;
-}
-
 void write_double(Compiler *c, const double d)
 {
 	code_write_double(&c->code, d);
 }
 
-double read_double(byte *bytes)
-{
-	double d;
-	memcpy(&d, bytes, DOUBLE_SIZE);
-	return d;
-}
-
 const byte magic[] = {0xFE, 0xED, 0xF0, 0x0D};
 const size_t magic_size = sizeof(magic);
-
-static void write_byte(Compiler *compiler, byte p)
-{
-	code_write_byte(&compiler->code, p);
-}
 
 /*
  * Compilation

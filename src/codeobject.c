@@ -74,7 +74,7 @@ static void read_sym_table(CodeObject *co, Code *code)
 
 	size_t off = 0;
 
-	const size_t n_locals = read_uint16(symtab_bc);
+	const size_t n_locals = read_uint16_from_stream(symtab_bc);
 	off += 2;
 
 	struct str_array names;
@@ -95,7 +95,7 @@ static void read_sym_table(CodeObject *co, Code *code)
 		off += len + 1;
 	}
 
-	const size_t n_attrs = read_uint16(symtab_bc + off);
+	const size_t n_attrs = read_uint16_from_stream(symtab_bc + off);
 	off += 2;
 
 	struct str_array attrs;

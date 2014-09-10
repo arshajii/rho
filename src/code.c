@@ -1,6 +1,7 @@
 #include <string.h>
 #include "compiler.h"
 #include "err.h"
+#include "util.h"
 #include "code.h"
 
 void code_init(Code *code, size_t capacity)
@@ -47,7 +48,7 @@ void code_write_uint16(Code *code, const size_t n)
 
 void code_write_uint16_at(Code *code, const size_t n, const size_t pos)
 {
-	if (n > 0xffff) {
+	if (n > 0xFFFF) {
 		INTERNAL_ERROR();
 	}
 
@@ -62,20 +63,20 @@ void code_write_uint16_at(Code *code, const size_t n, const size_t pos)
 		code->size += (pos + 2 - code_size);
 	}
 
-	memcpy(code->bc + pos, &n, 2);
+	write_uint16_to_stream(code->bc + pos, n);
 }
 
 void code_write_int(Code *code, const int n)
 {
 	code_ensure_capacity(code, code->size + INT_SIZE);
-	memcpy(code->bc + code->size, &n, INT_SIZE);
+	write_int32_to_stream(code->bc + code->size, n);
 	code->size += INT_SIZE;
 }
 
 void code_write_double(Code *code, const double d)
 {
 	code_ensure_capacity(code, code->size + DOUBLE_SIZE);
-	memcpy(code->bc + code->size, &d, DOUBLE_SIZE);
+	write_double_to_stream(code->bc + code->size, d);
 	code->size += DOUBLE_SIZE;
 }
 
@@ -113,7 +114,7 @@ byte code_read_byte(Code *code)
 int code_read_int(Code *code)
 {
 	code->size -= INT_SIZE;
-	const int ret = read_int(code->bc);
+	const int ret = read_int32_from_stream(code->bc);
 	code->bc += INT_SIZE;
 	return ret;
 }
@@ -121,7 +122,7 @@ int code_read_int(Code *code)
 unsigned int code_read_uint16(Code *code)
 {
 	code->size -= 2;
-	const unsigned int ret = read_uint16(code->bc);
+	const unsigned int ret = read_uint16_from_stream(code->bc);
 	code->bc += 2;
 	return ret;
 }
@@ -129,7 +130,7 @@ unsigned int code_read_uint16(Code *code)
 double code_read_double(Code *code)
 {
 	code->size -= DOUBLE_SIZE;
-	const double ret = read_double(code->bc);
+	const double ret = read_double_from_stream(code->bc);
 	code->bc += DOUBLE_SIZE;
 	return ret;
 }

@@ -20,6 +20,13 @@ int hash_bool(const bool b);
 int hash_ptr(const void *p);
 int secondary_hash(int hash);
 
+void write_int32_to_stream(unsigned char *stream, const int n);
+int read_int32_from_stream(unsigned char *stream);
+void write_uint16_to_stream(unsigned char *stream, const unsigned int n);
+unsigned int read_uint16_from_stream(unsigned char *stream);
+void write_double_to_stream(unsigned char *stream, const double d);
+double read_double_from_stream(unsigned char *stream);
+
 void *safe_malloc(const size_t size);
 
 struct str_array {

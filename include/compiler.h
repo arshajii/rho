@@ -20,8 +20,4 @@ typedef struct {
 
 void compile(FILE *src, FILE *out, const char *name);
 
-int read_int(byte *bytes);
-double read_double(byte *bytes);
-unsigned int read_uint16(byte *bytes);
-
 #endif /* COMPILER_H */

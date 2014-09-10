@@ -158,7 +158,7 @@ static void frame_vstack_push(Frame *frame, Value v, Value **stack)
 
 static unsigned int read_uint16_from_bc(byte *bc, size_t *pos)
 {
-	const unsigned int n = read_uint16(bc + *pos);
+	const unsigned int n = read_uint16_from_stream(bc + *pos);
 	(*pos) += 2;
 	return n;
 }
