@@ -43,7 +43,7 @@ static bool float_eq(Value *this, Value *other)
 
 static int float_hash(Value *this)
 {
-	return hash_float(floatvalue(this));
+	return hash_double(floatvalue(this));
 }
 
 static int float_cmp(Value *this, Value *other)
