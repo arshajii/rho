@@ -30,16 +30,31 @@
 static void read_sym_table(CodeObject *co, Code *code);
 static void read_const_table(CodeObject *co, Code *code);
 
-CodeObject *codeobj_make(Code *code, const char *name, unsigned int argcount)
+/*
+ * stack_depth = -1 means that the depth must be read
+ * out of `code`.
+ */
+CodeObject *codeobj_make(Code *code,
+                         const char *name,
+                         unsigned int argcount,
+                         int stack_depth)
 {
 	CodeObject *co = malloc(sizeof(CodeObject));
 	co->base = OBJ_INIT(&co_class);
 	co->name = name;
 	co->head = code->bc;
+
+	if (stack_depth == -1) {
+		stack_depth = code_read_uint16(code);
+	} else if (stack_depth < 0) {
+		INTERNAL_ERROR();
+	}
+
 	read_sym_table(co, code);
 	read_const_table(co, code);
 	co->bc = code->bc;
 	co->argcount = argcount;
+	co->stack_depth = stack_depth;
 	return co;
 }
 
@@ -172,6 +187,7 @@ static void read_const_table(CodeObject *co, Code *code)
 			size_t colen = code_read_uint16(code);
 			const char *name = code_read_str(code);
 			unsigned int argcount = code_read_uint16(code);
+			unsigned int stack_depth = code_read_uint16(code);
 
 			Code sub;
 			code_init(&sub, colen);
@@ -180,7 +196,7 @@ static void read_const_table(CodeObject *co, Code *code)
 				code_write_byte(&sub, b);
 			}
 
-			constants[i].data.o = codeobj_make(&sub, name, argcount);
+			constants[i].data.o = codeobj_make(&sub, name, argcount, stack_depth);
 			break;
 		}
 		case CT_ENTRY_END:

@@ -66,9 +66,10 @@ static void vm_pushframe(VM *vm,
 	Frame *frame = malloc(sizeof(Frame));
 	frame->co = co;
 
-	frame->locals = calloc(co->names.length, sizeof(Value));
-	frame->valuestack = malloc(DEFAULT_VSTACK_DEPTH * sizeof(Value));
-	frame->stack_capacity = DEFAULT_VSTACK_DEPTH;
+	const size_t n_locals = co->names.length;
+	const size_t stack_depth = co->stack_depth;
+	frame->locals = calloc(n_locals + stack_depth, sizeof(Value));
+	frame->valuestack = frame->locals + n_locals;
 
 	frame->prev = vm->callstack;
 	vm->callstack = frame;
@@ -130,7 +131,7 @@ void execute(FILE *compiled)
  */
 static void vm_push_module_frame(VM *vm, Code *code)
 {
-	CodeObject *co = codeobj_make(code, "<module>", 0);
+	CodeObject *co = codeobj_make(code, "<module>", 0, -1);
 
 	vm_pushframe(
 		vm,
@@ -138,22 +139,6 @@ static void vm_push_module_frame(VM *vm, Code *code)
 	);
 
 	vm->module = vm->callstack;
-}
-
-/* utility function for pushing onto value stack */
-static void frame_vstack_push(Frame *frame, Value v, Value **stack)
-{
-	Value *stack_ptr = *stack;
-	if ((size_t)(stack_ptr - frame->valuestack) == frame->stack_capacity) {
-		assert(0);
-		// TODO: this results in invalid pointers
-		//const size_t new_capacity = (((stack_ptr - frame->constants) * 3)/2 + 1) * sizeof(Value);
-		//frame->constants = realloc(frame->constants, new_capacity);
-		//frame->stack_capacity = new_capacity;
-	}
-
-	**stack = v;
-	++*stack;
 }
 
 static unsigned int read_uint16_from_bc(byte *bc, size_t *pos)
@@ -170,7 +155,7 @@ static void eval_frame(VM *vm)
 
 #define STACK_POP() (--stack)
 #define STACK_PEEK() (&stack[-1])
-#define STACK_PUSH(v) (frame_vstack_push(frame, (v), &stack))
+#define STACK_PUSH(v) (*stack++ = (v))
 
 	Frame *frame = vm->callstack;
 	Frame *module = vm->module;

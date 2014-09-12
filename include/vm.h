@@ -14,9 +14,7 @@ typedef struct frame {
 	CodeObject *co;
 
 	Value *locals;
-
 	Value *valuestack;
-	size_t stack_capacity;
 
 	Value return_value;
 	struct frame *prev;

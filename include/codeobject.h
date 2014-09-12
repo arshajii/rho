@@ -22,6 +22,9 @@ typedef struct {
 	/* number of arguments */
 	unsigned int argcount;
 
+	/* max value stack depth */
+	unsigned int stack_depth;
+
 	/* enumerated variable names */
 	struct str_array names;
 
@@ -32,6 +35,9 @@ typedef struct {
 	struct value_array consts;
 } CodeObject;
 
-CodeObject *codeobj_make(Code *code, const char *name, unsigned int argcount);
+CodeObject *codeobj_make(Code *code,
+                         const char *name,
+                         unsigned int argcount,
+                         int stack_depth);
 
 #endif /* CODEOBJECT_H */

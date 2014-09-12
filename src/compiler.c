@@ -11,6 +11,10 @@
 #include "code.h"
 #include "compiler.h"
 
+struct metadata {
+	unsigned int max_vstack_depth;
+};
+
 static void write_byte(Compiler *compiler, byte p)
 {
 	code_write_byte(&compiler->code, p);
@@ -73,8 +77,7 @@ static void compiler_free(Compiler *compiler, bool free_st)
 }
 
 static void compile_node(Compiler *compiler, AST *ast, bool toplevel);
-static void compile_program(Compiler *compiler, Program *program);
-static void compile_magic(Compiler *compiler);
+static struct metadata compile_program(Compiler *compiler, Program *program);
 
 static void compile_load(Compiler *compiler, AST *ast);
 static void compile_assignment(Compiler *compiler, AST *ast);
@@ -89,18 +92,9 @@ static void compile_return(Compiler *compiler, AST *ast);
 
 static void compile_get_attr(Compiler *compiler, AST *ast);
 
-/*
- * Each compiled file should begin with the
- * "magic code".
- */
-static void compile_magic(Compiler *compiler)
-{
-	for (size_t i = 0; i < magic_size; i++) {
-		write_byte(compiler, magic[i]);
-	}
-}
+static int max_stack_depth(byte *bc, size_t len);
 
-static void compile_raw(Compiler *compiler, Program *program)
+static struct metadata compile_raw(Compiler *compiler, Program *program)
 {
 	fill_ct(compiler, program);
 	write_sym_table(compiler);
@@ -114,13 +108,17 @@ static void compile_raw(Compiler *compiler, Program *program)
 
 	write_byte(compiler, INS_LOAD_NULL);
 	write_byte(compiler, INS_RETURN);
+
+	unsigned int max_vstack_depth = max_stack_depth(compiler->code.bc, compiler->code.size);
+	struct metadata metadata;
+	metadata.max_vstack_depth = max_vstack_depth;
+	return metadata;
 }
 
-static void compile_program(Compiler *compiler, Program *program)
+static struct metadata compile_program(Compiler *compiler, Program *program)
 {
-	compile_magic(compiler);
 	populate_symtable(compiler->st, program);
-	compile_raw(compiler, program);
+	return compile_raw(compiler, program);
 }
 
 static void compile_const(Compiler *compiler, AST *ast)
@@ -626,9 +624,9 @@ static void write_const_table(Compiler *compiler)
 
 			/*
 			 * Write size of actual CodeObject bytecode, excluding
-			 * metadata (name, argcount):
+			 * metadata (name, argcount, stack_depth):
 			 */
-			code_write_uint16(&compiler->code, co_code->size - (name_len + 1) - 2);  // -2 for argcount
+			code_write_uint16(&compiler->code, co_code->size - (name_len + 1) - 2 - 2);
 
 			code_append(&compiler->code, co_code);
 			code_dealloc(co_code);
@@ -678,17 +676,21 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 
 		st->ste_current = child;
 		Compiler *sub = compiler_new(compiler->filename, st);
-		compile_raw(sub, ast->right->v.block);
+		struct metadata metadata = compile_raw(sub, ast->right->v.block);
 		st->ste_current = parent;
 
 		Code *subcode = &sub->code;
+
+		unsigned int max_vstack_depth = metadata.max_vstack_depth;
+
 		Code *fncode = malloc(sizeof(Code));
 
 		const size_t name_len = ast->left->v.ident->len;
 
-		code_init(fncode, name_len + INT_SIZE + sub->code.size);
-		code_write_str(fncode, ast->left->v.ident);
-		code_write_uint16(fncode, nargs);
+		code_init(fncode, name_len + 2 + 2 + sub->code.size);  // total size
+		code_write_str(fncode, ast->left->v.ident);            // name
+		code_write_uint16(fncode, nargs);                      // arg count
+		code_write_uint16(fncode, max_vstack_depth);           // max stack depth
 		code_append(fncode, subcode);
 
 		compiler_free(sub, false);
@@ -729,6 +731,273 @@ static void fill_ct(Compiler *compiler, Program *program)
 	}
 }
 
+static int stack_delta(Opcode opcode, int arg);
+static int read_arg(Opcode opcode, byte **bc);
+static int arg_size(Opcode opcode);
+
+static int max_stack_depth(byte *bc, size_t len)
+{
+	const byte *end = bc + len;
+
+	/*
+	 * Skip over symbol table and
+	 * constant table...
+	 */
+
+	if (*bc == ST_ENTRY_BEGIN) {
+		++bc;  // ST_ENTRY_BEGIN
+		const size_t n_locals = read_uint16_from_stream(bc);
+		bc += 2;
+
+		for (size_t i = 0; i < n_locals; i++) {
+			while (*bc++ != '\0');
+		}
+
+		const size_t n_attrs = read_uint16_from_stream(bc);
+		bc += 2;
+
+		for (size_t i = 0; i < n_attrs; i++) {
+			while (*bc++ != '\0');
+		}
+
+		++bc;  // ST_ENTRY_END
+	}
+
+	if (*bc == CT_ENTRY_BEGIN) {
+		++bc;  // CT_ENTRY_BEGIN
+		const size_t ct_size = read_uint16_from_stream(bc);
+		bc += 2;
+
+		for (size_t i = 0; i < ct_size; i++) {
+			switch (*bc++) {
+			case CT_ENTRY_INT:
+				bc += INT_SIZE;
+				break;
+			case CT_ENTRY_FLOAT:
+				bc += DOUBLE_SIZE;
+				break;
+			case CT_ENTRY_STRING: {
+				while (*bc++ != '\0');
+				break;
+			}
+			case CT_ENTRY_CODEOBJ: {
+				size_t colen = read_uint16_from_stream(bc);
+				bc += 2;
+
+				while (*bc++ != '\0');  // name
+				bc += 2;  // arg count
+				bc += 2;  // stack depth
+
+				for (size_t i = 0; i < colen; i++) {
+					++bc;
+				}
+				break;
+			}
+			}
+		}
+
+		++bc;  // CT_ENTRY_END
+	}
+
+	/*
+	 * Begin max depth computation...
+	 */
+
+	int depth = 0;
+	int max_depth = 0;
+
+	while (bc != end) {
+		byte opcode = *bc++;
+
+		int arg = read_arg(opcode, &bc);
+		int delta = stack_delta(opcode, arg);
+		depth += delta;
+		assert(depth >= 0);
+
+		if (depth > max_depth) {
+			max_depth = depth;
+		}
+	}
+
+	return max_depth;
+}
+
+static int arg_size(Opcode opcode)
+{
+	switch (opcode) {
+	case INS_NOP:
+		return 0;
+	case INS_LOAD_CONST:
+		return 2;
+	case INS_LOAD_NULL:
+		return 0;
+	case INS_ADD:
+	case INS_SUB:
+	case INS_MUL:
+	case INS_DIV:
+	case INS_MOD:
+	case INS_POW:
+	case INS_BITAND:
+	case INS_BITOR:
+	case INS_XOR:
+	case INS_BITNOT:
+	case INS_SHIFTL:
+	case INS_SHIFTR:
+	case INS_AND:
+	case INS_OR:
+	case INS_NOT:
+	case INS_EQUAL:
+	case INS_NOTEQ:
+	case INS_LT:
+	case INS_GT:
+	case INS_LE:
+	case INS_GE:
+	case INS_UPLUS:
+	case INS_UMINUS:
+	case INS_IADD:
+	case INS_ISUB:
+	case INS_IMUL:
+	case INS_IDIV:
+	case INS_IMOD:
+	case INS_IPOW:
+	case INS_IBITAND:
+	case INS_IBITOR:
+	case INS_IXOR:
+	case INS_ISHIFTL:
+	case INS_ISHIFTR:
+		return 0;
+	case INS_STORE:
+	case INS_LOAD:
+	case INS_LOAD_GLOBAL:
+	case INS_LOAD_ATTR:
+		return 2;
+	case INS_PRINT:
+		return 0;
+	case INS_JMP:
+	case INS_JMP_BACK:
+	case INS_JMP_IF_TRUE:
+	case INS_JMP_IF_FALSE:
+	case INS_JMP_BACK_IF_TRUE:
+	case INS_JMP_BACK_IF_FALSE:
+	case INS_CALL:
+		return 2;
+	case INS_RETURN:
+	case INS_POP:
+		return 0;
+	default:
+		INTERNAL_ERROR();
+		return 0;
+	}
+}
+
+static int read_arg(Opcode opcode, byte **bc)
+{
+	int size = arg_size(opcode);
+	int arg;
+
+	switch (size) {
+	case 0:
+		arg = 0;
+		break;
+	case 1:
+		arg = *(*bc++);
+		break;
+	case 2:
+		arg = read_uint16_from_stream(*bc);
+		*bc += 2;
+		break;
+	default:
+		INTERNAL_ERROR();
+		arg = 0;
+		break;
+	}
+
+	return arg;
+}
+
+/*
+ * Calculates the value stack depth change resulting from
+ * executing the given opcode with the given argument.
+ *
+ * The use of this function relies on the assumption that
+ * individual statements, upon completion, leave the stack
+ * depth unchanged (i.e. at 0).
+ */
+static int stack_delta(Opcode opcode, int arg)
+{
+	switch (opcode) {
+	case INS_NOP:
+		return 0;
+	case INS_LOAD_CONST:
+	case INS_LOAD_NULL:
+		return 1;
+	case INS_ADD:
+	case INS_SUB:
+	case INS_MUL:
+	case INS_DIV:
+	case INS_MOD:
+	case INS_POW:
+	case INS_BITAND:
+	case INS_BITOR:
+	case INS_XOR:
+		return -1;
+	case INS_BITNOT:
+		return 0;
+	case INS_SHIFTL:
+	case INS_SHIFTR:
+	case INS_AND:
+	case INS_OR:
+		return -1;
+	case INS_NOT:
+		return 0;
+	case INS_EQUAL:
+	case INS_NOTEQ:
+	case INS_LT:
+	case INS_GT:
+	case INS_LE:
+	case INS_GE:
+		return -1;
+	case INS_UPLUS:
+	case INS_UMINUS:
+		return 0;
+	case INS_IADD:
+	case INS_ISUB:
+	case INS_IMUL:
+	case INS_IDIV:
+	case INS_IMOD:
+	case INS_IPOW:
+	case INS_IBITAND:
+	case INS_IBITOR:
+	case INS_IXOR:
+	case INS_ISHIFTL:
+	case INS_ISHIFTR:
+		return -1;
+	case INS_STORE:
+		return -1;
+	case INS_LOAD:
+	case INS_LOAD_GLOBAL:
+		return 1;
+	case INS_LOAD_ATTR:
+		return 0;
+	case INS_PRINT:
+		return -1;
+	case INS_JMP:
+	case INS_JMP_BACK:
+		return 0;
+	case INS_JMP_IF_TRUE:
+	case INS_JMP_IF_FALSE:
+	case INS_JMP_BACK_IF_TRUE:
+	case INS_JMP_BACK_IF_FALSE:
+		return -1;
+	case INS_CALL:
+		return -arg;
+	case INS_RETURN:
+		return -1;
+	case INS_POP:
+		return -1;
+	}
+}
+
 void compile(FILE *src, FILE *out, const char *name)
 {
 	fseek(src, 0L, SEEK_END);
@@ -746,10 +1015,32 @@ void compile(FILE *src, FILE *out, const char *name)
 	Program *program = parse(lex);
 	Compiler *compiler = compiler_new(name, st_new(name));
 
-	compile_program(compiler, program);
+	struct metadata metadata = compile_program(compiler, program);
 
 	ast_list_free(program);
 
+	/*
+	 * Every rhoc file should start with the
+	 * "magic" bytes:
+	 */
+	for (size_t i = 0; i < magic_size; i++) {
+		fputc(magic[i], out);
+	}
+
+	/*
+	 * Directly after the magic bytes, we write
+	 * the maximum value stack depth at module
+	 * level:
+	 */
+	byte buf[2];
+	write_uint16_to_stream(buf, metadata.max_vstack_depth);
+	for (size_t i = 0; i < sizeof(buf); i++) {
+		fputc(buf[i], out);
+	}
+
+	/*
+	 * And now we write the actual bytecode:
+	 */
 	fwrite(compiler->code.bc, 1, compiler->code.size, out);
 
 	compiler_free(compiler, true);
