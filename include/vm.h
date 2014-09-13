@@ -8,8 +8,6 @@
 #include "codeobject.h"
 #include "util.h"
 
-#define DEFAULT_VSTACK_DEPTH 10
-
 typedef struct frame {
 	CodeObject *co;
 
