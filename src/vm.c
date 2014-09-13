@@ -132,12 +132,7 @@ void execute(FILE *compiled)
 static void vm_push_module_frame(VM *vm, Code *code)
 {
 	CodeObject *co = codeobj_make(code, "<module>", 0, -1);
-
-	vm_pushframe(
-		vm,
-		co
-	);
-
+	vm_pushframe(vm, co);
 	vm->module = vm->callstack;
 }
 

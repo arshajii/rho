@@ -138,7 +138,7 @@ void type_error_not_callable(const Class *c1)
 void def_error_dup_params(const char *fn, const char *param_name)
 {
 	fprintf(stderr,
-			FUNC_ERROR_HEADER "function %s has duplicate parameter name '%s'\n",
+	        FUNC_ERROR_HEADER "function %s has duplicate parameter name '%s'\n",
 	        fn,
 	        param_name);
 
