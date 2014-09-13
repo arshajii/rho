@@ -148,10 +148,12 @@ static void eval_frame(VM *vm)
 #define GET_BYTE() (bc[pos++])
 #define GET_UINT16() (read_uint16_from_bc(bc, &pos))
 
-#define STACK_POP() (--stack)
-#define STACK_PEEK() (&stack[-1])
-#define STACK_PUSH(v) (*stack++ = (v))
-#define STACK_SET(v) (stack[-1] = (v))
+#define STACK_POP()          (--stack)
+#define STACK_TOP()          (&stack[-1])
+#define STACK_SECOND()       (&stack[-2])
+#define STACK_PUSH(v)        (*stack++ = (v))
+#define STACK_SET_TOP(v)     (stack[-1] = (v))
+#define STACK_SET_SECOND(v)  (stack[-2] = (v))
 
 	Frame *frame = vm->callstack;
 	Frame *module = vm->module;
@@ -190,7 +192,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_ADD: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp add = resolve_add(class);
 
@@ -201,12 +203,12 @@ static void eval_frame(VM *vm)
 			Value result = add(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_SUB: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp sub = resolve_sub(class);
 
@@ -217,12 +219,12 @@ static void eval_frame(VM *vm)
 			Value result = sub(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_MUL: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp mul = resolve_mul(class);
 
@@ -233,12 +235,12 @@ static void eval_frame(VM *vm)
 			Value result = mul(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_DIV: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp div = resolve_div(class);
 
@@ -249,12 +251,12 @@ static void eval_frame(VM *vm)
 			Value result = div(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_MOD: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp mod = resolve_mod(class);
 
@@ -265,12 +267,12 @@ static void eval_frame(VM *vm)
 			Value result = mod(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_POW: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp pow = resolve_pow(class);
 
@@ -281,12 +283,12 @@ static void eval_frame(VM *vm)
 			Value result = pow(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_BITAND: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp and = resolve_and(class);
 
@@ -297,12 +299,12 @@ static void eval_frame(VM *vm)
 			Value result = and(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_BITOR: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp or = resolve_or(class);
 
@@ -313,12 +315,12 @@ static void eval_frame(VM *vm)
 			Value result = or(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_XOR: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp xor = resolve_xor(class);
 
@@ -329,11 +331,11 @@ static void eval_frame(VM *vm)
 			Value result = xor(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_BITNOT: {
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const UnOp not = resolve_not(class);
 
@@ -343,12 +345,12 @@ static void eval_frame(VM *vm)
 
 			Value result = not(v1);
 			release(v1);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_SHIFTL: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp shiftl = resolve_shiftl(class);
 
@@ -359,12 +361,12 @@ static void eval_frame(VM *vm)
 			Value result = shiftl(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_SHIFTR: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BinOp shiftr = resolve_shiftr(class);
 
@@ -375,12 +377,12 @@ static void eval_frame(VM *vm)
 			Value result = shiftr(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_AND: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class1 = getclass(v1);
 			Class *class2 = getclass(v2);
 
@@ -390,12 +392,12 @@ static void eval_frame(VM *vm)
 			Value result = makeint(bool_v1(v1) && bool_v2(v2));
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_OR: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class1 = getclass(v1);
 			Class *class2 = getclass(v2);
 
@@ -405,23 +407,23 @@ static void eval_frame(VM *vm)
 			Value result = makeint(bool_v1(v1) || bool_v2(v2));
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_NOT: {
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 
 			const BoolUnOp bool_v1 = resolve_nonzero(class);
 
 			Value result = makeint(!bool_v1(v1));
 			release(v1);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_EQUAL: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BoolBinOp eq = resolve_eq(class);
 
@@ -432,12 +434,12 @@ static void eval_frame(VM *vm)
 			Value result = makeint(eq(v1, v2));
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_NOTEQ: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const BoolBinOp eq = resolve_eq(class);
 
@@ -448,12 +450,12 @@ static void eval_frame(VM *vm)
 			Value result = makeint(!eq(v1, v2));
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_LT: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
@@ -464,12 +466,12 @@ static void eval_frame(VM *vm)
 			Value result = makeint(cmp(v1, v2) < 0);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_GT: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
@@ -480,12 +482,12 @@ static void eval_frame(VM *vm)
 			Value result = makeint(cmp(v1, v2) > 0);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_LE: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
@@ -496,12 +498,12 @@ static void eval_frame(VM *vm)
 			Value result = makeint(cmp(v1, v2) <= 0);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_GE: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const IntBinOp cmp = resolve_cmp(class);
 
@@ -512,11 +514,11 @@ static void eval_frame(VM *vm)
 			Value result = makeint(cmp(v1, v2) >= 0);
 			release(v1);
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_UPLUS: {
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const UnOp plus = resolve_plus(class);
 
@@ -526,11 +528,11 @@ static void eval_frame(VM *vm)
 
 			Value result = plus(v1);
 			release(v1);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_UMINUS: {
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			const UnOp minus = resolve_minus(class);
 
@@ -540,12 +542,12 @@ static void eval_frame(VM *vm)
 
 			Value result = minus(v1);
 			release(v1);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IADD: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp add = resolve_iadd(class);
 			bool release_v1 = false;
@@ -563,12 +565,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_ISUB: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp sub = resolve_isub(class);
 			bool release_v1 = false;
@@ -586,12 +588,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IMUL: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp mul = resolve_imul(class);
 			bool release_v1 = false;
@@ -609,12 +611,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IDIV: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp div = resolve_idiv(class);
 			bool release_v1 = false;
@@ -632,12 +634,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IMOD: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp mod = resolve_imod(class);
 			bool release_v1 = false;
@@ -655,12 +657,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IPOW: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp pow = resolve_ipow(class);
 			bool release_v1 = false;
@@ -678,12 +680,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IBITAND: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp and = resolve_iand(class);
 			bool release_v1 = false;
@@ -701,12 +703,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IBITOR: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp or = resolve_ior(class);
 			bool release_v1 = false;
@@ -724,12 +726,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_IXOR: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp xor = resolve_ixor(class);
 			bool release_v1 = false;
@@ -747,12 +749,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_ISHIFTL: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp shiftl = resolve_ishiftl(class);
 			bool release_v1 = false;
@@ -770,12 +772,12 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_ISHIFTR: {
 			Value *v2 = STACK_POP();
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 			BinOp shiftr = resolve_ishiftr(class);
 			bool release_v1 = false;
@@ -793,7 +795,7 @@ static void eval_frame(VM *vm)
 				release(v1);
 			}
 			release(v2);
-			STACK_SET(result);
+			STACK_SET_TOP(result);
 			break;
 		}
 		case INS_STORE: {
@@ -829,7 +831,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_LOAD_ATTR: {
-			Value *v1 = STACK_PEEK();
+			Value *v1 = STACK_TOP();
 			Class *class = getclass(v1);
 
 			const unsigned int id = GET_UINT16();
@@ -853,7 +855,7 @@ static void eval_frame(VM *vm)
 
 			if (is_method) {
 				const struct attr_method *method = &class->methods[idx];
-				STACK_SET(methobj_make(o, method->meth));
+				STACK_SET_TOP(methobj_make(o, method->meth));
 			} else {
 				const struct attr_member *member = &class->members[idx];
 				const size_t offset = member->offset;
@@ -862,67 +864,67 @@ static void eval_frame(VM *vm)
 				case ATTR_T_CHAR: {
 					char *c = malloc(1);
 					*c = getmember(o, offset, char);
-					STACK_SET(strobj_make((Str){.value = c, .len = 1, .hashed = 0, .freeable = 1}));
+					STACK_SET_TOP(strobj_make((Str){.value = c, .len = 1, .hashed = 0, .freeable = 1}));
 					break;
 				}
 				case ATTR_T_BYTE: {
 					const long n = getmember(o, offset, char);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_SHORT: {
 					const long n = getmember(o, offset, short);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_INT: {
 					const long n = getmember(o, offset, int);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_LONG: {
 					const long n = getmember(o, offset, long);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_UBYTE: {
 					const long n = getmember(o, offset, unsigned char);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_USHORT: {
 					const long n = getmember(o, offset, unsigned short);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_UINT: {
 					const long n = getmember(o, offset, unsigned int);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_ULONG: {
 					const long n = getmember(o, offset, unsigned long);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_SIZE_T: {
 					const long n = getmember(o, offset, size_t);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_BOOL: {
 					const long n = getmember(o, offset, bool);
-					STACK_SET(makeint(n));
+					STACK_SET_TOP(makeint(n));
 					break;
 				}
 				case ATTR_T_FLOAT: {
 					const double d = getmember(o, offset, float);
-					STACK_SET(makefloat(d));
+					STACK_SET_TOP(makefloat(d));
 					break;
 				}
 				case ATTR_T_DOUBLE: {
 					const double d = getmember(o, offset, double);
-					STACK_SET(makefloat(d));
+					STACK_SET_TOP(makefloat(d));
 					break;
 				}
 				case ATTR_T_STRING: {
@@ -930,12 +932,12 @@ static void eval_frame(VM *vm)
 					const size_t len = strlen(str);
 					char *copy = malloc(len);
 					memcpy(copy, str, len);
-					STACK_SET(strobj_make((Str){.value = copy, .len = len, .hashed = 0, .freeable = 0}));
+					STACK_SET_TOP(strobj_make((Str){.value = copy, .len = len, .hashed = 0, .freeable = 0}));
 					break;
 				}
 				case ATTR_T_OBJECT: {
 					Object *obj = getmember(o, offset, Object *);
-					STACK_SET(makeobj(obj));
+					STACK_SET_TOP(makeobj(obj));
 					break;
 				}
 				}
@@ -1048,6 +1050,12 @@ static void eval_frame(VM *vm)
 			release(STACK_POP());
 			break;
 		}
+		case INS_ROT: {
+			Value *v1 = STACK_SECOND();
+			STACK_SET_SECOND(*STACK_TOP());
+			STACK_SET_TOP(*v1);
+			break;
+		}
 		default: {
 			UNEXP_BYTE(opcode);
 			break;
@@ -1056,7 +1064,7 @@ static void eval_frame(VM *vm)
 	}
 
 #undef STACK_POP
-#undef STACK_PEEK
+#undef STACK_TOP
 #undef STACK_PUSH
 }
 

@@ -52,7 +52,8 @@ typedef enum {
 	INS_JMP_BACK_IF_FALSE,
 	INS_CALL,
 	INS_RETURN,
-	INS_POP
+	INS_POP,
+	INS_ROT
 } Opcode;
 
 typedef enum {

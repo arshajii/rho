@@ -883,6 +883,7 @@ static int arg_size(Opcode opcode)
 		return 2;
 	case INS_RETURN:
 	case INS_POP:
+	case INS_ROT:
 		return 0;
 	default:
 		INTERNAL_ERROR();
@@ -995,6 +996,8 @@ static int stack_delta(Opcode opcode, int arg)
 		return -1;
 	case INS_POP:
 		return -1;
+	case INS_ROT:
+		return 0;
 	}
 }
 
