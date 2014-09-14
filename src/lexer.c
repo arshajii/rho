@@ -450,12 +450,14 @@ static Token next_word(Lexer *lex)
 		const char *keyword;
 		TokType type;
 	} keywords[] = {
-		{"print", TOK_PRINT},
-		{"if",    TOK_IF},
-		{"else",  TOK_ELSE},
-		{"while", TOK_WHILE},
-		{"def",   TOK_DEF},
-		{"return",TOK_RETURN},
+		{"print",    TOK_PRINT},
+		{"if",       TOK_IF},
+		{"else",     TOK_ELSE},
+		{"while",    TOK_WHILE},
+		{"def",      TOK_DEF},
+		{"break",    TOK_BREAK},
+		{"continue", TOK_CONTINUE},
+		{"return",   TOK_RETURN},
 	};
 
 	assert(is_word_char(currc(lex)));
@@ -838,6 +840,10 @@ const char *type_to_str(TokType type)
 		return "while";
 	case TOK_DEF:
 		return "def";
+	case TOK_BREAK:
+		return "break";
+	case TOK_CONTINUE:
+		return "continue";
 	case TOK_RETURN:
 		return "return";
 	case TOK_COMMA:

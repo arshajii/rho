@@ -66,6 +66,8 @@ typedef enum {
 	TOK_ELSE,
 	TOK_WHILE,
 	TOK_DEF,
+	TOK_BREAK,
+	TOK_CONTINUE,
 	TOK_RETURN,
 
 	/* miscellaneous tokens */

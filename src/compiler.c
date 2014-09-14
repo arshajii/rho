@@ -15,7 +15,9 @@ struct metadata {
 	unsigned int max_vstack_depth;
 };
 
-static void write_byte(Compiler *compiler, byte p)
+#define LBI_INIT_CAPACITY 5
+
+void write_byte(Compiler *compiler, byte p)
 {
 	code_write_byte(&compiler->code, p);
 }
@@ -52,11 +54,14 @@ static void write_const_table(Compiler *compiler);
 
 static Opcode to_opcode(NodeType type);
 
+#define DEFAULT_BC_CAPACITY 100
+
 static Compiler *compiler_new(const char *filename, SymTable *st)
 {
 	Compiler *compiler = malloc(sizeof(Compiler));
 	compiler->filename = filename;
 	code_init(&compiler->code, DEFAULT_BC_CAPACITY);
+	compiler->lbi = NULL;
 	compiler->st = st;
 	compiler->ct = ct_new();
 
@@ -77,6 +82,59 @@ static void compiler_free(Compiler *compiler, bool free_st)
 	free(compiler);
 }
 
+static struct loop_block_info *lbi_new(size_t start_index,
+                                       struct loop_block_info *prev)
+{
+	struct loop_block_info *lbi = malloc(sizeof(*lbi));
+	lbi->start_index = start_index;
+	lbi->break_indices = malloc(LBI_INIT_CAPACITY * sizeof(size_t));
+	lbi->break_indices_size = 0;
+	lbi->break_indices_capacity = LBI_INIT_CAPACITY;
+	lbi->prev = prev;
+	return lbi;
+}
+
+static void lbi_add_break_index(struct loop_block_info *lbi, size_t break_index)
+{
+	size_t bi_size = lbi->break_indices_size;
+	size_t bi_capacity = lbi->break_indices_capacity;
+
+	if (bi_size == bi_capacity) {
+		bi_capacity = (bi_capacity * 3)/2 + 1;
+		lbi->break_indices = realloc(lbi->break_indices, bi_capacity * sizeof(size_t));
+		lbi->break_indices_capacity = bi_capacity;
+	}
+
+	lbi->break_indices[lbi->break_indices_size++] = break_index;
+}
+
+void lbi_free(struct loop_block_info *lbi)
+{
+	free(lbi->break_indices);
+	free(lbi);
+}
+
+static void compiler_push_loop(Compiler *compiler, size_t start_index)
+{
+	compiler->lbi = lbi_new(start_index, compiler->lbi);
+}
+
+static void compiler_pop_loop(Compiler *compiler)
+{
+	struct loop_block_info *lbi = compiler->lbi;
+	const size_t *break_indices = lbi->break_indices;
+	const size_t break_indices_size = lbi->break_indices_size;
+	const size_t end_index = compiler->code.size;
+
+	for (size_t i = 0; i < break_indices_size; i++) {
+		const size_t break_index = break_indices[i];
+		write_uint16_at(compiler, end_index - break_index - 2, break_index);
+	}
+
+	compiler->lbi = lbi->prev;
+	lbi_free(lbi);
+}
+
 static void compile_node(Compiler *compiler, AST *ast, bool toplevel);
 static struct metadata compile_program(Compiler *compiler, Program *program);
 
@@ -89,6 +147,8 @@ static void compile_block(Compiler *compiler, AST *ast);
 static void compile_if(Compiler *compiler, AST *ast);
 static void compile_while(Compiler *compiler, AST *ast);
 static void compile_def(Compiler *compiler, AST *ast);
+static void compile_break(Compiler *compiler, AST *ast);
+static void compile_continue(Compiler *compiler, AST *ast);
 static void compile_return(Compiler *compiler, AST *ast);
 
 static void compile_get_attr(Compiler *compiler, AST *ast);
@@ -286,25 +346,24 @@ static void compile_if(Compiler *compiler, AST *ast)
 	write_byte(compiler, INS_JMP_IF_FALSE);
 
 	// jump placeholder:
-	const size_t jmp_stub_idx = compiler->code.size;
+	const size_t jmp_index = compiler->code.size;
 	write_uint16(compiler, 0);
-	// ~~~
 
 	compile_node(compiler, ast->right, false);
 
 	// fill in placeholder:
 	if (has_else) {
 		write_byte(compiler, INS_JMP);
-		const size_t jmp_stub_idx_2 = compiler->code.size;
+		const size_t jmp_index_2 = compiler->code.size;
 		write_uint16(compiler, 0);
 
-		write_uint16_at(compiler, compiler->code.size - jmp_stub_idx - 2, jmp_stub_idx);
+		write_uint16_at(compiler, compiler->code.size - jmp_index - 2, jmp_index);
 
 		compile_node(compiler, ast->v.middle, false);
 
-		write_uint16_at(compiler, compiler->code.size - jmp_stub_idx_2 - 2, jmp_stub_idx_2);
+		write_uint16_at(compiler, compiler->code.size - jmp_index_2 - 2, jmp_index_2);
 	} else {
-		write_uint16_at(compiler, compiler->code.size - jmp_stub_idx - 2, jmp_stub_idx);
+		write_uint16_at(compiler, compiler->code.size - jmp_index - 2, jmp_index);
 	}
 }
 
@@ -312,22 +371,24 @@ static void compile_while(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_WHILE);
 
-	write_byte(compiler, INS_JMP);
+	const size_t loop_start_index = compiler->code.size;
+	compile_node(compiler, ast->left, false);  // condition
+	write_byte(compiler, INS_JMP_IF_FALSE);
 
-	// unconditional jump placeholder:
-	const size_t jmp_ucond_stub_idx = compiler->code.size;
+	// jump placeholder:
+	const size_t jump_index = compiler->code.size;
 	write_uint16(compiler, 0);
-	// ~~~
 
+	compiler_push_loop(compiler, loop_start_index);
 	compile_node(compiler, ast->right, false);  // body
 
+	write_byte(compiler, INS_JMP_BACK);
+	write_uint16(compiler, compiler->code.size - loop_start_index + 2);
+
 	// fill in placeholder:
-	write_uint16_at(compiler, compiler->code.size - jmp_ucond_stub_idx - 2, jmp_ucond_stub_idx);
+	write_uint16_at(compiler, compiler->code.size - jump_index - 2, jump_index);
 
-	compile_node(compiler, ast->left, false);   // condition
-
-	write_byte(compiler, INS_JMP_BACK_IF_TRUE);
-	write_uint16(compiler, compiler->code.size - jmp_ucond_stub_idx);
+	compiler_pop_loop(compiler);
 }
 
 static void compile_def(Compiler *compiler, AST *ast)
@@ -347,6 +408,39 @@ static void compile_def(Compiler *compiler, AST *ast)
 	compile_const(compiler, ast->right);
 	write_byte(compiler, INS_STORE);
 	write_uint16(compiler, sym->id);
+}
+
+static void compile_break(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_BREAK);
+
+	if (compiler->lbi == NULL) {
+		INTERNAL_ERROR();
+	}
+
+	write_byte(compiler, INS_JMP);
+	const size_t break_index = compiler->code.size;
+	write_uint16(compiler, 0);
+
+	/*
+	 * We don't know where to jump to until we finish compiling
+	 * the entire loop, so we keep a list of "breaks" and fill
+	 * in their jumps afterwards.
+	 */
+	lbi_add_break_index(compiler->lbi, break_index);
+}
+
+static void compile_continue(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_CONTINUE);
+
+	if (compiler->lbi == NULL) {
+		INTERNAL_ERROR();
+	}
+
+	write_byte(compiler, INS_JMP_BACK);
+	const size_t start_index = compiler->lbi->start_index;
+	write_uint16(compiler, compiler->code.size - start_index + 2);
 }
 
 static void compile_return(Compiler *compiler, AST *ast)
@@ -526,6 +620,12 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 		break;
 	case NODE_DEF:
 		compile_def(compiler, ast);
+		break;
+	case NODE_BREAK:
+		compile_break(compiler, ast);
+		break;
+	case NODE_CONTINUE:
+		compile_continue(compiler, ast);
 		break;
 	case NODE_RETURN:
 		compile_return(compiler, ast);

@@ -9,11 +9,24 @@
 extern const byte magic[];
 extern const size_t magic_size;
 
-#define DEFAULT_BC_CAPACITY 100
+/*
+ * The following structure is used for
+ * continue/break bookkeeping.
+ */
+struct loop_block_info {
+	size_t start_index;     // start of loop body
+
+	size_t *break_indices;  // indexes of break statements
+	size_t break_indices_size;
+	size_t break_indices_capacity;
+
+	struct loop_block_info *prev;
+};
 
 typedef struct {
 	const char *filename;
 	Code code;
+	struct loop_block_info *lbi;
 	SymTable *st;
 	ConstTable *ct;
 } Compiler;

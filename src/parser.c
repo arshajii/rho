@@ -74,6 +74,8 @@ static AST *parse_print(Lexer *lex);
 static AST *parse_if(Lexer *lex);
 static AST *parse_while(Lexer *lex);
 static AST *parse_def(Lexer *lex);
+static AST *parse_break(Lexer *lex);
+static AST *parse_continue(Lexer *lex);
 static AST *parse_return(Lexer *lex);
 
 static AST *parse_block(Lexer *lex);
@@ -86,6 +88,8 @@ static void parse_err_unexpected_token(Lexer *lex, Token *tok);
 static void parse_err_not_a_statement(Lexer *lex, Token *tok);
 static void parse_err_unclosed(Lexer *lex, Token *tok);
 static void parse_err_invalid_assign(Lexer *lex, Token *tok);
+static void parse_err_invalid_break(Lexer *lex, Token *tok);
+static void parse_err_invalid_continue(Lexer *lex, Token *tok);
 static void parse_err_invalid_return(Lexer *lex, Token *tok);
 static void parse_err_too_many_params(Lexer *lex, Token *tok);
 
@@ -142,6 +146,12 @@ static AST *parse_stmt(Lexer *lex)
 		break;
 	case TOK_DEF:
 		stmt = parse_def(lex);
+		break;
+	case TOK_BREAK:
+		stmt = parse_break(lex);
+		break;
+	case TOK_CONTINUE:
+		stmt = parse_continue(lex);
 		break;
 	case TOK_RETURN:
 		stmt = parse_return(lex);
@@ -607,6 +617,34 @@ static AST *parse_def(Lexer *lex)
 	return ast;
 }
 
+static AST *parse_break(Lexer *lex)
+{
+	Token *break_tok = expect(lex, TOK_BREAK);
+
+	if (!lex->in_loop) {
+		parse_err_invalid_break(lex, break_tok);
+	}
+
+	AST *ast = ast_new();
+	ast->type = NODE_BREAK;
+	ast->left = ast->right = NULL;
+	return ast;
+}
+
+static AST *parse_continue(Lexer *lex)
+{
+	Token *continue_tok = expect(lex, TOK_CONTINUE);
+
+	if (!lex->in_loop) {
+		parse_err_invalid_continue(lex, continue_tok);
+	}
+
+	AST *ast = ast_new();
+	ast->type = NODE_CONTINUE;
+	ast->left = ast->right = NULL;
+	return ast;
+}
+
 static AST *parse_return(Lexer *lex)
 {
 	Token *return_tok = expect(lex, TOK_RETURN);
@@ -855,9 +893,9 @@ static void parse_err_not_a_statement(Lexer *lex, Token *tok)
 static void parse_err_unclosed(Lexer *lex, Token *tok)
 {
 	fprintf(stderr,
-		    SYNTAX_ERROR " unclosed\n\n",
-		    lex->name,
-		    tok->lineno);
+	        SYNTAX_ERROR " unclosed\n\n",
+	        lex->name,
+	        tok->lineno);
 
 	err_on_tok(lex, tok);
 
@@ -867,9 +905,33 @@ static void parse_err_unclosed(Lexer *lex, Token *tok)
 static void parse_err_invalid_assign(Lexer *lex, Token *tok)
 {
 	fprintf(stderr,
-		    SYNTAX_ERROR " misplaced assignment\n\n",
-		    lex->name,
-		    tok->lineno);
+	        SYNTAX_ERROR " misplaced assignment\n\n",
+	        lex->name,
+	        tok->lineno);
+
+	err_on_tok(lex, tok);
+
+	exit(EXIT_FAILURE);
+}
+
+static void parse_err_invalid_break(Lexer *lex, Token *tok)
+{
+	fprintf(stderr,
+	        SYNTAX_ERROR " misplaced break statement\n\n",
+	        lex->name,
+	        tok->lineno);
+
+	err_on_tok(lex, tok);
+
+	exit(EXIT_FAILURE);
+}
+
+static void parse_err_invalid_continue(Lexer *lex, Token *tok)
+{
+	fprintf(stderr,
+	        SYNTAX_ERROR " misplaced continue statement\n\n",
+	        lex->name,
+	        tok->lineno);
 
 	err_on_tok(lex, tok);
 
@@ -879,9 +941,9 @@ static void parse_err_invalid_assign(Lexer *lex, Token *tok)
 static void parse_err_invalid_return(Lexer *lex, Token *tok)
 {
 	fprintf(stderr,
-		    SYNTAX_ERROR " misplaced return statement\n\n",
-		    lex->name,
-		    tok->lineno);
+	        SYNTAX_ERROR " misplaced return statement\n\n",
+	        lex->name,
+	        tok->lineno);
 
 	err_on_tok(lex, tok);
 

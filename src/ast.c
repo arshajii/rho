@@ -167,6 +167,12 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_DEF:
 		printf("def");
 		break;
+	case NODE_BREAK:
+		printf("break");
+		break;
+	case NODE_CONTINUE:
+		printf("continue");
+		break;
 	case NODE_RETURN:
 		printf("return");
 		break;
