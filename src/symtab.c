@@ -506,24 +506,35 @@ static void clear_child_pos_of_entry(STEntry *ste)
 void st_free(SymTable *st)
 {
 	ste_free(st->ste_module);
+	ste_free(st->ste_attributes);
 	free(st);
+}
+
+static void stsymbol_free(STSymbol *entry)
+{
+	while (entry != NULL) {
+		STSymbol *temp = entry;
+		entry = entry->next;
+		free(temp);
+	}
 }
 
 static void ste_free(STEntry *ste)
 {
-	const size_t capacity = ste->table_capacity;
+	const size_t table_capacity = ste->table_capacity;
+	const size_t attr_capacity = ste->attr_capacity;
 
-	for (size_t i = 0; i < capacity; i++) {
-		STSymbol *entry = ste->table[i];
-
-		while (entry != NULL) {
-			STSymbol *temp = entry;
-			entry = entry->next;
-			free(temp);
-		}
+	for (size_t i = 0; i < table_capacity; i++) {
+		stsymbol_free(ste->table[i]);
 	}
 
 	free(ste->table);
+
+	for (size_t i = 0; i < attr_capacity; i++) {
+		stsymbol_free(ste->attributes[i]);
+	}
+
+	free(ste->attributes);
 
 	STEntry **children = ste->children;
 	size_t n_children = ste->n_children;

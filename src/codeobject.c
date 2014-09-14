@@ -63,6 +63,7 @@ void codeobj_free(Value *this)
 	CodeObject *co = objvalue(this);
 	free(co->head);
 	free(co->names.array);
+	free(co->attrs.array);
 
 	struct value_array *consts = &co->consts;
 	Value *consts_array = consts->array;
@@ -179,7 +180,7 @@ static void read_const_table(CodeObject *co, Code *code)
 			}
 			str[str_len] = '\0';
 			code_read_byte(code);  /* skip the string termination byte */
-			constants[i] = strobj_make(str_new_direct(str, str_len));
+			constants[i] = strobj_make(STR_INIT(str, str_len, 1));
 			break;
 		}
 		case CT_ENTRY_CODEOBJ: {

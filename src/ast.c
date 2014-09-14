@@ -204,10 +204,22 @@ void ast_free(AST *ast)
 		return;
 
 	switch (ast->type) {
-	case NODE_BLOCK: {
+	case NODE_STRING:
+		str_free(ast->v.str_val);
+		break;
+	case NODE_IDENT:
+		str_free(ast->v.ident);
+		break;
+	case NODE_BLOCK:
 		ast_list_free(ast->v.block);
 		break;
-	}
+	case NODE_IF:
+		ast_free(ast->v.middle);
+		break;
+	case NODE_DEF:
+	case NODE_CALL:
+		ast_list_free(ast->v.params);
+		break;
 	default:
 		break;
 	}

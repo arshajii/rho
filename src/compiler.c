@@ -73,6 +73,7 @@ static void compiler_free(Compiler *compiler, bool free_st)
 		st_free(compiler->st);
 	}
 	ct_free(compiler->ct);
+	code_dealloc(&compiler->code);
 	free(compiler);
 }
 
@@ -660,6 +661,7 @@ static void write_const_table(Compiler *compiler)
 
 			code_append(&compiler->code, co_code);
 			code_dealloc(co_code);
+			free(co_code);
 			break;
 		}
 	}
@@ -1085,4 +1087,5 @@ void compile(FILE *src, FILE *out, const char *name)
 
 	compiler_free(compiler, true);
 	lex_free(lex);
+	free(code);
 }

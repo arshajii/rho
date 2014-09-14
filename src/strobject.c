@@ -12,7 +12,8 @@ Value strobj_make(Str value)
 {
 	StrObject *s = malloc(sizeof(StrObject));
 	s->base = OBJ_INIT(&str_class);
-	s->freeable = false;
+	s->freeable = value.freeable;
+	value.freeable = 0;
 	s->str = value;
 	return makeobj(s);
 }
@@ -84,7 +85,7 @@ static Value strobj_cat(Value *this, Value *other)
 
 	cat[len_cat] = '\0';
 
-	return strobj_make((Str){.value = cat, .len = len_cat, .hashed = false});
+	return strobj_make(STR_INIT(cat, len_cat, 1));
 }
 
 struct num_methods str_num_methods = {

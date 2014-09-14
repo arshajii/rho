@@ -140,6 +140,7 @@ unsigned int ct_poll_codeobj(ConstTable *ct)
 	assert(head != NULL);
 	unsigned int value = head->value;
 	ct->codeobjs_head = head->next;
+	free(head);
 
 	if (ct->codeobjs_head == NULL) {
 		ct->codeobjs_tail = NULL;
@@ -192,14 +193,6 @@ void ct_grow(ConstTable *ct, const size_t new_capacity)
 
 static void ct_entry_free(CTEntry *entry)
 {
-	CTConst *key = &entry->key;
-	if (key->type == CT_STRING) {
-		str_free(key->value.s);
-	}
-	else if (key->type == CT_CODEOBJ) {
-		code_dealloc(key->value.c);
-		free(key->value.c);
-	}
 	free(entry);
 }
 

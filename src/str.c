@@ -15,17 +15,6 @@ Str *str_new(const char *value, size_t len)
 	return str;
 }
 
-Str str_new_direct(const char *value, size_t len)
-{
-	Str str;
-	str.value = value;
-	str.len = len;
-	str.hash = 0;
-	str.hashed = 0;
-	str.freeable = 0;
-	return str;
-}
-
 Str *str_new_copy(const char *value, size_t len)
 {
 	Str *str = malloc(sizeof(Str));

@@ -864,7 +864,7 @@ static void eval_frame(VM *vm)
 				case ATTR_T_CHAR: {
 					char *c = malloc(1);
 					*c = getmember(o, offset, char);
-					STACK_SET_TOP(strobj_make((Str){.value = c, .len = 1, .hashed = 0, .freeable = 1}));
+					STACK_SET_TOP(strobj_make(STR_INIT(c, 1, 1)));
 					break;
 				}
 				case ATTR_T_BYTE: {
@@ -932,7 +932,7 @@ static void eval_frame(VM *vm)
 					const size_t len = strlen(str);
 					char *copy = malloc(len);
 					memcpy(copy, str, len);
-					STACK_SET_TOP(strobj_make((Str){.value = copy, .len = len, .hashed = 0, .freeable = 0}));
+					STACK_SET_TOP(strobj_make(STR_INIT(copy, len, 1)));
 					break;
 				}
 				case ATTR_T_OBJECT: {

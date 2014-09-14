@@ -357,14 +357,14 @@ static inline bool isspace_except_newline(int c)
 
 static void skip_spaces(Lexer *lex)
 {
-	while (lex->pos <= lex->end && isspace_except_newline(lex->pos[0])) {
+	while (isspace_except_newline(lex->pos[0])) {
 		fwd(lex);
 	}
 }
 
 static void read_digits(Lexer *lex)
 {
-	while (lex->pos < lex->end && isdigit(nextc(lex))) {
+	while (isdigit(nextc(lex))) {
 		adv(lex);
 	}
 }
@@ -376,7 +376,7 @@ static Token next_number(Lexer *lex)
 	TokType type = TOK_INT;
 	read_digits(lex);
 
-	if (lex->pos < lex->end && nextc(lex) == '.') {
+	if (nextc(lex) == '.') {
 		adv(lex);
 		read_digits(lex);
 		type = TOK_FLOAT;
@@ -425,7 +425,7 @@ static Token next_op(Lexer *lex)
 	 * Consume all tokens that constitute simple operators,
 	 * e.g. '+', '-', '*' etc.
 	 */
-	while ((lex->pos + lex->mark < lex->end) && is_op_char(nextc(lex))) {
+	while (is_op_char(nextc(lex))) {
 		adv(lex);
 	}
 
@@ -460,7 +460,7 @@ static Token next_word(Lexer *lex)
 
 	assert(is_word_char(currc(lex)));
 
-	while (lex->pos < lex->end && is_id_char(nextc(lex))) {
+	while (is_id_char(nextc(lex))) {
 		adv(lex);
 	}
 
