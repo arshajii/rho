@@ -558,12 +558,6 @@ static void pass_comment(Lexer *lex)
 	}
 }
 
-static bool has_more_chars(Lexer *lex)
-{
-	skip_spaces(lex);
-	return (lex->pos != lex->end + 1);
-}
-
 static void add_token(Lexer *lex, Token *tok)
 {
 	const size_t size = lex->tok_count;
@@ -580,11 +574,14 @@ static void add_token(Lexer *lex, Token *tok)
 
 static void tokenize(Lexer *lex)
 {
-	while (has_more_chars(lex)) {
+	while (true) {
 		skip_spaces(lex);
-
 		Token tok;
 		const char c = lex->pos[0];
+
+		if (c == '\0') {
+			break;
+		}
 
 		if (isdigit(c)) {
 			tok = next_number(lex);

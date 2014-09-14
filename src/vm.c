@@ -839,13 +839,13 @@ static void eval_frame(VM *vm)
 			const char *attr = attrs.array[id].str;
 
 			if (!isobject(v1)) {
-				goto attr_error;
+				goto get_attr_error_not_found;
 			}
 
 			const unsigned int value = attr_dict_get(&class->attr_dict, attr);
 
 			if (!(value & ATTR_DICT_FLAG_FOUND)) {
-				goto attr_error;
+				goto get_attr_error_not_found;
 			}
 
 			const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
@@ -946,8 +946,236 @@ static void eval_frame(VM *vm)
 			release(v1);
 			break;
 
-			attr_error:
-			attr_error(class, attr);
+			get_attr_error_not_found:
+			attr_error_not_found(class, attr);
+			break;
+		}
+		case INS_SET_ATTR: {
+			Value *v1 = STACK_POP();
+			Value *v2 = STACK_POP();
+			Class *v1_class = getclass(v1);
+			Class *v2_class = getclass(v2);
+
+			const unsigned int id = GET_UINT16();
+
+			const char *attr = attrs.array[id].str;
+
+			if (!isobject(v1)) {
+				goto set_attr_error_not_found;
+			}
+
+			const unsigned int value = attr_dict_get(&v1_class->attr_dict, attr);
+
+			if (!(value & ATTR_DICT_FLAG_FOUND)) {
+				goto set_attr_error_not_found;
+			}
+
+			const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
+
+			if (is_method) {
+				goto set_attr_error_readonly;
+			}
+
+			const unsigned int idx = (value >> 2);
+
+			const struct attr_member *member = &v1_class->members[idx];
+
+			const int member_flags = member->flags;
+
+			if (member_flags & ATTR_FLAG_READONLY) {
+				goto set_attr_error_readonly;
+			}
+
+			const size_t offset = member->offset;
+
+			Object *o = objvalue(v1);
+			char *o_raw = (char *)o;
+
+			switch (member->type) {
+			case ATTR_T_CHAR: {
+				if (v2_class != &str_class) {
+					goto set_attr_error_mismatch;
+				}
+
+				StrObject *str = objvalue(v2);
+				const size_t len = str->str.len;
+
+				if (len != 1) {
+					goto set_attr_error_mismatch;
+				}
+
+				const char c = str->str.value[0];
+				char *member_raw = (char *)(o_raw + offset);
+				*member_raw = c;
+				break;
+			}
+			case ATTR_T_BYTE: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				char *member_raw = (char *)(o_raw + offset);
+				*member_raw = (char)n;
+				break;
+			}
+			case ATTR_T_SHORT: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				short *member_raw = (short *)(o_raw + offset);
+				*member_raw = (short)n;
+				break;
+			}
+			case ATTR_T_INT: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				int *member_raw = (int *)(o_raw + offset);
+				*member_raw = (int)n;
+				break;
+			}
+			case ATTR_T_LONG: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				long *member_raw = (long *)(o_raw + offset);
+				*member_raw = n;
+				break;
+			}
+			case ATTR_T_UBYTE: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				unsigned char *member_raw = (unsigned char *)(o_raw + offset);
+				*member_raw = (unsigned char)n;
+				break;
+			}
+			case ATTR_T_USHORT: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				unsigned short *member_raw = (unsigned short *)(o_raw + offset);
+				*member_raw = (unsigned short)n;
+				break;
+			}
+			case ATTR_T_UINT: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				unsigned int *member_raw = (unsigned int *)(o_raw + offset);
+				*member_raw = (unsigned int)n;
+				break;
+			}
+			case ATTR_T_ULONG: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				unsigned long *member_raw = (unsigned long *)(o_raw + offset);
+				*member_raw = (unsigned long)n;
+				break;
+			}
+			case ATTR_T_SIZE_T: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				size_t *member_raw = (size_t *)(o_raw + offset);
+				*member_raw = (size_t)n;
+				break;
+			}
+			case ATTR_T_BOOL: {
+				if (!isint(v2)) {
+					goto set_attr_error_mismatch;
+				}
+				const long n = intvalue(v2);
+				bool *member_raw = (bool *)(o_raw + offset);
+				*member_raw = (bool)n;
+				break;
+			}
+			case ATTR_T_FLOAT: {
+				float d;
+
+				/* ints get promoted */
+				if (isint(v2)) {
+					d = (float)intvalue(v2);
+				} else if (!isfloat(v2)) {
+					d = 0;
+					goto set_attr_error_mismatch;
+				} else {
+					d = (float)floatvalue(v2);
+				}
+
+				float *member_raw = (float *)(o_raw + offset);
+				*member_raw = d;
+				break;
+			}
+			case ATTR_T_DOUBLE: {
+				double d;
+
+				/* ints get promoted */
+				if (isint(v2)) {
+					d = (double)intvalue(v2);
+				} else if (!isfloat(v2)) {
+					d = 0;
+					goto set_attr_error_mismatch;
+				} else {
+					d = floatvalue(v2);
+				}
+
+				float *member_raw = (float *)(o_raw + offset);
+				*member_raw = d;
+				break;
+			}
+			case ATTR_T_STRING: {
+				if (v2_class != &str_class) {
+					goto set_attr_error_mismatch;
+				}
+
+				StrObject *str = objvalue(v2);
+
+				char **member_raw = (char **)(o_raw + offset);
+				*member_raw = (char *)str->str.value;
+				break;
+			}
+			case ATTR_T_OBJECT: {
+				if (!isobject(v2)) {
+					goto set_attr_error_mismatch;
+				}
+
+				Object **member_raw = (Object **)(o_raw + offset);
+
+				if ((member_flags & ATTR_FLAG_TYPE_STRICT) &&
+				    ((*member_raw)->class != v2_class)) {
+
+					goto set_attr_error_mismatch;
+				}
+
+				Object *o2 = objvalue(v2);
+				retaino(o2);
+				*member_raw = o2;
+				break;
+			}
+			}
+
+			break;
+
+			set_attr_error_not_found:
+			attr_error_not_found(v1_class, attr);
+			break;
+
+			set_attr_error_readonly:
+			attr_error_readonly(v1_class, attr);
+			break;
+
+			set_attr_error_mismatch:
+			attr_error_mismatch(v1_class, attr, v2_class);
 			break;
 		}
 		case INS_PRINT: {
@@ -1050,10 +1278,16 @@ static void eval_frame(VM *vm)
 			release(STACK_POP());
 			break;
 		}
+		case INS_DUP: {
+			Value *v1 = STACK_TOP();
+			retain(v1);
+			STACK_PUSH(*v1);
+			break;
+		}
 		case INS_ROT: {
-			Value *v1 = STACK_SECOND();
+			Value v1 = *STACK_SECOND();
 			STACK_SET_SECOND(*STACK_TOP());
-			STACK_SET_TOP(*v1);
+			STACK_SET_TOP(v1);
 			break;
 		}
 		default: {

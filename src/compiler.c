@@ -187,37 +187,67 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 		INTERNAL_ERROR();
 	}
 
-	if (ast->left->type == NODE_DOT) {
-		/*
-		 * TODO: attribute setting
-		 */
-		assert(0);
-	}
+	AST *lhs = ast->left;
+	AST *rhs = ast->right;
 
-	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
+	/*
+	 *         (assign)
+	 *        /       \
+	 *       .        rhs
+	 *      / \
+	 *    id  attr
+	 */
+	if (lhs->type == NODE_DOT) {
+		const STSymbol *sym = ste_get_attr_symbol(compiler->st->ste_current, lhs->right->v.ident);
+		const unsigned int sym_id = sym->id;
 
-	if (sym == NULL) {
-		INTERNAL_ERROR();
-	}
+		if (sym == NULL) {
+			INTERNAL_ERROR();
+		}
 
-	if (!sym->bound_here) {
-		/*
-		 * TODO: non-local assignments
-		 */
-		assert(0);
-	}
-
-	if (type == NODE_ASSIGN) {
-		compile_node(compiler, ast->right, false);
+		if (type == NODE_ASSIGN) {
+			compile_node(compiler, rhs, false);
+			compile_node(compiler, lhs->left, false);
+			write_byte(compiler, INS_SET_ATTR);
+			write_uint16(compiler, sym_id);
+		} else {
+			compile_node(compiler, lhs->left, false);
+			write_byte(compiler, INS_DUP);
+			write_byte(compiler, INS_LOAD_ATTR);
+			write_uint16(compiler, sym_id);
+			compile_node(compiler, rhs, false);
+			write_byte(compiler, to_opcode(type));
+			write_byte(compiler, INS_ROT);
+			write_byte(compiler, INS_SET_ATTR);
+			write_uint16(compiler, sym_id);
+		}
 	} else {
-		/* compound assignment */
-		compile_load(compiler, ast->left);
-		compile_node(compiler, ast->right, false);
-		write_byte(compiler, to_opcode(type));
-	}
+		const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, lhs->v.ident);
+		const unsigned int sym_id = sym->id;
 
-	write_byte(compiler, INS_STORE);
-	write_uint16(compiler, sym->id);
+		if (sym == NULL) {
+			INTERNAL_ERROR();
+		}
+
+		if (!sym->bound_here) {
+			/*
+			 * TODO: non-local assignments
+			 */
+			assert(0);
+		}
+
+		if (type == NODE_ASSIGN) {
+			compile_node(compiler, rhs, false);
+		} else {
+			/* compound assignment */
+			compile_load(compiler, lhs);
+			compile_node(compiler, rhs, false);
+			write_byte(compiler, to_opcode(type));
+		}
+
+		write_byte(compiler, INS_STORE);
+		write_uint16(compiler, sym_id);
+	}
 }
 
 static void compile_call(Compiler *compiler, AST *ast)
@@ -870,6 +900,7 @@ static int arg_size(Opcode opcode)
 	case INS_LOAD:
 	case INS_LOAD_GLOBAL:
 	case INS_LOAD_ATTR:
+	case INS_SET_ATTR:
 		return 2;
 	case INS_PRINT:
 		return 0;
@@ -883,6 +914,7 @@ static int arg_size(Opcode opcode)
 		return 2;
 	case INS_RETURN:
 	case INS_POP:
+	case INS_DUP:
 	case INS_ROT:
 		return 0;
 	default:
@@ -980,6 +1012,8 @@ static int stack_delta(Opcode opcode, int arg)
 		return 1;
 	case INS_LOAD_ATTR:
 		return 0;
+	case INS_SET_ATTR:
+		return -2;
 	case INS_PRINT:
 		return -1;
 	case INS_JMP:
@@ -996,6 +1030,8 @@ static int stack_delta(Opcode opcode, int arg)
 		return -1;
 	case INS_POP:
 		return -1;
+	case INS_DUP:
+		return 1;
 	case INS_ROT:
 		return 0;
 	}
@@ -1004,17 +1040,18 @@ static int stack_delta(Opcode opcode, int arg)
 void compile(FILE *src, FILE *out, const char *name)
 {
 	fseek(src, 0L, SEEK_END);
-	unsigned long numbytes = ftell(src);
+	size_t code_size = ftell(src);
 	fseek(src, 0L, SEEK_SET);
-	char *code = malloc(numbytes);
+	char *code = malloc(code_size + 1);
+	code[code_size] = '\0';
 
 	if (code == NULL) {
 		abort();
 	}
 
-	fread(code, sizeof(char), numbytes, src);
+	fread(code, sizeof(char), code_size, src);
 
-	Lexer *lex = lex_new(code, numbytes, name);
+	Lexer *lex = lex_new(code, code_size, name);
 	Program *program = parse(lex);
 	Compiler *compiler = compiler_new(name, st_new(name));
 

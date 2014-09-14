@@ -156,12 +156,33 @@ void call_error_args(const char *fn, unsigned int expected, unsigned int got)
 	exit(EXIT_FAILURE);
 }
 
-void attr_error(const Class *type, const char *attr)
+void attr_error_not_found(const Class *type, const char *attr)
 {
 	fprintf(stderr,
 	        ATTR_ERROR_HEADER "object of type %s has no attribute '%s'\n",
 	        type->name,
 	        attr);
+
+	exit(EXIT_FAILURE);
+}
+
+void attr_error_readonly(const Class *type, const char *attr)
+{
+	fprintf(stderr,
+	        ATTR_ERROR_HEADER "attribute '%s' of type %s object is read-only\n",
+	        attr,
+	        type->name);
+
+	exit(EXIT_FAILURE);
+}
+
+void attr_error_mismatch(const Class *type, const char *attr, const Class *assign_type)
+{
+	fprintf(stderr,
+	        ATTR_ERROR_HEADER "cannot assign %s to attribute '%s' of %s object",
+	        assign_type->name,
+	        attr,
+	        type->name);
 
 	exit(EXIT_FAILURE);
 }

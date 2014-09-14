@@ -22,6 +22,7 @@ typedef Str *(*StrUnOp)(Value *this);
 typedef void (*InitFunc)(Value *this, Value *args, size_t nargs);
 typedef void (*DelFunc)(Value *this);
 typedef Value (*CallFunc)(Value *this, Value *args, size_t nargs);
+typedef size_t (*LenFunc)(Value *this);
 typedef void (*SeqSetFunc)(Value *this, Value *idx, Value *v);
 
 struct num_methods {
@@ -63,7 +64,7 @@ struct num_methods {
 };
 
 struct seq_methods {
-	UnOp len;
+	LenFunc len;
 	BinOp concat;
 	BinOp get;
 	SeqSetFunc set;
@@ -178,7 +179,7 @@ BoolUnOp resolve_nonzero(Class *class);
 UnOp resolve_to_int(Class *class);
 UnOp resolve_to_float(Class *class);
 
-UnOp resolve_len(Class *class);
+LenFunc resolve_len(Class *class);
 BinOp resolve_concat(Class *class);
 BinOp resolve_get(Class *class);
 SeqSetFunc resolve_set(Class *class);

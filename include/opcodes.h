@@ -43,6 +43,7 @@ typedef enum {
 	INS_LOAD,
 	INS_LOAD_GLOBAL,
 	INS_LOAD_ATTR,
+	INS_SET_ATTR,
 	INS_PRINT,
 	INS_JMP,
 	INS_JMP_BACK,
@@ -53,6 +54,7 @@ typedef enum {
 	INS_CALL,
 	INS_RETURN,
 	INS_POP,
+	INS_DUP,
 	INS_ROT
 } Opcode;
 

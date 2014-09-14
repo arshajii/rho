@@ -216,7 +216,7 @@ MAKE_METHOD_RESOLVER(nonzero, num_methods, BoolUnOp)
 MAKE_METHOD_RESOLVER(to_int, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(to_float, num_methods, UnOp)
 
-MAKE_METHOD_RESOLVER(len, seq_methods, UnOp)
+MAKE_METHOD_RESOLVER(len, seq_methods, LenFunc)
 MAKE_METHOD_RESOLVER(concat, seq_methods, BinOp)
 MAKE_METHOD_RESOLVER(get, seq_methods, BinOp)
 MAKE_METHOD_RESOLVER(set, seq_methods, SeqSetFunc)

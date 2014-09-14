@@ -30,6 +30,9 @@ struct attr_member {
 	const int flags;
 };
 
+#define ATTR_FLAG_READONLY     (1 << 2)
+#define ATTR_FLAG_TYPE_STRICT  (1 << 3)
+
 struct value;
 typedef struct value (*MethodFunc)(struct value *this, struct value *args, size_t nargs);
 
