@@ -3,15 +3,17 @@ TODO List
 
 The list is not in any particular order, although related items should be grouped. Items followed by a question mark as in "(?)" have not been decided on.
 
-- [ ] Calculate the value stacks' maximum sizes through a compile-time analysis so as to avoid having to reallocate value stacks at runtime.
+- [ ] Allow for non-global free variables within functions.
 
-    - [ ] Convert abstract syntax trees to control flow graphs before emitting bytecode so as to facilitate this compile-time analysis.
+- [x] Calculate the value stacks' maximum sizes through a compile-time analysis so as to avoid having to reallocate value stacks at runtime.
 
-- [ ] Check for memory leaks using Valgrind or another similar software. (I have yet to do this because Valgrind is not compatible with my OS.)
+    - [x] ~~Convert abstract syntax trees to control flow graphs before emitting bytecode so as to facilitate this compile-time analysis.~~
 
-    - [ ] Check for compiler memory leaks (there really shouldn't be any of these).
+- [x] Check for memory leaks.
+
+    - [x] Check for compiler memory leaks (there really shouldn't be any of these).
     
-    - [ ] Check for virtual machine memory leaks (there likely will be some of these since the garbage collection mechanism has not yet been implemented).
+    - [x] Check for virtual machine memory leaks ~~(there likely will be some of these since the garbage collection mechanism has not yet been implemented)~~.
 
 - [x] Add a function definition mechanism. A rudimentary call mechanism for testing has already been implemented.
   
