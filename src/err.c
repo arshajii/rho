@@ -199,9 +199,3 @@ void unexpected_byte(const char *fn, const byte p)
 	sprintf("unexpected byte in %s: %02x", fn, p);
 	fatal_error(buf);
 }
-
-void internal_error(const char *fn, const unsigned int lineno)
-{
-	fprintf(stderr, "internal error in %s on line %d\n", fn, lineno);
-	exit(EXIT_FAILURE);
-}

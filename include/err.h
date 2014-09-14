@@ -1,6 +1,7 @@
 #ifndef ERR_H
 #define ERR_H
 
+#include <assert.h>
 #include "code.h"
 #include "object.h"
 
@@ -34,7 +35,6 @@ void fatal_error(const char *msg);
 void unexpected_byte(const char *fn, const byte p);
 #define UNEXP_BYTE(p) (unexpected_byte(__FUNCTION__, (p)))
 
-void internal_error(const char *fn, const unsigned int lineno);
-#define INTERNAL_ERROR() (internal_error(__FUNCTION__, __LINE__))
+#define INTERNAL_ERROR() (assert(0))
 
 #endif /* ERR_H */
