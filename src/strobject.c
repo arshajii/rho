@@ -136,7 +136,7 @@ struct seq_methods str_seq_methods = {
 };
 
 struct attr_member str_members[] = {
-		{"len", ATTR_T_SIZE_T, offsetof(StrObject, str) + offsetof(Str, len), 0},
+		{"len", ATTR_T_SIZE_T, offsetof(StrObject, str) + offsetof(Str, len), ATTR_FLAG_READONLY},
 		{NULL, 0, 0, 0}
 };
 
