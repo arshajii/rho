@@ -156,6 +156,13 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 		st->ste_current = parent;
 		break;
 	}
+	case NODE_CALL: {
+		populate_symtable_from_node(st, ast->left);
+		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
+			populate_symtable_from_node(st, node->ast);
+		}
+		break;
+	}
 	default:
 		populate_symtable_from_node(st, ast->left);
 		populate_symtable_from_node(st, ast->right);
