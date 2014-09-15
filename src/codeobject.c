@@ -25,7 +25,7 @@
  *
  * Metadata layout:
  *
- *   - Code length in bytes, excluding meta-data (uint16)
+ *   - Code length in bytes, excluding metadata (uint16)
  *   - Name (null-terminated string)
  *   - Argument count (uint16)
  *   - Value stack size (uint16)
