@@ -8,7 +8,7 @@
 #include "codeobject.h"
 
 /*
- * The CodeObject bytecode format is similar as the general bytecode format,
+ * The CodeObject bytecode format is similar to the general bytecode format,
  * but with two differences: 1) CodeObject bytecode does not include the
  * "magic" bytes at the start, 2) CodeObject bytecode begins with some
  * metadata describing it.
