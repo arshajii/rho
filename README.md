@@ -30,16 +30,18 @@ Examples
 
     b = 1
     if b {
-    	print "b is non-zero!"  # strings can be delimited by either " or '
-	}
+        print "b is non-zero!"  # strings can be delimited by either " or '
+    } else {
+	    print "b is zero!"
+    }
 	
 #### `while` statements
 
-    # prints integers from 10 down to 1
-    a = 10
-    while a {
+    # print integers from 1 to 10:
+    a = 1
+    while a <= 10 {
 	    print a
-	    a = a - 1
+	    a += 1
     }
     
 #### Functions
