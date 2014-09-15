@@ -8,23 +8,27 @@
 #include "codeobject.h"
 
 /*
- * The CodeObject bytecode format is the same as the general bytecode format.
- * Note, however, that CodeObject bytecode does not include the magic bytes
- * at the start.
+ * The CodeObject bytecode format is similar as the general bytecode format,
+ * but with two differences: 1) CodeObject bytecode does not include the
+ * "magic" bytes at the start, 2) CodeObject bytecode begins with some
+ * metadata describing it.
  *
- * +-----------------+
- * | symbol table    |
- * +-----------------+
- * | constant table  |
- * +-----------------+
- * | bytecode        |
- * +-----------------+
+ *   +-----------------+
+ *   | metadata        |
+ *   +-----------------+
+ *   | symbol table    |
+ *   +-----------------+
+ *   | constant table  |
+ *   +-----------------+
+ *   | bytecode        |
+ *   +-----------------+
  *
- * When a CodeObject is saved in a constant table and the written to the
- * bytecode, that CodeObject's code should start with a null-terminated
- * string representing the CodeObject's name, followed by a 4-byte int
- * indicating how many arguments the CodeObject takes. The symbol table
- * of a CodeObject should start with its arguments names (in order).
+ * Metadata layout:
+ *
+ *   - Code length in bytes, excluding meta-data (uint16)
+ *   - Name (null-terminated string)
+ *   - Argument count (uint16)
+ *   - Value stack size (uint16)
  */
 
 static void read_sym_table(CodeObject *co, Code *code);
