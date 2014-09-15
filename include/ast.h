@@ -100,7 +100,7 @@ struct ast_list {
 	struct ast_list *next;
 };
 
-AST *ast_new(void);
+AST *ast_new(NodeType type, AST *left, AST *right);
 struct ast_list *ast_list_new(void);
 void ast_list_free(struct ast_list *block);
 void ast_print(AST *ast);

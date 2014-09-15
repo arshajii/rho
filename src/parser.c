@@ -235,11 +235,8 @@ static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec)
 
 		AST *rhs = parse_expr_min_prec(lex, next_min_prec);
 
-		AST *ast = ast_new();
-		ast->type = nodetype_from_op(op);
-		ast->left = lhs;
-		ast->right = rhs;
-
+		NodeType node_type = nodetype_from_op(op);
+		AST *ast = ast_new(node_type, lhs, rhs);
 		lhs = ast;
 	}
 
@@ -339,10 +336,8 @@ static AST *parse_atom(Lexer *lex)
 	while (tok->type == TOK_DOT) {
 		expect(lex, TOK_DOT);
 
-		AST *dot = ast_new();
-		dot->type = NODE_DOT;
-		dot->left = ast;
-		dot->right = parse_ident(lex);
+		AST *ident = parse_ident(lex);
+		AST *dot = ast_new(NODE_DOT, ast, ident);
 		ast = dot;
 
 		tok = lex_peek_token(lex);
@@ -396,11 +391,8 @@ static AST *parse_atom(Lexer *lex)
 
 		expect(lex, TOK_PAREN_CLOSE);
 
-		AST *call = ast_new();
-		call->type = NODE_CALL;
+		AST *call = ast_new(NODE_CALL, ast, NULL);
 		call->v.params = params_head;
-		call->left = ast;
-		call->right = NULL;
 		ast = call;
 
 		tok = lex_peek_token(lex);
@@ -445,49 +437,34 @@ static AST *parse_unop(Lexer *lex)
 		break;
 	}
 
-	AST *ast = ast_new();
-	ast->type = type;
-	ast->left = parse_atom(lex);
-	ast->right = NULL;
-
+	AST *atom = parse_atom(lex);
+	AST *ast = ast_new(type, atom, NULL);
 	return ast;
 }
 
 static AST *parse_int(Lexer *lex)
 {
 	Token *tok = expect(lex, TOK_INT);
-
-	AST *ast = ast_new();
-	ast->type = NODE_INT;
+	AST *ast = ast_new(NODE_INT, NULL, NULL);
 	ast->v.int_val = atoi(tok->value);
-	ast->left = ast->right = NULL;
-
 	return ast;
 }
 
 static AST *parse_float(Lexer *lex)
 {
 	Token *tok = expect(lex, TOK_FLOAT);
-
-	AST *ast = ast_new();
-	ast->type = NODE_FLOAT;
+	AST *ast = ast_new(NODE_FLOAT, NULL, NULL);
 	ast->v.float_val = atof(tok->value);
-	ast->left = ast->right = NULL;
-
 	return ast;
 }
 
 static AST *parse_str(Lexer *lex)
 {
 	Token *tok = expect(lex, TOK_STR);
-
-	AST *ast = ast_new();
-	ast->type = NODE_STRING;
+	AST *ast = ast_new(NODE_STRING, NULL, NULL);
 
 	// deal with quotes appropriately:
 	ast->v.str_val = str_new_copy(tok->value + 1, tok->length - 2);
-
-	ast->left = ast->right = NULL;
 
 	return ast;
 }
@@ -495,37 +472,30 @@ static AST *parse_str(Lexer *lex)
 static AST *parse_ident(Lexer *lex)
 {
 	Token *tok = expect(lex, TOK_IDENT);
-	AST *ast = ast_new();
-
-	ast->type = NODE_IDENT;
+	AST *ast = ast_new(NODE_IDENT, NULL, NULL);
 	ast->v.ident = str_new_copy(tok->value, tok->length);
-	ast->left = ast->right = NULL;
-
 	return ast;
 }
 
 static AST *parse_print(Lexer *lex)
 {
 	expect(lex, TOK_PRINT);
-	AST *ast = ast_new();
-	ast->type = NODE_PRINT;
-	ast->left = parse_expr(lex);
-	ast->right = NULL;
-
+	AST *expr = parse_expr(lex);
+	AST *ast = ast_new(NODE_PRINT, expr, NULL);
 	return ast;
 }
 
 static AST *parse_if(Lexer *lex)
 {
 	expect(lex, TOK_IF);
-	AST *ast = ast_new();
-	ast->type = NODE_IF;
-	ast->left = parse_expr(lex);   // cond
-	ast->right = parse_block(lex); // body
+	AST *condition = parse_expr(lex);
+	AST *body = parse_block(lex);
+	AST *ast = ast_new(NODE_IF, condition, body);
 
 	if (lex_peek_token(lex)->type == TOK_ELSE) {
 		expect(lex, TOK_ELSE);
-		ast->v.middle = parse_block(lex);  // else body
+		AST *else_body = parse_block(lex);
+		ast->v.middle = else_body;
 	} else {
 		ast->v.middle = NULL;
 	}
@@ -536,25 +506,22 @@ static AST *parse_if(Lexer *lex)
 static AST *parse_while(Lexer *lex)
 {
 	expect(lex, TOK_WHILE);
-	AST *ast = ast_new();
-	ast->type = NODE_WHILE;
-	ast->left = parse_expr(lex);   // cond
+	AST *condition = parse_expr(lex);
 
 	unsigned old_in_loop = lex->in_loop;
 	lex->in_loop = 1;
-	ast->right = parse_block(lex); // body
+	AST *body = parse_block(lex);
 	lex->in_loop = old_in_loop;
 
+	AST *ast = ast_new(NODE_WHILE, condition, body);
 	return ast;
 }
 
 static AST *parse_def(Lexer *lex)
 {
 	expect(lex, TOK_DEF);
-	AST *ast = ast_new();
-	ast->type = NODE_DEF;
-	Token *name = lex_peek_token(lex);
-	ast->left = parse_ident(lex);  // name
+	Token *name_tok = lex_peek_token(lex);
+	AST *name = parse_ident(lex);
 
 	Token *paren_open = expect(lex, TOK_PAREN_OPEN);
 
@@ -603,17 +570,17 @@ static AST *parse_def(Lexer *lex)
 
 	expect(lex, TOK_PAREN_CLOSE);
 
-	ast->v.params = params_head;
-
 	unsigned old_in_function = lex->in_function;
 	lex->in_function = 1;
-	ast->right = parse_block(lex);  // body
+	AST *body = parse_block(lex);
 	lex->in_function = old_in_function;
 
 	if (nargs > FUNCTION_MAX_PARAMS) {
-		parse_err_too_many_params(lex, name);
+		parse_err_too_many_params(lex, name_tok);
 	}
 
+	AST *ast = ast_new(NODE_DEF, name, body);
+	ast->v.params = params_head;
 	return ast;
 }
 
@@ -625,9 +592,7 @@ static AST *parse_break(Lexer *lex)
 		parse_err_invalid_break(lex, break_tok);
 	}
 
-	AST *ast = ast_new();
-	ast->type = NODE_BREAK;
-	ast->left = ast->right = NULL;
+	AST *ast = ast_new(NODE_BREAK, NULL, NULL);
 	return ast;
 }
 
@@ -639,9 +604,7 @@ static AST *parse_continue(Lexer *lex)
 		parse_err_invalid_continue(lex, continue_tok);
 	}
 
-	AST *ast = ast_new();
-	ast->type = NODE_CONTINUE;
-	ast->left = ast->right = NULL;
+	AST *ast = ast_new(NODE_CONTINUE, NULL, NULL);
 	return ast;
 }
 
@@ -653,10 +616,8 @@ static AST *parse_return(Lexer *lex)
 		parse_err_invalid_return(lex, return_tok);
 	}
 
-	AST *ast = ast_new();
-	ast->type = NODE_RETURN;
-	ast->left = parse_expr(lex);
-	ast->right = NULL;
+	AST *expr = parse_expr(lex);
+	AST *ast = ast_new(NODE_RETURN, expr, NULL);
 	return ast;
 }
 
@@ -699,20 +660,15 @@ static AST *parse_block(Lexer *lex)
 
 	expect(lex, TOK_BRACKET_CLOSE);
 
-	AST *ast = ast_new();
-	ast->type = NODE_BLOCK;
+	AST *ast = ast_new(NODE_BLOCK, NULL, NULL);
 	ast->v.block = block_head;
-	ast->left = ast->right = NULL;
-
 	return ast;
 }
 
 static AST *parse_empty(Lexer *lex)
 {
 	expect(lex, TOK_SEMICOLON);
-	AST *ast = ast_new();
-	ast->type = NODE_EMPTY;
-	ast->left = ast->right = NULL;
+	AST *ast = ast_new(NODE_EMPTY, NULL, NULL);
 	return ast;
 }
 

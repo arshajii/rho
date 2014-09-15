@@ -2,9 +2,12 @@
 #include <stdio.h>
 #include "ast.h"
 
-AST *ast_new(void)
+AST *ast_new(NodeType type, AST *left, AST *right)
 {
 	AST *ast = malloc(sizeof(AST));
+	ast->type = type;
+	ast->left = left;
+	ast->right = right;
 	return ast;
 }
 
