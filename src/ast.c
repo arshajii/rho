@@ -2,10 +2,11 @@
 #include <stdio.h>
 #include "ast.h"
 
-AST *ast_new(NodeType type, AST *left, AST *right)
+AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno)
 {
 	AST *ast = malloc(sizeof(AST));
 	ast->type = type;
+	ast->lineno = lineno;
 	ast->left = left;
 	ast->right = right;
 	return ast;

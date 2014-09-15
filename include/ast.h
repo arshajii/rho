@@ -77,6 +77,7 @@ typedef struct ast_list ParamList;
  */
 typedef struct AST {
 	NodeType type;
+	unsigned int lineno;
 
 	union {
 		int int_val;
@@ -100,7 +101,7 @@ struct ast_list {
 	struct ast_list *next;
 };
 
-AST *ast_new(NodeType type, AST *left, AST *right);
+AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno);
 struct ast_list *ast_list_new(void);
 void ast_list_free(struct ast_list *block);
 void ast_print(AST *ast);
