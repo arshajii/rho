@@ -17,29 +17,39 @@ struct metadata {
 
 #define LBI_INIT_CAPACITY 5
 
-void write_byte(Compiler *compiler, byte p)
+static void write_byte(Compiler *compiler, const byte p)
 {
 	code_write_byte(&compiler->code, p);
 }
 
-void write_int(Compiler *c, const int n)
+static void write_int(Compiler *compiler, const int n)
 {
-	code_write_int(&c->code, n);
+	code_write_int(&compiler->code, n);
 }
 
-void write_uint16(Compiler *c, const size_t n)
+static void write_uint16(Compiler *compiler, const size_t n)
 {
-	code_write_uint16(&c->code, n);
+	code_write_uint16(&compiler->code, n);
 }
 
-void write_uint16_at(Compiler *c, const size_t n, const size_t pos)
+static void write_uint16_at(Compiler *compiler, const size_t n, const size_t pos)
 {
-	code_write_uint16_at(&c->code, n, pos);
+	code_write_uint16_at(&compiler->code, n, pos);
 }
 
-void write_double(Compiler *c, const double d)
+static void write_double(Compiler *compiler, const double d)
 {
-	code_write_double(&c->code, d);
+	code_write_double(&compiler->code, d);
+}
+
+static void write_str(Compiler *compiler, const Str *str)
+{
+	code_write_str(&compiler->code, str);
+}
+
+static void append(Compiler *compiler, const Code *code)
+{
+	code_append(&compiler->code, code);
 }
 
 const byte magic[] = {0xFE, 0xED, 0xF0, 0x0D};
@@ -684,20 +694,20 @@ static void write_sym_table(Compiler *compiler)
 		}
 	}
 
-	code_write_byte(&compiler->code, ST_ENTRY_BEGIN);
-	code_write_uint16(&compiler->code, n_locals);
+	write_byte(compiler, ST_ENTRY_BEGIN);
+	write_uint16(compiler, n_locals);
 
 	for (size_t i = 0; i < n_locals; i++) {
-		code_write_str(&compiler->code, locals_sorted[i]);
+		write_str(compiler, locals_sorted[i]);
 	}
 
-	code_write_uint16(&compiler->code, n_attrs);
+	write_uint16(compiler, n_attrs);
 
 	for (size_t i = 0; i < n_attrs; i++) {
-		code_write_str(&compiler->code, attrs_sorted[i]);
+		write_str(compiler, attrs_sorted[i]);
 	}
 
-	code_write_byte(&compiler->code, ST_ENTRY_END);
+	write_byte(compiler, ST_ENTRY_END);
 
 	free(locals_sorted);
 	free(attrs_sorted);
@@ -708,8 +718,8 @@ static void write_const_table(Compiler *compiler)
 	const ConstTable *ct = compiler->ct;
 	const size_t size = ct->table_size + ct->codeobjs_size;
 
-	code_write_byte(&compiler->code, CT_ENTRY_BEGIN);
-	code_write_uint16(&compiler->code, size);
+	write_byte(compiler, CT_ENTRY_BEGIN);
+	write_uint16(compiler, size);
 
 	CTConst *sorted = malloc(size * sizeof(CTConst));
 
@@ -727,19 +737,19 @@ static void write_const_table(Compiler *compiler)
 	for (size_t i = 0; i < size; i++) {
 		switch (sorted[i].type) {
 		case CT_INT:
-			code_write_byte(&compiler->code, CT_ENTRY_INT);
-			code_write_int(&compiler->code, sorted[i].value.i);
+			write_byte(compiler, CT_ENTRY_INT);
+			write_int(compiler, sorted[i].value.i);
 			break;
 		case CT_DOUBLE:
-			code_write_byte(&compiler->code, CT_ENTRY_FLOAT);
-			code_write_double(&compiler->code, sorted[i].value.d);
+			write_byte(compiler, CT_ENTRY_FLOAT);
+			write_double(compiler, sorted[i].value.d);
 			break;
 		case CT_STRING:
-			code_write_byte(&compiler->code, CT_ENTRY_STRING);
-			code_write_str(&compiler->code, sorted[i].value.s);
+			write_byte(compiler, CT_ENTRY_STRING);
+			write_str(compiler, sorted[i].value.s);
 			break;
 		case CT_CODEOBJ:
-			code_write_byte(&compiler->code, CT_ENTRY_CODEOBJ);
+			write_byte(compiler, CT_ENTRY_CODEOBJ);
 
 			/*
 			 * CodeObject bytecode begins with a name, followed by a
@@ -757,9 +767,9 @@ static void write_const_table(Compiler *compiler)
 			 * Write size of actual CodeObject bytecode, excluding
 			 * metadata (name, argcount, stack_depth):
 			 */
-			code_write_uint16(&compiler->code, co_code->size - (name_len + 1) - 2 - 2);
+			write_uint16(compiler, co_code->size - (name_len + 1) - 2 - 2);
 
-			code_append(&compiler->code, co_code);
+			append(compiler, co_code);
 			code_dealloc(co_code);
 			free(co_code);
 			break;
@@ -767,7 +777,7 @@ static void write_const_table(Compiler *compiler)
 	}
 	free(sorted);
 
-	code_write_byte(&compiler->code, CT_ENTRY_END);
+	write_byte(compiler, CT_ENTRY_END);
 }
 
 static void fill_ct_from_ast(Compiler *compiler, AST *ast)
