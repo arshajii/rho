@@ -751,11 +751,6 @@ static void write_const_table(Compiler *compiler)
 		case CT_CODEOBJ:
 			write_byte(compiler, CT_ENTRY_CODEOBJ);
 
-			/*
-			 * CodeObject bytecode begins with a name, followed by a
-			 * 4-byte int indicating how many arguments it takes.
-			 */
-
 			Code *co_code = sorted[i].value.c;
 
 			size_t name_len = 0;
@@ -829,10 +824,10 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 
 		const size_t name_len = ast->left->v.ident->len;
 
-		code_init(fncode, name_len + 2 + 2 + sub->code.size);  // total size
-		code_write_str(fncode, ast->left->v.ident);            // name
-		code_write_uint16(fncode, nargs);                      // arg count
-		code_write_uint16(fncode, max_vstack_depth);           // max stack depth
+		code_init(fncode, (name_len + 1) + 2 + 2 + sub->code.size);  // total size
+		code_write_str(fncode, ast->left->v.ident);                  // name
+		code_write_uint16(fncode, nargs);                            // arg count
+		code_write_uint16(fncode, max_vstack_depth);                 // max stack depth
 		code_append(fncode, subcode);
 
 		compiler_free(sub, false);
