@@ -555,7 +555,7 @@ static Token eof_token(void)
 static void pass_comment(Lexer *lex)
 {
 	assert(currc(lex) == '#');
-	while (currc(lex) != '\n') {
+	while (currc(lex) != '\n' && nextc(lex) != EOF) {
 		fwd(lex);
 	}
 }
