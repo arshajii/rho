@@ -14,16 +14,14 @@
 	} else if (isfloat(other)) { \
 		return makefloat(intvalue(this) op floatvalue(other)); \
 	} else { \
-		type_error(TYPE_ERR_STR(op)); \
-		return SENTINEL; \
+		return makeerr(type_error_unsupported_2(#op, getclass(this), getclass(other))); \
 	}
 
 #define INT_BINOP_FUNC_BODY_NOFLOAT(op) \
 	if (isint(other)) { \
 		return makeint(intvalue(this) op intvalue(other)); \
 	} else { \
-		type_error(TYPE_ERR_STR(op)); \
-		return SENTINEL; \
+		return makeerr(type_error_unsupported_2(#op, getclass(this), getclass(other))); \
 	}
 
 #define INT_IBINOP_FUNC_BODY(op) \
@@ -35,8 +33,7 @@
 		floatvalue(this) = intvalue(this) op floatvalue(other); \
 		return *this; \
 	} else { \
-		type_error(TYPE_ERR_STR(op)); \
-		return SENTINEL; \
+		return makeerr(type_error_unsupported_2(#op "=", getclass(this), getclass(other))); \
 	}
 
 #define INT_IBINOP_FUNC_BODY_NOFLOAT(op) \
@@ -44,8 +41,7 @@
 		intvalue(this) = intvalue(this) op intvalue(other); \
 		return *this; \
 	} else { \
-		type_error(TYPE_ERR_STR(op)); \
-		return SENTINEL; \
+		return makeerr(type_error_unsupported_2(#op "=", getclass(this), getclass(other))); \
 	}
 
 static bool int_eq(Value *this, Value *other)
@@ -64,18 +60,17 @@ static int int_hash(Value *this)
 	return hash_long(intvalue(this));
 }
 
-static int int_cmp(Value *this, Value *other)
+static Value int_cmp(Value *this, Value *other)
 {
 	const long x = intvalue(this);
 	if (isint(other)) {
 		const long y = intvalue(other);
-		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
+		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else if (isfloat(other)) {
 		const double y = floatvalue(other);
-		return ((x < y) ? -1 : ((x == y) ? 0 : 1));
+		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else {
-		type_error(TYPE_ERR_STR(cmp));
-		return 0;
+		return makeerr(type_error_unsupported_2("cmp", getclass(this), getclass(other)));
 	}
 }
 
@@ -126,8 +121,7 @@ static Value int_pow(Value *this, Value *other)
 	} else if (isfloat(other)) {
 		return makefloat(pow(intvalue(this), floatvalue(other)));
 	} else {
-		type_error(TYPE_ERR_STR(**)); \
-		return SENTINEL;
+		return makeerr(type_error_unsupported_2("**", getclass(this), getclass(other)));
 	}
 }
 
@@ -196,8 +190,7 @@ static Value int_ipow(Value *this, Value *other)
 		floatvalue(this) = pow(intvalue(this), floatvalue(other));
 		return *this;
 	} else {
-		type_error(TYPE_ERR_STR(**));
-		return SENTINEL;
+		return makeerr(type_error_unsupported_2("**=", getclass(this), getclass(other)));
 	}
 }
 

@@ -5,6 +5,7 @@
 #include "code.h"
 #include "symtab.h"
 #include "consttab.h"
+#include "opcodes.h"
 
 extern const byte magic[];
 extern const size_t magic_size;
@@ -29,8 +30,16 @@ typedef struct {
 	struct loop_block_info *lbi;
 	SymTable *st;
 	ConstTable *ct;
+
+	Code lno_table;
+	unsigned int first_lineno;
+	unsigned int first_ins_on_line_idx;
+	unsigned int last_ins_idx;
+	unsigned int last_lineno;
 } Compiler;
 
 void compile(FILE *src, FILE *out, const char *name);
+
+int arg_size(Opcode opcode);
 
 #endif /* COMPILER_H */

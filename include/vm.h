@@ -15,6 +15,9 @@ typedef struct frame {
 	Value *valuestack;
 
 	Value return_value;
+
+	size_t pos;
+
 	struct frame *prev;
 } Frame;
 

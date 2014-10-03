@@ -25,7 +25,7 @@ void code_ensure_capacity(Code *code, size_t min_capacity)
 		}
 
 		code->capacity = capacity;
-		code->bc = realloc(code->bc, code->capacity);
+		code->bc = realloc(code->bc, capacity);
 	}
 }
 

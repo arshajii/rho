@@ -16,6 +16,8 @@
  *   +-----------------+
  *   | metadata        |
  *   +-----------------+
+ *   | line no. table  |
+ *   +-----------------+
  *   | symbol table    |
  *   +-----------------+
  *   | constant table  |
@@ -31,6 +33,7 @@
  *   - Value stack size (uint16)
  */
 
+static void read_lno_table(CodeObject *co, Code *code);
 static void read_sym_table(CodeObject *co, Code *code);
 static void read_const_table(CodeObject *co, Code *code);
 
@@ -54,6 +57,7 @@ CodeObject *codeobj_make(Code *code,
 		INTERNAL_ERROR();
 	}
 
+	read_lno_table(co, code);
 	read_sym_table(co, code);
 	read_const_table(co, code);
 	co->bc = code->bc;
@@ -80,6 +84,19 @@ void codeobj_free(Value *this)
 	free(consts_array);
 
 	co->base.class->super->del(this);
+}
+
+static void read_lno_table(CodeObject *co, Code *code)
+{
+	const unsigned int first_lineno = code_read_uint16(code);
+
+	const size_t lno_table_size = code_read_uint16(code);
+	co->lno_table = code->bc;
+	co->first_lineno = first_lineno;
+
+	for (size_t i = 0; i < lno_table_size; i++) {
+		code_read_byte(code);
+	}
 }
 
 static void read_sym_table(CodeObject *co, Code *code)
@@ -189,10 +206,10 @@ static void read_const_table(CodeObject *co, Code *code)
 		}
 		case CT_ENTRY_CODEOBJ: {
 			constants[i].type = VAL_TYPE_OBJECT;
-			size_t colen = code_read_uint16(code);
+			const size_t colen = code_read_uint16(code);
 			const char *name = code_read_str(code);
-			unsigned int argcount = code_read_uint16(code);
-			unsigned int stack_depth = code_read_uint16(code);
+			const unsigned int argcount = code_read_uint16(code);
+			const unsigned int stack_depth = code_read_uint16(code);
 
 			Code sub;
 			code_init(&sub, colen);

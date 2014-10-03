@@ -22,7 +22,9 @@ static int obj_hash(Value *this)
 
 static bool obj_eq(Value *this, Value *other)
 {
-	type_assert(other, &obj_class);
+	if (getclass(other) != &obj_class) {
+		return false;
+	}
 	return objvalue(this) == objvalue(other);
 }
 
@@ -117,35 +119,40 @@ Class obj_class = {
 	.methods = NULL
 };
 
-Class *getclass(Value *val)
+Class *getclass(Value *v)
 {
-	if (val == NULL) {
+	if (v == NULL) {
 		return NULL;
 	}
 
-	switch (val->type) {
+	switch (v->type) {
 	case VAL_TYPE_EMPTY:
+		INTERNAL_ERROR();
 		return NULL;
 	case VAL_TYPE_INT:
 		return &int_class;
 	case VAL_TYPE_FLOAT:
 		return &float_class;
 	case VAL_TYPE_OBJECT: {
-		const Object *o = objvalue(val);
+		const Object *o = objvalue(v);
 		return o->class;
+	case VAL_TYPE_ERROR: {
+		INTERNAL_ERROR();
+		return NULL;
+	}
 	}
 	}
 }
 
 /*
- * Generic instanceof -- checks if the given object is
+ * Generic "is a" -- checks if the given object is
  * an instance of the given class or any of its super-
  * classes. This is subject to change if support for
  * multiple-inheritance is ever added.
  */
-bool instanceof(Object *o, Class *class)
+bool is_a(Value *v, Class *class)
 {
-	return class != NULL && ((o->class == class) || instanceof(o, class->super));
+	return class != NULL && ((getclass(v) == class) || is_a(v, class->super));
 }
 
 #define MAKE_METHOD_RESOLVER_DIRECT(name, type) \
@@ -182,7 +189,7 @@ type resolve_##name(Class *class) { \
 
 MAKE_METHOD_RESOLVER_DIRECT(eq, BoolBinOp)
 MAKE_METHOD_RESOLVER_DIRECT(hash, IntUnOp)
-MAKE_METHOD_RESOLVER_DIRECT(cmp, IntBinOp)
+MAKE_METHOD_RESOLVER_DIRECT(cmp, BinOp)
 MAKE_METHOD_RESOLVER_DIRECT(str, StrUnOp)
 MAKE_METHOD_RESOLVER_DIRECT(call, CallFunc)
 

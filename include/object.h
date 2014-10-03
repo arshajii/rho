@@ -7,14 +7,9 @@
 
 typedef struct value Value;
 
-const struct value SENTINEL;
-
-typedef Value (*Function)(Value **args, size_t nargs);
-
 typedef Value (*UnOp)(Value *this);
 typedef Value (*BinOp)(Value *this, Value *other);
 typedef int (*IntUnOp)(Value *this);
-typedef int (*IntBinOp)(Value *this, Value *other);
 typedef bool (*BoolUnOp)(Value *this);
 typedef bool (*BoolBinOp)(Value *this, Value *other);
 typedef Str *(*StrUnOp)(Value *this);
@@ -85,7 +80,7 @@ typedef struct class {
 
 	BoolBinOp eq;
 	IntUnOp hash;
-	IntBinOp cmp;
+	BinOp cmp;
 	StrUnOp str;
 	CallFunc call;
 
@@ -111,41 +106,48 @@ struct object {
 
 #define OBJ_INIT(type) ((Object){.class = (type), .refcnt = 1})
 
+struct error;
+
 struct value {
 	enum {
 		VAL_TYPE_EMPTY = 0,  // indicates nonexistent value (should always be 0)
 		VAL_TYPE_INT,
 		VAL_TYPE_FLOAT,
-		VAL_TYPE_OBJECT
+		VAL_TYPE_OBJECT,
+		VAL_TYPE_ERROR
 	} type;
 
 	union {
 		long i;
 		double f;
 		void *o;
+		struct error *e;
 	} data;
 };
 
-#define isempty(val) 	((val)->type == VAL_TYPE_EMPTY)
-#define isint(val) 		((val)->type == VAL_TYPE_INT)
-#define isfloat(val) 	((val)->type == VAL_TYPE_FLOAT)
-#define isobject(val) 	((val)->type == VAL_TYPE_OBJECT)
+#define isempty(val)    ((val)->type == VAL_TYPE_EMPTY)
+#define isint(val)      ((val)->type == VAL_TYPE_INT)
+#define isfloat(val)    ((val)->type == VAL_TYPE_FLOAT)
+#define isobject(val)   ((val)->type == VAL_TYPE_OBJECT)
+#define iserror(val)    ((val)->type == VAL_TYPE_ERROR)
 
-#define intvalue(val)		((val)->data.i)
-#define floatvalue(val)		((val)->data.f)
-#define objvalue(val)	    ((val)->data.o)
+#define intvalue(val)   ((val)->data.i)
+#define floatvalue(val) ((val)->data.f)
+#define objvalue(val)   ((val)->data.o)
+#define errvalue(val)   ((val)->data.e)
 
-#define makeint(val)	((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
-#define makefloat(val)	((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
-#define makeobj(val)	((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
+#define makeint(val)    ((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
+#define makefloat(val)  ((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
+#define makeobj(val)    ((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
+#define makeerr(val)    ((Value){.type = VAL_TYPE_ERROR, .data = {.e = (val)}})
 
-Class *getclass(Value *val);
+Class *getclass(Value *v);
 
-bool instanceof(Object *o, Class *class);
+bool is_a(Value *v, Class *class);
 
 BoolBinOp resolve_eq(Class *class);
 IntUnOp resolve_hash(Class *class);
-IntBinOp resolve_cmp(Class *class);
+BinOp resolve_cmp(Class *class);
 StrUnOp resolve_str(Class *class);
 CallFunc resolve_call(Class *class);
 

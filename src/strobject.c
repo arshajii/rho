@@ -20,18 +20,24 @@ Value strobj_make(Str value)
 
 static bool strobj_eq(Value *this, Value *other)
 {
-	type_assert(other, &str_class);
+	if (!is_a(other, &str_class)) {
+		return false;
+	}
+
 	StrObject *s1 = objvalue(this);
 	StrObject *s2 = objvalue(other);
 	return str_eq(&s1->str, &s2->str);
 }
 
-static int strobj_cmp(Value *this, Value *other)
+static Value strobj_cmp(Value *this, Value *other)
 {
-	type_assert(other, &str_class);
+	if (!is_a(other, &str_class)) {
+		return makeerr(type_error_unsupported_2("cmp", getclass(this), getclass(other)));
+	}
+
 	StrObject *s1 = objvalue(this);
 	StrObject *s2 = objvalue(other);
-	return str_cmp(&s1->str, &s2->str);
+	return makeint(str_cmp(&s1->str, &s2->str));
 }
 
 static int strobj_hash(Value *this)
@@ -64,7 +70,9 @@ static Str *strobj_str(Value *this)
 
 static Value strobj_cat(Value *this, Value *other)
 {
-	type_assert(other, &str_class);
+	if (!is_a(other, &str_class)) {
+		return makeerr(type_error_unsupported_2("+", getclass(this), getclass(other)));
+	}
 
 	Str *s1 = &((StrObject *) objvalue(this))->str;
 	Str *s2 = &((StrObject *) objvalue(other))->str;

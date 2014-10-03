@@ -1,16 +1,117 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include "intobject.h"
 #include "floatobject.h"
 #include "object.h"
 #include "err.h"
 
+#define X(a, b) b,
+const char *err_type_headers[] = {
+	ERR_TYPE_LIST
+};
+#undef X
+
+Error *error_new(ErrorType type, const char *msg_format, ...)
+{
+	Error *error = malloc(sizeof(Error));
+	error->type = type;
+
+	va_list args;
+	va_start(args, msg_format);
+	vsnprintf(error->msg, sizeof(error->msg), msg_format, args);
+	va_end(args);
+
+	return error;
+}
+
 #define FUNC_ERROR_HEADER "Function Error: "
-#define TYPE_ERROR_HEADER "Type Error: "
-#define NAME_ERROR_HEADER "Name Error: "
 #define ATTR_ERROR_HEADER "Attribute Error: "
 #define FATAL_ERROR_HEADER "Fatal Error: "
+
+Error *unbound_error(const char *var)
+{
+	return error_new(ERR_TYPE_NAME, "cannot reference unbound variable %s", var);
+}
+
+Error *type_error_unsupported_1(const char *op, const Class *c1)
+{
+	return error_new(ERR_TYPE_TYPE, "unsupported operand type for %s: %s", op, c1->name);
+}
+
+Error *type_error_unsupported_2(const char *op, const Class *c1, const Class *c2)
+{
+	return error_new(ERR_TYPE_TYPE,
+	                 "unsupported operand types for %s: %s and %s",
+	                 op,
+	                 c1->name,
+	                 c2->name);
+}
+
+Error *type_error_cannot_instantiate(const Class *c1)
+{
+	return error_new(ERR_TYPE_TYPE, "class %s cannot be instantiated", c1->name);
+}
+
+Error *type_error_not_callable(const Class *c1)
+{
+	return error_new(ERR_TYPE_TYPE, "object of type %s is not callable", c1->name);
+}
+
+Error *type_error_invalid_cmp(const Class *c1)
+{
+	return error_new(ERR_TYPE_TYPE, "comparison of type %s did not return an int", c1->name);
+}
+
+Error *call_error_args(const char *fn, unsigned int expected, unsigned int got)
+{
+	return error_new(ERR_TYPE_TYPE,
+	                 "function %s(): expected %u arguments, got %u",
+	                 fn,
+	                 expected,
+	                 got);
+}
+
+Error *attr_error_not_found(const Class *type, const char *attr)
+{
+	return error_new(ERR_TYPE_ATTR,
+	                 "object of type %s has no attribute '%s'",
+	                 type->name,
+	                 attr);
+}
+
+Error *attr_error_readonly(const Class *type, const char *attr)
+{
+	return error_new(ERR_TYPE_ATTR,
+	                 "attribute '%s' of type %s object is read-only",
+	                 attr,
+	                 type->name);
+}
+
+Error *attr_error_mismatch(const Class *type, const char *attr, const Class *assign_type)
+{
+	return error_new(ERR_TYPE_ATTR,
+	                 "cannot assign %s to attribute '%s' of %s object",
+	                 assign_type->name,
+	                 attr,
+	                 type->name);
+}
+
+void fatal_error(const char *msg)
+{
+	fprintf(stderr, FATAL_ERROR_HEADER "%s", msg);
+	exit(EXIT_FAILURE);
+}
+
+void unexpected_byte(const char *fn, const byte p)
+{
+	char buf[64];
+	sprintf("unexpected byte in %s: %02x", fn, p);
+	fatal_error(buf);
+}
+
+/* compilation errors */
 
 void err_on_char(const char *culprit,
                  const char *code,
@@ -67,74 +168,6 @@ void err_on_char(const char *culprit,
 #undef MAX_LEN
 }
 
-void unbound_error(const char *var)
-{
-	fprintf(stderr,
-	        NAME_ERROR_HEADER "cannot reference unbound variable %s",
-	        var);
-
-	exit(EXIT_FAILURE);
-}
-
-void type_assert(Value *val, Class *type)
-{
-	if (getclass(val) == type) {
-		return;
-	}
-
-	fprintf(stderr,
-	        TYPE_ERROR_HEADER "expected %s, got %s",
-	        type->name,
-	        getclass(val)->name);
-
-	exit(EXIT_FAILURE);
-}
-
-void type_error(const char *msg)
-{
-	fprintf(stderr, TYPE_ERROR_HEADER "%s\n", msg);
-	exit(EXIT_FAILURE);
-}
-
-void type_error_unsupported_1(const char *op, const Class *c1)
-{
-	fprintf(stderr,
-	        TYPE_ERROR_HEADER "unsupported operand type for %s: %s\n",
-	        op,
-	        c1->name);
-
-	exit(EXIT_FAILURE);
-}
-
-void type_error_unsupported_2(const char *op, const Class *c1, const Class *c2)
-{
-	fprintf(stderr,
-	        TYPE_ERROR_HEADER "unsupported operand types for %s: %s and %s\n",
-	        op,
-	        c1->name,
-	        c2->name);
-
-	exit(EXIT_FAILURE);
-}
-
-void type_error_cannot_instantiate(const Class *c1)
-{
-	fprintf(stderr,
-	        TYPE_ERROR_HEADER "class %s cannot be instantiated\n",
-	        c1->name);
-
-	exit(EXIT_FAILURE);
-}
-
-void type_error_not_callable(const Class *c1)
-{
-	fprintf(stderr,
-	        TYPE_ERROR_HEADER "object of type %s is not callable\n",
-	        c1->name);
-
-	exit(EXIT_FAILURE);
-}
-
 void def_error_dup_params(const char *fn, const char *param_name)
 {
 	fprintf(stderr,
@@ -143,59 +176,4 @@ void def_error_dup_params(const char *fn, const char *param_name)
 	        param_name);
 
 	exit(EXIT_FAILURE);
-}
-
-void call_error_args(const char *fn, unsigned int expected, unsigned int got)
-{
-	fprintf(stderr,
-	        TYPE_ERROR_HEADER "function %s(): expected %u arguments, got %u\n",
-	        fn,
-	        expected,
-	        got);
-
-	exit(EXIT_FAILURE);
-}
-
-void attr_error_not_found(const Class *type, const char *attr)
-{
-	fprintf(stderr,
-	        ATTR_ERROR_HEADER "object of type %s has no attribute '%s'\n",
-	        type->name,
-	        attr);
-
-	exit(EXIT_FAILURE);
-}
-
-void attr_error_readonly(const Class *type, const char *attr)
-{
-	fprintf(stderr,
-	        ATTR_ERROR_HEADER "attribute '%s' of type %s object is read-only\n",
-	        attr,
-	        type->name);
-
-	exit(EXIT_FAILURE);
-}
-
-void attr_error_mismatch(const Class *type, const char *attr, const Class *assign_type)
-{
-	fprintf(stderr,
-	        ATTR_ERROR_HEADER "cannot assign %s to attribute '%s' of %s object",
-	        assign_type->name,
-	        attr,
-	        type->name);
-
-	exit(EXIT_FAILURE);
-}
-
-void fatal_error(const char *msg)
-{
-	fprintf(stderr, FATAL_ERROR_HEADER "%s", msg);
-	exit(EXIT_FAILURE);
-}
-
-void unexpected_byte(const char *fn, const byte p)
-{
-	char buf[64];
-	sprintf("unexpected byte in %s: %02x", fn, p);
-	fatal_error(buf);
 }

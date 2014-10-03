@@ -9,9 +9,12 @@
 #include "symtab.h"
 #include "opcodes.h"
 #include "code.h"
+#include "util.h"
 #include "compiler.h"
 
 struct metadata {
+	size_t bc_size;
+	size_t lno_table_size;
 	unsigned int max_vstack_depth;
 };
 
@@ -20,6 +23,37 @@ struct metadata {
 static void write_byte(Compiler *compiler, const byte p)
 {
 	code_write_byte(&compiler->code, p);
+}
+
+DECL_MIN_FUNC(min, unsigned int)
+
+static void write_ins(Compiler *compiler, const Opcode p, unsigned int lineno)
+{
+#define WB(p) code_write_byte(&compiler->lno_table, p)
+
+	const unsigned int curr_lineno = compiler->last_lineno;
+
+	if (lineno > curr_lineno) {
+		unsigned int ins_delta = compiler->last_ins_idx - compiler->first_ins_on_line_idx;
+		unsigned int lineno_delta = lineno - curr_lineno;
+		compiler->first_ins_on_line_idx = compiler->last_ins_idx;
+
+		while (lineno_delta || ins_delta) {
+			byte x = min(ins_delta, 0xFF);
+			byte y = min(lineno_delta, 0xFF);
+			WB(x);
+			WB(y);
+			ins_delta -= x;
+			lineno_delta -= y;
+		}
+
+		compiler->last_lineno = lineno;
+	}
+
+	++compiler->last_ins_idx;
+	write_byte(compiler, p);
+
+#undef WB
 }
 
 static void write_int(Compiler *compiler, const int n)
@@ -64,9 +98,10 @@ static void write_const_table(Compiler *compiler);
 
 static Opcode to_opcode(NodeType type);
 
-#define DEFAULT_BC_CAPACITY 100
+#define DEFAULT_BC_CAPACITY        100
+#define DEFAULT_LNO_TABLE_CAPACITY 30
 
-static Compiler *compiler_new(const char *filename, SymTable *st)
+static Compiler *compiler_new(const char *filename, unsigned int first_lineno, SymTable *st)
 {
 	Compiler *compiler = malloc(sizeof(Compiler));
 	compiler->filename = filename;
@@ -74,6 +109,11 @@ static Compiler *compiler_new(const char *filename, SymTable *st)
 	compiler->lbi = NULL;
 	compiler->st = st;
 	compiler->ct = ct_new();
+	code_init(&compiler->lno_table, DEFAULT_LNO_TABLE_CAPACITY);
+	compiler->first_lineno = first_lineno;
+	compiler->first_ins_on_line_idx = 0;
+	compiler->last_ins_idx = 0;
+	compiler->last_lineno = first_lineno;
 
 	return compiler;
 }
@@ -89,6 +129,7 @@ static void compiler_free(Compiler *compiler, bool free_st)
 	}
 	ct_free(compiler->ct);
 	code_dealloc(&compiler->code);
+	code_dealloc(&compiler->lno_table);
 	free(compiler);
 }
 
@@ -171,17 +212,49 @@ static struct metadata compile_raw(Compiler *compiler, Program *program)
 	write_sym_table(compiler);
 	write_const_table(compiler);
 
+	const size_t start_size = compiler->code.size;
+
 	struct ast_list *ast_node = program;
 	while (ast_node != NULL) {
 		compile_node(compiler, ast_node->ast, true);
 		ast_node = ast_node->next;
 	}
 
-	write_byte(compiler, INS_LOAD_NULL);
-	write_byte(compiler, INS_RETURN);
+	write_ins(compiler, INS_LOAD_NULL, 0);
+	write_ins(compiler, INS_RETURN, 0);
 
-	unsigned int max_vstack_depth = max_stack_depth(compiler->code.bc, compiler->code.size);
+	Code *code = &compiler->code;
+	Code *lno_table = &compiler->lno_table;
+
+	/* two zeros mark the end of the line number table */
+	code_write_byte(lno_table, 0);
+	code_write_byte(lno_table, 0);
+
+	const size_t final_size = code->size;
+	const size_t bc_size = final_size - start_size;
+	unsigned int max_vstack_depth = max_stack_depth(code->bc, code->size);
+
+	/*
+	 * What follows is somewhat delicate: we want the line number
+	 * table to come before the symbol/constant tables in the compiled
+	 * code, but we do not have a completed line number table until
+	 * compilation is complete, so we copy everything into a new Code
+	 * instance and use that as our finished product.
+	 */
+	const size_t lno_table_size = lno_table->size;
+	Code complete;
+	code_init(&complete, 2 + 2 + lno_table_size + final_size);
+	code_write_uint16(&complete, compiler->first_lineno);
+	code_write_uint16(&complete, lno_table_size);
+	code_append(&complete, lno_table);
+	code_append(&complete, code);
+	code_dealloc(code);
+	compiler->code = complete;
+
+	/* return some data describing what we compiled */
 	struct metadata metadata;
+	metadata.bc_size = bc_size;
+	metadata.lno_table_size = lno_table_size;
 	metadata.max_vstack_depth = max_vstack_depth;
 	return metadata;
 }
@@ -194,6 +267,7 @@ static struct metadata compile_program(Compiler *compiler, Program *program)
 
 static void compile_const(Compiler *compiler, AST *ast)
 {
+	const unsigned int lineno = ast->lineno;
 	CTConst value;
 
 	switch (ast->type) {
@@ -214,7 +288,7 @@ static void compile_const(Compiler *compiler, AST *ast)
 		 * a block indicates a function
 		 */
 		const unsigned int const_id = ct_poll_codeobj(compiler->ct);
-		write_byte(compiler, INS_LOAD_CONST);
+		write_ins(compiler, INS_LOAD_CONST, lineno);
 		write_uint16(compiler, const_id);
 		return;
 	}
@@ -223,7 +297,7 @@ static void compile_const(Compiler *compiler, AST *ast)
 	}
 
 	const unsigned int const_id = ct_id_for_const(compiler->ct, value);
-	write_byte(compiler, INS_LOAD_CONST);
+	write_ins(compiler, INS_LOAD_CONST, lineno);
 	write_uint16(compiler, const_id);
 }
 
@@ -231,6 +305,7 @@ static void compile_load(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_IDENT);
 
+	const unsigned int lineno = ast->lineno;
 	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->v.ident);
 
 	if (sym == NULL) {
@@ -238,9 +313,9 @@ static void compile_load(Compiler *compiler, AST *ast)
 	}
 
 	if (sym->bound_here) {
-		write_byte(compiler, INS_LOAD);
+		write_ins(compiler, INS_LOAD, lineno);
 	} else if (sym->global_var) {
-		write_byte(compiler, INS_LOAD_GLOBAL);
+		write_ins(compiler, INS_LOAD_GLOBAL, lineno);
 	} else {
 		/*
 		 * TODO: non-global free variables
@@ -257,6 +332,8 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	if (!IS_ASSIGNMENT(type)) {
 		INTERNAL_ERROR();
 	}
+
+	const unsigned int lineno = ast->lineno;
 
 	AST *lhs = ast->left;
 	AST *rhs = ast->right;
@@ -279,17 +356,17 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 		if (type == NODE_ASSIGN) {
 			compile_node(compiler, rhs, false);
 			compile_node(compiler, lhs->left, false);
-			write_byte(compiler, INS_SET_ATTR);
+			write_ins(compiler, INS_SET_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 		} else {
 			compile_node(compiler, lhs->left, false);
-			write_byte(compiler, INS_DUP);
-			write_byte(compiler, INS_LOAD_ATTR);
+			write_ins(compiler, INS_DUP, lineno);
+			write_ins(compiler, INS_LOAD_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 			compile_node(compiler, rhs, false);
-			write_byte(compiler, to_opcode(type));
-			write_byte(compiler, INS_ROT);
-			write_byte(compiler, INS_SET_ATTR);
+			write_ins(compiler, to_opcode(type), lineno);
+			write_ins(compiler, INS_ROT, lineno);
+			write_ins(compiler, INS_SET_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 		}
 	} else {
@@ -313,10 +390,10 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 			/* compound assignment */
 			compile_load(compiler, lhs);
 			compile_node(compiler, rhs, false);
-			write_byte(compiler, to_opcode(type));
+			write_ins(compiler, to_opcode(type), lineno);
 		}
 
-		write_byte(compiler, INS_STORE);
+		write_ins(compiler, INS_STORE, lineno);
 		write_uint16(compiler, sym_id);
 	}
 }
@@ -325,6 +402,7 @@ static void compile_call(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_CALL);
 
+	const unsigned int lineno = ast->lineno;
 	size_t argcount = 0;
 
 	for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
@@ -333,7 +411,7 @@ static void compile_call(Compiler *compiler, AST *ast)
 	}
 
 	compile_node(compiler, ast->left, false);  // callable
-	write_byte(compiler, INS_CALL);
+	write_ins(compiler, INS_CALL, lineno);
 	write_uint16(compiler, argcount);
 }
 
@@ -350,10 +428,11 @@ static void compile_if(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_IF);
 
+	const unsigned int lineno = ast->lineno;
 	const bool has_else = (ast->v.middle != NULL);
 
 	compile_node(compiler, ast->left, false);
-	write_byte(compiler, INS_JMP_IF_FALSE);
+	write_ins(compiler, INS_JMP_IF_FALSE, lineno);
 
 	// jump placeholder:
 	const size_t jmp_index = compiler->code.size;
@@ -363,7 +442,7 @@ static void compile_if(Compiler *compiler, AST *ast)
 
 	// fill in placeholder:
 	if (has_else) {
-		write_byte(compiler, INS_JMP);
+		write_ins(compiler, INS_JMP, lineno);
 		const size_t jmp_index_2 = compiler->code.size;
 		write_uint16(compiler, 0);
 
@@ -381,9 +460,10 @@ static void compile_while(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_WHILE);
 
+	//const unsigned int lineno = ast->lineno;
 	const size_t loop_start_index = compiler->code.size;
 	compile_node(compiler, ast->left, false);  // condition
-	write_byte(compiler, INS_JMP_IF_FALSE);
+	write_ins(compiler, INS_JMP_IF_FALSE, 0);
 
 	// jump placeholder:
 	const size_t jump_index = compiler->code.size;
@@ -392,7 +472,7 @@ static void compile_while(Compiler *compiler, AST *ast)
 	compiler_push_loop(compiler, loop_start_index);
 	compile_node(compiler, ast->right, false);  // body
 
-	write_byte(compiler, INS_JMP_BACK);
+	write_ins(compiler, INS_JMP_BACK, 0);
 	write_uint16(compiler, compiler->code.size - loop_start_index + 2);
 
 	// fill in placeholder:
@@ -404,6 +484,7 @@ static void compile_while(Compiler *compiler, AST *ast)
 static void compile_def(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_DEF);
+	const unsigned int lineno = ast->lineno;
 
 	/*
 	 * A function definition is essentially the assignment of
@@ -416,19 +497,20 @@ static void compile_def(Compiler *compiler, AST *ast)
 	}
 
 	compile_const(compiler, ast->right);
-	write_byte(compiler, INS_STORE);
+	write_ins(compiler, INS_STORE, lineno);
 	write_uint16(compiler, sym->id);
 }
 
 static void compile_break(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_BREAK);
+	const unsigned int lineno = ast->lineno;
 
 	if (compiler->lbi == NULL) {
 		INTERNAL_ERROR();
 	}
 
-	write_byte(compiler, INS_JMP);
+	write_ins(compiler, INS_JMP, lineno);
 	const size_t break_index = compiler->code.size;
 	write_uint16(compiler, 0);
 
@@ -443,12 +525,13 @@ static void compile_break(Compiler *compiler, AST *ast)
 static void compile_continue(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_CONTINUE);
+	const unsigned int lineno = ast->lineno;
 
 	if (compiler->lbi == NULL) {
 		INTERNAL_ERROR();
 	}
 
-	write_byte(compiler, INS_JMP_BACK);
+	write_ins(compiler, INS_JMP_BACK, lineno);
 	const size_t start_index = compiler->lbi->start_index;
 	write_uint16(compiler, compiler->code.size - start_index + 2);
 }
@@ -456,19 +539,21 @@ static void compile_continue(Compiler *compiler, AST *ast)
 static void compile_return(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_RETURN);
+	const unsigned int lineno = ast->lineno;
 	compile_node(compiler, ast->left, false);
-	write_byte(compiler, INS_RETURN);
+	write_ins(compiler, INS_RETURN, lineno);
 }
 
 static void compile_get_attr(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_DOT);
+	const unsigned int lineno = ast->lineno;
 
 	Str *attr = ast->right->v.ident;
 	STSymbol *attr_sym = ste_get_attr_symbol(compiler->st->ste_current, attr);
 
 	compile_node(compiler, ast->left, false);
-	write_byte(compiler, INS_LOAD_ATTR);
+	write_ins(compiler, INS_LOAD_ATTR, lineno);
 	write_uint16(compiler, attr_sym->id);
 }
 
@@ -562,6 +647,8 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 		return;
 	}
 
+	const unsigned int lineno = ast->lineno;
+
 	switch (ast->type) {
 	case NODE_INT:
 	case NODE_FLOAT:
@@ -592,7 +679,7 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_GE:
 		compile_node(compiler, ast->left, false);
 		compile_node(compiler, ast->right, false);
-		write_byte(compiler, to_opcode(ast->type));
+		write_ins(compiler, to_opcode(ast->type), lineno);
 		break;
 	case NODE_DOT:
 		compile_get_attr(compiler, ast);
@@ -616,11 +703,11 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_UPLUS:
 	case NODE_UMINUS:
 		compile_node(compiler, ast->left, false);
-		write_byte(compiler, to_opcode(ast->type));
+		write_ins(compiler, to_opcode(ast->type), lineno);
 		break;
 	case NODE_PRINT:
 		compile_node(compiler, ast->left, false);
-		write_byte(compiler, INS_PRINT);
+		write_ins(compiler, INS_PRINT, lineno);
 		break;
 	case NODE_IF:
 		compile_if(compiler, ast);
@@ -646,7 +733,7 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_CALL:
 		compile_call(compiler, ast);
 		if (toplevel) {
-			write_byte(compiler, INS_POP);
+			write_ins(compiler, INS_POP, lineno);
 		}
 		break;
 	default:
@@ -811,9 +898,19 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 			++nargs;
 		}
 
+		Block *body = ast->right->v.block;
+
+		unsigned int lineno;
+		if (body == NULL) {
+			lineno = ast->right->lineno;
+		} else {
+			lineno = body->ast->lineno;
+		}
+
 		st->ste_current = child;
-		Compiler *sub = compiler_new(compiler->filename, st);
-		struct metadata metadata = compile_raw(sub, ast->right->v.block);
+		Compiler *sub = compiler_new(compiler->filename, lineno, st);
+
+		struct metadata metadata = compile_raw(sub, body);
 		st->ste_current = parent;
 
 		Code *subcode = &sub->code;
@@ -824,7 +921,7 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 
 		const size_t name_len = ast->left->v.ident->len;
 
-		code_init(fncode, (name_len + 1) + 2 + 2 + sub->code.size);  // total size
+		code_init(fncode, (name_len + 1) + 2 + 2 + subcode->size);   // total size
 		code_write_str(fncode, ast->left->v.ident);                  // name
 		code_write_uint16(fncode, nargs);                            // arg count
 		code_write_uint16(fncode, max_vstack_depth);                 // max stack depth
@@ -870,7 +967,6 @@ static void fill_ct(Compiler *compiler, Program *program)
 
 static int stack_delta(Opcode opcode, int arg);
 static int read_arg(Opcode opcode, byte **bc);
-static int arg_size(Opcode opcode);
 
 static int max_stack_depth(byte *bc, size_t len)
 {
@@ -959,7 +1055,7 @@ static int max_stack_depth(byte *bc, size_t len)
 	return max_depth;
 }
 
-static int arg_size(Opcode opcode)
+int arg_size(Opcode opcode)
 {
 	switch (opcode) {
 	case INS_NOP:
@@ -1025,14 +1121,18 @@ static int arg_size(Opcode opcode)
 	case INS_ROT:
 		return 0;
 	default:
-		INTERNAL_ERROR();
-		return 0;
+		return -1;
 	}
 }
 
 static int read_arg(Opcode opcode, byte **bc)
 {
 	int size = arg_size(opcode);
+
+	if (size < 0) {
+		INTERNAL_ERROR();
+	}
+
 	int arg;
 
 	switch (size) {
@@ -1160,7 +1260,7 @@ void compile(FILE *src, FILE *out, const char *name)
 
 	Lexer *lex = lex_new(code, code_size, name);
 	Program *program = parse(lex);
-	Compiler *compiler = compiler_new(name, st_new(name));
+	Compiler *compiler = compiler_new(name, 1, st_new(name));
 
 	struct metadata metadata = compile_program(compiler, program);
 

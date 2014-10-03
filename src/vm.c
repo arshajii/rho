@@ -15,7 +15,9 @@
 #include "attr.h"
 #include "err.h"
 #include "code.h"
+#include "compiler.h"
 #include "util.h"
+#include "vmops.h"
 #include "vm.h"
 
 bool classes_init = false;
@@ -40,6 +42,8 @@ VM *vm_new(void)
 	}
 
 	VM *vm = malloc(sizeof(VM));
+	vm->module = NULL;
+	vm->callstack = NULL;
 	return vm;
 }
 
@@ -55,14 +59,10 @@ static void vm_push_module_frame(VM *vm, Code *code);
 
 static void vm_popframe(VM *vm);
 
-static void vm_pushframe(VM *vm,
-                         CodeObject *co)
-{
-	/* XXX: maintain a bytecode address to Frame
-	 * dictionary to avoid creating frames anew on
-	 * each function call.
-	 */
+static void vm_traceback(VM *vm);
 
+static void vm_pushframe(VM *vm, CodeObject *co)
+{
 	Frame *frame = malloc(sizeof(Frame));
 	frame->co = co;
 
@@ -70,7 +70,7 @@ static void vm_pushframe(VM *vm,
 	const size_t stack_depth = co->stack_depth;
 	frame->locals = calloc(n_locals + stack_depth, sizeof(Value));
 	frame->valuestack = frame->locals + n_locals;
-
+	frame->pos = 0;
 	frame->prev = vm->callstack;
 	vm->callstack = frame;
 }
@@ -131,6 +131,7 @@ void execute(FILE *compiled)
  */
 static void vm_push_module_frame(VM *vm, Code *code)
 {
+	assert(vm->module == NULL);
 	CodeObject *co = codeobj_make(code, "<module>", 0, -1);
 	vm_pushframe(vm, co);
 	vm->module = vm->callstack;
@@ -173,7 +174,11 @@ static void eval_frame(VM *vm)
 	/* position in the bytecode */
 	size_t pos = 0;
 
+	Value *v1, *v2;
+	Value res;
+
 	while (true) {
+		frame->pos = pos;
 		const byte opcode = GET_BYTE();
 
 		switch (opcode) {
@@ -181,7 +186,7 @@ static void eval_frame(VM *vm)
 			break;
 		case INS_LOAD_CONST: {
 			const unsigned int id = GET_UINT16();
-			Value *v1 = &constants[id];
+			v1 = &constants[id];
 			retain(v1);
 			STACK_PUSH(*v1);
 			break;
@@ -191,615 +196,464 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_ADD: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp add = resolve_add(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_add(v1, v2);
 
-			if (!add) {
-				type_error_unsupported_2("+", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = add(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_SUB: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp sub = resolve_sub(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_sub(v1, v2);
 
-			if (!sub) {
-				type_error_unsupported_2("-", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = sub(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_MUL: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp mul = resolve_mul(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_mul(v1, v2);
 
-			if (!mul) {
-				type_error_unsupported_2("*", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = mul(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_DIV: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp div = resolve_div(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_div(v1, v2);
 
-			if (!div) {
-				type_error_unsupported_2("/", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = div(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_MOD: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp mod = resolve_mod(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_mod(v1, v2);
 
-			if (!mod) {
-				type_error_unsupported_2("%", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = mod(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_POW: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp pow = resolve_pow(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_pow(v1, v2);
 
-			if (!pow) {
-				type_error_unsupported_2("**", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = pow(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_BITAND: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp and = resolve_and(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_bitand(v1, v2);
 
-			if (!and) {
-				type_error_unsupported_2("&", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = and(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_BITOR: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp or = resolve_or(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_bitor(v1, v2);
 
-			if (!or) {
-				type_error_unsupported_2("|", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = or(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_XOR: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp xor = resolve_xor(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_xor(v1, v2);
 
-			if (!xor) {
-				type_error_unsupported_2("^", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = xor(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_BITNOT: {
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const UnOp not = resolve_not(class);
+			v1 = STACK_TOP();
+			res = op_bitnot(v1);
 
-			if (!not) {
-				type_error_unsupported_1("~", class);
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = not(v1);
 			release(v1);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_SHIFTL: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp shiftl = resolve_shiftl(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_shiftl(v1, v2);
 
-			if (!shiftl) {
-				type_error_unsupported_2("<<", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = shiftl(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_SHIFTR: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BinOp shiftr = resolve_shiftr(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_shiftr(v1, v2);
 
-			if (!shiftr) {
-				type_error_unsupported_2(">>", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = shiftr(v1, v2);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_AND: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class1 = getclass(v1);
-			Class *class2 = getclass(v2);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_and(v1, v2);
 
-			const BoolUnOp bool_v1 = resolve_nonzero(class1);
-			const BoolUnOp bool_v2 = resolve_nonzero(class2);
+			if (iserror(&res)) {
+				goto error;
+			}
 
-			Value result = makeint(bool_v1(v1) && bool_v2(v2));
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_OR: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class1 = getclass(v1);
-			Class *class2 = getclass(v2);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_or(v1, v2);
 
-			const BoolUnOp bool_v1 = resolve_nonzero(class1);
-			const BoolUnOp bool_v2 = resolve_nonzero(class2);
+			if (iserror(&res)) {
+				goto error;
+			}
 
-			Value result = makeint(bool_v1(v1) || bool_v2(v2));
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_NOT: {
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
+			v1 = STACK_TOP();
+			res = op_not(v1);
 
-			const BoolUnOp bool_v1 = resolve_nonzero(class);
+			if (iserror(&res)) {
+				goto error;
+			}
 
-			Value result = makeint(!bool_v1(v1));
 			release(v1);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_EQUAL: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BoolBinOp eq = resolve_eq(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_eq(v1, v2);
 
-			if (!eq) {
-				type_error_unsupported_2("==", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = makeint(eq(v1, v2));
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_NOTEQ: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const BoolBinOp eq = resolve_eq(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_neq(v1, v2);
 
-			if (!eq) {
-				type_error_unsupported_2("!=", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = makeint(!eq(v1, v2));
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_LT: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const IntBinOp cmp = resolve_cmp(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_lt(v1, v2);
 
-			if (!cmp) {
-				type_error_unsupported_2("<", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = makeint(cmp(v1, v2) < 0);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_GT: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const IntBinOp cmp = resolve_cmp(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_gt(v1, v2);
 
-			if (!cmp) {
-				type_error_unsupported_2(">", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = makeint(cmp(v1, v2) > 0);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_LE: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const IntBinOp cmp = resolve_cmp(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_le(v1, v2);
 
-			if (!cmp) {
-				type_error_unsupported_2("<=", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = makeint(cmp(v1, v2) <= 0);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_GE: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const IntBinOp cmp = resolve_cmp(class);
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_ge(v1, v2);
 
-			if (!cmp) {
-				type_error_unsupported_2(">=", class, getclass(v2));
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = makeint(cmp(v1, v2) >= 0);
 			release(v1);
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_UPLUS: {
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const UnOp plus = resolve_plus(class);
+			v1 = STACK_TOP();
+			res = op_uplus(v1);
 
-			if (!plus) {
-				type_error_unsupported_1("+", class);
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = plus(v1);
 			release(v1);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_UMINUS: {
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			const UnOp minus = resolve_minus(class);
+			v1 = STACK_TOP();
+			res = op_uminus(v1);
 
-			if (!minus) {
-				type_error_unsupported_1("-", class);
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = minus(v1);
 			release(v1);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IADD: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp add = resolve_iadd(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_iadd(v1, v2);
 
-			if (!add) {
-				add = resolve_add(class);
-				if (!add) {
-					type_error_unsupported_2("+", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = add(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_ISUB: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp sub = resolve_isub(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_isub(v1, v2);
 
-			if (!sub) {
-				sub = resolve_sub(class);
-				if (!sub) {
-					type_error_unsupported_2("-", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = sub(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IMUL: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp mul = resolve_imul(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_imul(v1, v2);
 
-			if (!mul) {
-				mul = resolve_mul(class);
-				if (!mul) {
-					type_error_unsupported_2("*", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = mul(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IDIV: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp div = resolve_idiv(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_idiv(v1, v2);
 
-			if (!div) {
-				div = resolve_div(class);
-				if (!div) {
-					type_error_unsupported_2("/", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = div(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IMOD: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp mod = resolve_imod(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_imod(v1, v2);
 
-			if (!mod) {
-				mod = resolve_mod(class);
-				if (!mod) {
-					type_error_unsupported_2("%", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = mod(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IPOW: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp pow = resolve_ipow(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_ipow(v1, v2);
 
-			if (!pow) {
-				pow = resolve_pow(class);
-				if (!pow) {
-					type_error_unsupported_2("**", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = pow(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IBITAND: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp and = resolve_iand(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_ibitand(v1, v2);
 
-			if (!and) {
-				and = resolve_and(class);
-				if (!and) {
-					type_error_unsupported_2("&", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = and(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IBITOR: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp or = resolve_ior(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_ibitor(v1, v2);
 
-			if (!or) {
-				or = resolve_or(class);
-				if (!or) {
-					type_error_unsupported_2("|", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = or(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_IXOR: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp xor = resolve_ixor(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_ixor(v1, v2);
 
-			if (!xor) {
-				xor = resolve_xor(class);
-				if (!xor) {
-					type_error_unsupported_2("^", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = xor(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_ISHIFTL: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp shiftl = resolve_ishiftl(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_ishiftl(v1, v2);
 
-			if (!shiftl) {
-				shiftl = resolve_shiftl(class);
-				if (!shiftl) {
-					type_error_unsupported_2("<<", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = shiftl(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_ISHIFTR: {
-			Value *v2 = STACK_POP();
-			Value *v1 = STACK_TOP();
-			Class *class = getclass(v1);
-			BinOp shiftr = resolve_ishiftr(class);
-			bool release_v1 = false;
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_ishiftr(v1, v2);
 
-			if (!shiftr) {
-				shiftr = resolve_shiftr(class);
-				if (!shiftr) {
-					type_error_unsupported_2(">>", class, getclass(v2));
-				}
-				release_v1 = true;
+			if (iserror(&res)) {
+				goto error;
 			}
 
-			Value result = shiftr(v1, v2);
-			if (release_v1) {
-				release(v1);
-			}
 			release(v2);
-			STACK_SET_TOP(result);
+			STACK_SET_TOP(res);
 			break;
 		}
 		case INS_STORE: {
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			const unsigned int id = GET_UINT16();
 			Value old = locals[id];
 			locals[id] = *v1;
@@ -808,10 +662,11 @@ static void eval_frame(VM *vm)
 		}
 		case INS_LOAD: {
 			const unsigned int id = GET_UINT16();
-			Value *v1 = &locals[id];
+			v1 = &locals[id];
 
 			if (v1->type == VAL_TYPE_EMPTY) {
-				unbound_error(symbols.array[id].str);
+				res = makeerr(unbound_error(symbols.array[id].str));
+				goto error;
 			}
 
 			retain(v1);
@@ -820,10 +675,11 @@ static void eval_frame(VM *vm)
 		}
 		case INS_LOAD_GLOBAL: {
 			const unsigned int id = GET_UINT16();
-			Value *v1 = &globals[id];
+			v1 = &globals[id];
 
 			if (v1->type == VAL_TYPE_EMPTY) {
-				unbound_error(global_symbols.array[id].str);
+				res = makeerr(unbound_error(global_symbols.array[id].str));
+				goto error;
 			}
 
 			retain(v1);
@@ -831,7 +687,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_LOAD_ATTR: {
-			Value *v1 = STACK_TOP();
+			v1 = STACK_TOP();
 			Class *class = getclass(v1);
 
 			const unsigned int id = GET_UINT16();
@@ -947,12 +803,14 @@ static void eval_frame(VM *vm)
 			break;
 
 			get_attr_error_not_found:
-			attr_error_not_found(class, attr);
+			res = makeerr(attr_error_not_found(class, attr));
+			goto error;
+
 			break;
 		}
 		case INS_SET_ATTR: {
-			Value *v1 = STACK_POP();
-			Value *v2 = STACK_POP();
+			v1 = STACK_POP();
+			v2 = STACK_POP();
 			Class *v1_class = getclass(v1);
 			Class *v2_class = getclass(v2);
 
@@ -1167,19 +1025,21 @@ static void eval_frame(VM *vm)
 			break;
 
 			set_attr_error_not_found:
-			attr_error_not_found(v1_class, attr);
-			break;
+			res = makeerr(attr_error_not_found(v1_class, attr));
+			goto error;
 
 			set_attr_error_readonly:
-			attr_error_readonly(v1_class, attr);
-			break;
+			res = makeerr(attr_error_readonly(v1_class, attr));
+			goto error;
 
 			set_attr_error_mismatch:
-			attr_error_mismatch(v1_class, attr, v2_class);
+			res = makeerr(attr_error_mismatch(v1_class, attr, v2_class));
+			goto error;
+
 			break;
 		}
 		case INS_PRINT: {
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			print(v1);
 			release(v1);
 			break;
@@ -1195,7 +1055,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_JMP_IF_TRUE: {
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
 			if (resolve_nonzero(getclass(v1))(v1)) {
 				pos += jmp;
@@ -1204,7 +1064,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_JMP_IF_FALSE: {
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
 			if (!resolve_nonzero(getclass(v1))(v1)) {
 				pos += jmp;
@@ -1213,7 +1073,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_JMP_BACK_IF_TRUE: {
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
 			if (resolve_nonzero(getclass(v1))(v1)) {
 				pos -= jmp;
@@ -1222,7 +1082,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_JMP_BACK_IF_FALSE: {
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
 			if (!resolve_nonzero(getclass(v1))(v1)) {
 				pos -= jmp;
@@ -1232,13 +1092,14 @@ static void eval_frame(VM *vm)
 		}
 		case INS_CALL: {
 			const unsigned int argcount = GET_UINT16();
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			Class *class = getclass(v1);
 			if (class == &co_class) {
 				CodeObject *co = objvalue(v1);
 
 				if (co->argcount != argcount) {
-					call_error_args(co->name, co->argcount, argcount);
+					res = makeerr(call_error_args(co->name, co->argcount, argcount));
+					goto error;
 				}
 
 				vm_pushframe(vm, co);
@@ -1256,7 +1117,8 @@ static void eval_frame(VM *vm)
 				CallFunc call = resolve_call(class);
 
 				if (!call) {
-					type_error_not_callable(class);
+					res = makeerr(type_error_not_callable(class));
+					goto error;
 				}
 
 				Value result = call(v1, stack - argcount, argcount);
@@ -1270,7 +1132,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_RETURN: {
-			Value *v1 = STACK_POP();
+			v1 = STACK_POP();
 			frame->return_value = *v1;
 			return;
 		}
@@ -1279,7 +1141,7 @@ static void eval_frame(VM *vm)
 			break;
 		}
 		case INS_DUP: {
-			Value *v1 = STACK_TOP();
+			v1 = STACK_TOP();
 			retain(v1);
 			STACK_PUSH(*v1);
 			break;
@@ -1297,6 +1159,15 @@ static void eval_frame(VM *vm)
 		}
 	}
 
+	error:
+	assert(iserror(&res));
+	vm_traceback(vm);
+	Error *e = errvalue(&res);
+	fflush(NULL);
+	fprintf(stderr, "%s: ", err_type_headers[e->type]);
+	fprintf(stderr, "%s\n", e->msg);
+	exit(EXIT_FAILURE);
+
 #undef STACK_POP
 #undef STACK_TOP
 #undef STACK_PUSH
@@ -1306,7 +1177,7 @@ static void print(Value *v)
 {
 	switch (v->type) {
 	case VAL_TYPE_EMPTY:
-		fatal_error("unexpected value type VAL_TYPE_EMPTY");
+		INTERNAL_ERROR();
 		break;
 	case VAL_TYPE_INT:
 		printf("%ld\n", intvalue(v));
@@ -1327,5 +1198,72 @@ static void print(Value *v)
 
 		break;
 	}
+	case VAL_TYPE_ERROR:
+		INTERNAL_ERROR();
+		break;
+	}
+}
+
+static unsigned int get_lineno(Frame *frame)
+{
+	const size_t raw_pos = frame->pos;
+	CodeObject *co = frame->co;
+
+	byte *bc = co->bc;
+	const byte *lno_table = co->lno_table;
+	const size_t first_lineno = co->first_lineno;
+
+	byte *p = bc;
+	byte *dest = &bc[raw_pos];
+	size_t ins_pos = 0;
+
+	/* translate raw position into actual instruction position */
+	while (p != dest) {
+		++ins_pos;
+		int size = arg_size(*p);
+
+		if (size < 0) {
+			INTERNAL_ERROR();
+		}
+
+		p += size + 1;
+
+		if (p > dest) {
+			INTERNAL_ERROR();
+		}
+	}
+
+
+	unsigned int lineno_offset = 0;
+	size_t ins_offset = 0;
+	while (true) {
+		const byte ins_delta = *lno_table++;
+		const byte lineno_delta = *lno_table++;
+
+		if (ins_delta == 0 && lineno_delta == 0) {
+			break;
+		}
+
+		ins_offset += ins_delta;
+
+		if (ins_offset >= ins_pos) {
+			return first_lineno + lineno_offset;
+		}
+
+		lineno_offset += lineno_delta;
+	}
+
+	INTERNAL_ERROR();
+}
+
+static void vm_traceback(VM *vm)
+{
+	fprintf(stderr, "Traceback:\n");
+	Frame *frame = vm->callstack;
+
+	while (frame != NULL) {
+		const unsigned int lineno = get_lineno(frame);
+		fprintf(stderr, "  Line %u in %s\n", lineno, frame->co->name);
+		frame = frame->prev;
 	}
 }

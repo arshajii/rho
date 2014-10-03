@@ -33,6 +33,12 @@ typedef struct {
 
 	/* enumerated constants */
 	struct value_array consts;
+
+	/* line number table */
+	byte *lno_table;
+
+	/* first line number */
+	unsigned int first_lineno;
 } CodeObject;
 
 CodeObject *codeobj_make(Code *code,
