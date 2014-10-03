@@ -1254,6 +1254,7 @@ static unsigned int get_lineno(Frame *frame)
 	}
 
 	INTERNAL_ERROR();
+	return 0;
 }
 
 static void vm_traceback(VM *vm)
