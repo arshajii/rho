@@ -203,7 +203,7 @@ Value op_bitnot(Value *a)
 	const UnOp not = resolve_not(class);
 
 	if (!not) {
-		return makeerr(type_error_unsupported_1("^", class));
+		return makeerr(type_error_unsupported_1("~", class));
 	}
 
 	return not(a);
