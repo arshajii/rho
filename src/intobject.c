@@ -14,14 +14,14 @@
 	} else if (isfloat(other)) { \
 		return makefloat(intvalue(this) op floatvalue(other)); \
 	} else { \
-		return makeerr(type_error_unsupported_2(#op, getclass(this), getclass(other))); \
+		return makeut(); \
 	}
 
 #define INT_BINOP_FUNC_BODY_NOFLOAT(op) \
 	if (isint(other)) { \
 		return makeint(intvalue(this) op intvalue(other)); \
 	} else { \
-		return makeerr(type_error_unsupported_2(#op, getclass(this), getclass(other))); \
+		return makeut(); \
 	}
 
 #define INT_IBINOP_FUNC_BODY(op) \
@@ -33,7 +33,7 @@
 		floatvalue(this) = intvalue(this) op floatvalue(other); \
 		return *this; \
 	} else { \
-		return makeerr(type_error_unsupported_2(#op "=", getclass(this), getclass(other))); \
+		return makeut(); \
 	}
 
 #define INT_IBINOP_FUNC_BODY_NOFLOAT(op) \
@@ -41,7 +41,7 @@
 		intvalue(this) = intvalue(this) op intvalue(other); \
 		return *this; \
 	} else { \
-		return makeerr(type_error_unsupported_2(#op "=", getclass(this), getclass(other))); \
+		return makeut(); \
 	}
 
 static bool int_eq(Value *this, Value *other)
@@ -70,7 +70,7 @@ static Value int_cmp(Value *this, Value *other)
 		const double y = floatvalue(other);
 		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else {
-		return makeerr(type_error_unsupported_2("cmp", getclass(this), getclass(other)));
+		return makeut();
 	}
 }
 
@@ -121,7 +121,7 @@ static Value int_pow(Value *this, Value *other)
 	} else if (isfloat(other)) {
 		return makefloat(pow(intvalue(this), floatvalue(other)));
 	} else {
-		return makeerr(type_error_unsupported_2("**", getclass(this), getclass(other)));
+		return makeut();
 	}
 }
 
@@ -190,7 +190,7 @@ static Value int_ipow(Value *this, Value *other)
 		floatvalue(this) = pow(intvalue(this), floatvalue(other));
 		return *this;
 	} else {
-		return makeerr(type_error_unsupported_2("**=", getclass(this), getclass(other)));
+		return makeut();
 	}
 }
 

@@ -14,10 +14,19 @@ Value op_add(Value *a, Value *b)
 	const BinOp add = resolve_add(class);
 
 	if (!add) {
-		return makeerr(type_error_unsupported_2("+", class, getclass(b)));
+		goto error;
 	}
 
-	return add(a, b);
+	Value v = add(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("+", class, getclass(b)));
 }
 
 Value op_sub(Value *a, Value *b)
@@ -26,10 +35,19 @@ Value op_sub(Value *a, Value *b)
 	const BinOp sub = resolve_sub(class);
 
 	if (!sub) {
-		return makeerr(type_error_unsupported_2("-", class, getclass(b)));
+		goto error;
 	}
 
-	return sub(a, b);
+	Value v = sub(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("-", class, getclass(b)));
 }
 
 Value op_mul(Value *a, Value *b)
@@ -38,10 +56,19 @@ Value op_mul(Value *a, Value *b)
 	const BinOp mul = resolve_mul(class);
 
 	if (!mul) {
-		return makeerr(type_error_unsupported_2("*", class, getclass(b)));
+		goto error;
 	}
 
-	return mul(a, b);
+	Value v = mul(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("*", class, getclass(b)));
 }
 
 Value op_div(Value *a, Value *b)
@@ -50,10 +77,19 @@ Value op_div(Value *a, Value *b)
 	const BinOp div = resolve_div(class);
 
 	if (!div) {
-		return makeerr(type_error_unsupported_2("/", class, getclass(b)));
+		goto error;
 	}
 
-	return div(a, b);
+	Value v = div(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("/", class, getclass(b)));
 }
 
 Value op_mod(Value *a, Value *b)
@@ -62,10 +98,19 @@ Value op_mod(Value *a, Value *b)
 	const BinOp mod = resolve_mod(class);
 
 	if (!mod) {
-		return makeerr(type_error_unsupported_2("%", class, getclass(b)));
+		goto error;
 	}
 
-	return mod(a, b);
+	Value v = mod(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("%", class, getclass(b)));
 }
 
 Value op_pow(Value *a, Value *b)
@@ -74,10 +119,19 @@ Value op_pow(Value *a, Value *b)
 	const BinOp pow = resolve_pow(class);
 
 	if (!pow) {
-		return makeerr(type_error_unsupported_2("**", class, getclass(b)));
+		goto error;
 	}
 
-	return pow(a, b);
+	Value v = pow(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("**", class, getclass(b)));
 }
 
 Value op_bitand(Value *a, Value *b)
@@ -86,10 +140,19 @@ Value op_bitand(Value *a, Value *b)
 	const BinOp and = resolve_and(class);
 
 	if (!and) {
-		return makeerr(type_error_unsupported_2("&", class, getclass(b)));
+		goto error;
 	}
 
-	return and(a, b);
+	Value v = and(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("&", class, getclass(b)));
 }
 
 Value op_bitor(Value *a, Value *b)
@@ -98,10 +161,19 @@ Value op_bitor(Value *a, Value *b)
 	const BinOp or = resolve_or(class);
 
 	if (!or) {
-		return makeerr(type_error_unsupported_2("|", class, getclass(b)));
+		goto error;
 	}
 
-	return or(a, b);
+	Value v = or(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("|", class, getclass(b)));
 }
 
 Value op_xor(Value *a, Value *b)
@@ -110,10 +182,19 @@ Value op_xor(Value *a, Value *b)
 	const BinOp xor = resolve_xor(class);
 
 	if (!xor) {
-		return makeerr(type_error_unsupported_2("^", class, getclass(b)));
+		goto error;
 	}
 
-	return xor(a, b);
+	Value v = xor(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("^", class, getclass(b)));
 }
 
 Value op_bitnot(Value *a)
@@ -134,10 +215,19 @@ Value op_shiftl(Value *a, Value *b)
 	const BinOp shiftl = resolve_shiftl(class);
 
 	if (!shiftl) {
-		return makeerr(type_error_unsupported_2("<<", class, getclass(b)));
+		goto error;
 	}
 
-	return shiftl(a, b);
+	Value v = shiftl(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("<<", class, getclass(b)));
 }
 
 Value op_shiftr(Value *a, Value *b)
@@ -146,10 +236,19 @@ Value op_shiftr(Value *a, Value *b)
 	const BinOp shiftr = resolve_shiftr(class);
 
 	if (!shiftr) {
-		return makeerr(type_error_unsupported_2(">>", class, getclass(b)));
+		goto error;
 	}
 
-	return shiftr(a, b);
+	Value v = shiftr(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2(">>", class, getclass(b)));
 }
 
 /*
@@ -222,13 +321,13 @@ Value op_lt(Value *a, Value *b)
 	const BinOp cmp = resolve_cmp(class);
 
 	if (!cmp) {
-		return makeerr(type_error_unsupported_2("<", class, getclass(b)));
+		goto error;
 	}
 
 	Value v = cmp(a, b);
 
-	if (iserror(&v)) {
-		return v;
+	if (isut(&v)) {
+		goto error;
 	}
 
 	if (!isint(&v)) {
@@ -236,6 +335,9 @@ Value op_lt(Value *a, Value *b)
 	}
 
 	return makeint(intvalue(&v) < 0);
+
+	error:
+	return makeerr(type_error_unsupported_2("<", class, getclass(b)));
 }
 
 Value op_gt(Value *a, Value *b)
@@ -244,13 +346,13 @@ Value op_gt(Value *a, Value *b)
 	const BinOp cmp = resolve_cmp(class);
 
 	if (!cmp) {
-		return makeerr(type_error_unsupported_2(">", class, getclass(b)));
+		goto error;
 	}
 
 	Value v = cmp(a, b);
 
-	if (iserror(&v)) {
-		return v;
+	if (isut(&v)) {
+		goto error;
 	}
 
 	if (!isint(&v)) {
@@ -258,6 +360,9 @@ Value op_gt(Value *a, Value *b)
 	}
 
 	return makeint(intvalue(&v) > 0);
+
+	error:
+	return makeerr(type_error_unsupported_2(">", class, getclass(b)));
 }
 
 Value op_le(Value *a, Value *b)
@@ -266,13 +371,13 @@ Value op_le(Value *a, Value *b)
 	const BinOp cmp = resolve_cmp(class);
 
 	if (!cmp) {
-		return makeerr(type_error_unsupported_2("<=", class, getclass(b)));
+		goto error;
 	}
 
 	Value v = cmp(a, b);
 
-	if (iserror(&v)) {
-		return v;
+	if (isut(&v)) {
+		goto error;
 	}
 
 	if (!isint(&v)) {
@@ -280,6 +385,9 @@ Value op_le(Value *a, Value *b)
 	}
 
 	return makeint(intvalue(&v) <= 0);
+
+	error:
+	return makeerr(type_error_unsupported_2("<=", class, getclass(b)));
 }
 
 Value op_ge(Value *a, Value *b)
@@ -288,13 +396,13 @@ Value op_ge(Value *a, Value *b)
 	const BinOp cmp = resolve_cmp(class);
 
 	if (!cmp) {
-		return makeerr(type_error_unsupported_2(">=", class, getclass(b)));
+		goto error;
 	}
 
 	Value v = cmp(a, b);
 
-	if (iserror(&v)) {
-		return v;
+	if (isut(&v)) {
+		goto error;
 	}
 
 	if (!isint(&v)) {
@@ -302,6 +410,9 @@ Value op_ge(Value *a, Value *b)
 	}
 
 	return makeint(intvalue(&v) >= 0);
+
+	error:
+	return makeerr(type_error_unsupported_2(">=", class, getclass(b)));
 }
 
 /*
@@ -366,17 +477,25 @@ Value op_iadd(Value *a, Value *b)
 	if (!add) {
 		add = resolve_add(class);
 		if (!add) {
-			return makeerr(type_error_unsupported_2("+=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = add(a, b);
+	Value v = add(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("+=", class, getclass(b)));
 }
 
 Value op_isub(Value *a, Value *b)
@@ -389,17 +508,25 @@ Value op_isub(Value *a, Value *b)
 	if (!sub) {
 		sub = resolve_sub(class);
 		if (!sub) {
-			return makeerr(type_error_unsupported_2("-=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = sub(a, b);
+	Value v = sub(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("-=", class, getclass(b)));
 }
 
 Value op_imul(Value *a, Value *b)
@@ -410,19 +537,27 @@ Value op_imul(Value *a, Value *b)
 	bool release_a = false;
 
 	if (!mul) {
-		mul = resolve_imul(class);
+		mul = resolve_mul(class);
 		if (!mul) {
-			return makeerr(type_error_unsupported_2("*=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = mul(a, b);
+	Value v = mul(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("*=", class, getclass(b)));
 }
 
 Value op_idiv(Value *a, Value *b)
@@ -435,17 +570,25 @@ Value op_idiv(Value *a, Value *b)
 	if (!div) {
 		div = resolve_div(class);
 		if (!div) {
-			return makeerr(type_error_unsupported_2("/=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = div(a, b);
+	Value v = div(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("/=", class, getclass(b)));
 }
 
 Value op_imod(Value *a, Value *b)
@@ -458,17 +601,25 @@ Value op_imod(Value *a, Value *b)
 	if (!mod) {
 		mod = resolve_mod(class);
 		if (!mod) {
-			return makeerr(type_error_unsupported_2("%=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = mod(a, b);
+	Value v = mod(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("%=", class, getclass(b)));
 }
 
 Value op_ipow(Value *a, Value *b)
@@ -481,17 +632,25 @@ Value op_ipow(Value *a, Value *b)
 	if (!pow) {
 		pow = resolve_pow(class);
 		if (!pow) {
-			return makeerr(type_error_unsupported_2("**=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = pow(a, b);
+	Value v = pow(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("**=", class, getclass(b)));
 }
 
 Value op_ibitand(Value *a, Value *b)
@@ -504,17 +663,25 @@ Value op_ibitand(Value *a, Value *b)
 	if (!and) {
 		and = resolve_and(class);
 		if (!and) {
-			return makeerr(type_error_unsupported_2("&=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = and(a, b);
+	Value v = and(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("&=", class, getclass(b)));
 }
 
 Value op_ibitor(Value *a, Value *b)
@@ -527,17 +694,25 @@ Value op_ibitor(Value *a, Value *b)
 	if (!or) {
 		or = resolve_or(class);
 		if (!or) {
-			return makeerr(type_error_unsupported_2("|=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = or(a, b);
+	Value v = or(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("|=", class, getclass(b)));
 }
 
 Value op_ixor(Value *a, Value *b)
@@ -550,17 +725,25 @@ Value op_ixor(Value *a, Value *b)
 	if (!xor) {
 		xor = resolve_xor(class);
 		if (!xor) {
-			return makeerr(type_error_unsupported_2("^=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = xor(a, b);
+	Value v = xor(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("^=", class, getclass(b)));
 }
 
 Value op_ishiftl(Value *a, Value *b)
@@ -573,17 +756,25 @@ Value op_ishiftl(Value *a, Value *b)
 	if (!shiftl) {
 		shiftl = resolve_shiftl(class);
 		if (!shiftl) {
-			return makeerr(type_error_unsupported_2("<<=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = shiftl(a, b);
+	Value v = shiftl(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2("<<=", class, getclass(b)));
 }
 
 Value op_ishiftr(Value *a, Value *b)
@@ -596,15 +787,23 @@ Value op_ishiftr(Value *a, Value *b)
 	if (!shiftr) {
 		shiftr = resolve_shiftr(class);
 		if (!shiftr) {
-			return makeerr(type_error_unsupported_2(">>=", class, getclass(b)));
+			goto error;
 		}
 		release_a = true;
 	}
 
-	Value result = shiftr(a, b);
+	Value v = shiftr(a, b);
+
+	if (isut(&v)) {
+		goto error;
+	}
+
 	if (release_a) {
 		release(a);
 	}
 
-	return result;
+	return v;
+
+	error:
+	return makeerr(type_error_unsupported_2(">>=", class, getclass(b)));
 }

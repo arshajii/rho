@@ -110,11 +110,17 @@ struct error;
 
 struct value {
 	enum {
-		VAL_TYPE_EMPTY = 0,  // indicates nonexistent value (should always be 0)
+		/* nonexistent value */
+		VAL_TYPE_EMPTY = 0,
+
+		/* standard type classes */
 		VAL_TYPE_INT,
 		VAL_TYPE_FLOAT,
 		VAL_TYPE_OBJECT,
-		VAL_TYPE_ERROR
+
+		/* flags */
+		VAL_TYPE_ERROR,
+		VAL_TYPE_UNSUPPORTED_TYPES
 	} type;
 
 	union {
@@ -130,6 +136,7 @@ struct value {
 #define isfloat(val)    ((val)->type == VAL_TYPE_FLOAT)
 #define isobject(val)   ((val)->type == VAL_TYPE_OBJECT)
 #define iserror(val)    ((val)->type == VAL_TYPE_ERROR)
+#define isut(val)       ((val)->type == VAL_TYPE_UNSUPPORTED_TYPES)
 
 #define intvalue(val)   ((val)->data.i)
 #define floatvalue(val) ((val)->data.f)
@@ -140,6 +147,7 @@ struct value {
 #define makefloat(val)  ((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
 #define makeobj(val)    ((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
 #define makeerr(val)    ((Value){.type = VAL_TYPE_ERROR, .data = {.e = (val)}})
+#define makeut(val)     ((Value){.type = VAL_TYPE_UNSUPPORTED_TYPES})
 
 Class *getclass(Value *v);
 

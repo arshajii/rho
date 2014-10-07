@@ -126,9 +126,6 @@ Class *getclass(Value *v)
 	}
 
 	switch (v->type) {
-	case VAL_TYPE_EMPTY:
-		INTERNAL_ERROR();
-		return NULL;
 	case VAL_TYPE_INT:
 		return &int_class;
 	case VAL_TYPE_FLOAT:
@@ -136,10 +133,11 @@ Class *getclass(Value *v)
 	case VAL_TYPE_OBJECT: {
 		const Object *o = objvalue(v);
 		return o->class;
-	case VAL_TYPE_ERROR: {
+	case VAL_TYPE_EMPTY:
+	case VAL_TYPE_ERROR:
+	case VAL_TYPE_UNSUPPORTED_TYPES:
 		INTERNAL_ERROR();
 		return NULL;
-	}
 	}
 	}
 }

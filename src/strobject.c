@@ -32,7 +32,7 @@ static bool strobj_eq(Value *this, Value *other)
 static Value strobj_cmp(Value *this, Value *other)
 {
 	if (!is_a(other, &str_class)) {
-		return makeerr(type_error_unsupported_2("cmp", getclass(this), getclass(other)));
+		return makeut();
 	}
 
 	StrObject *s1 = objvalue(this);
@@ -71,7 +71,7 @@ static Str *strobj_str(Value *this)
 static Value strobj_cat(Value *this, Value *other)
 {
 	if (!is_a(other, &str_class)) {
-		return makeerr(type_error_unsupported_2("+", getclass(this), getclass(other)));
+		return makeut();
 	}
 
 	Str *s1 = &((StrObject *) objvalue(this))->str;

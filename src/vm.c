@@ -1176,9 +1176,6 @@ static void eval_frame(VM *vm)
 static void print(Value *v)
 {
 	switch (v->type) {
-	case VAL_TYPE_EMPTY:
-		INTERNAL_ERROR();
-		break;
 	case VAL_TYPE_INT:
 		printf("%ld\n", intvalue(v));
 		break;
@@ -1198,7 +1195,9 @@ static void print(Value *v)
 
 		break;
 	}
+	case VAL_TYPE_EMPTY:
 	case VAL_TYPE_ERROR:
+	case VAL_TYPE_UNSUPPORTED_TYPES:
 		INTERNAL_ERROR();
 		break;
 	}
@@ -1233,7 +1232,6 @@ static unsigned int get_lineno(Frame *frame)
 		}
 	}
 
-
 	unsigned int lineno_offset = 0;
 	size_t ins_offset = 0;
 	while (true) {
@@ -1247,14 +1245,13 @@ static unsigned int get_lineno(Frame *frame)
 		ins_offset += ins_delta;
 
 		if (ins_offset >= ins_pos) {
-			return first_lineno + lineno_offset;
+			break;
 		}
 
 		lineno_offset += lineno_delta;
 	}
 
-	INTERNAL_ERROR();
-	return 0;
+	return first_lineno + lineno_offset;
 }
 
 static void vm_traceback(VM *vm)
