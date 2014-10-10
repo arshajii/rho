@@ -98,6 +98,11 @@ Error *attr_error_mismatch(const Class *type, const char *attr, const Class *ass
 	                 type->name);
 }
 
+Error *div_by_zero_error(void)
+{
+	return error_new(ERR_TYPE_DIV_BY_ZERO, "division or modulo by zero");
+}
+
 void fatal_error(const char *msg)
 {
 	fprintf(stderr, FATAL_ERROR_HEADER "%s", msg);

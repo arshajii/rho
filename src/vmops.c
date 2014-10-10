@@ -77,19 +77,26 @@ Value op_div(Value *a, Value *b)
 	const BinOp div = resolve_div(class);
 
 	if (!div) {
-		goto error;
+		goto type_error;
 	}
 
 	Value v = div(a, b);
 
 	if (isut(&v)) {
-		goto error;
+		goto type_error;
+	}
+
+	if (isdbz(&v)) {
+		goto div_by_zero_error;
 	}
 
 	return v;
 
-	error:
+	type_error:
 	return makeerr(type_error_unsupported_2("/", class, getclass(b)));
+
+	div_by_zero_error:
+	return makeerr(div_by_zero_error());
 }
 
 Value op_mod(Value *a, Value *b)
@@ -98,19 +105,26 @@ Value op_mod(Value *a, Value *b)
 	const BinOp mod = resolve_mod(class);
 
 	if (!mod) {
-		goto error;
+		goto type_error;
 	}
 
 	Value v = mod(a, b);
 
 	if (isut(&v)) {
-		goto error;
+		goto type_error;
+	}
+
+	if (isdbz(&v)) {
+		goto div_by_zero_error;
 	}
 
 	return v;
 
-	error:
+	type_error:
 	return makeerr(type_error_unsupported_2("%", class, getclass(b)));
+
+	div_by_zero_error:
+	return makeerr(div_by_zero_error());
 }
 
 Value op_pow(Value *a, Value *b)
@@ -570,7 +584,7 @@ Value op_idiv(Value *a, Value *b)
 	if (!div) {
 		div = resolve_div(class);
 		if (!div) {
-			goto error;
+			goto type_error;
 		}
 		release_a = true;
 	}
@@ -578,7 +592,11 @@ Value op_idiv(Value *a, Value *b)
 	Value v = div(a, b);
 
 	if (isut(&v)) {
-		goto error;
+		goto type_error;
+	}
+
+	if (isdbz(&v)) {
+		goto div_by_zero_error;
 	}
 
 	if (release_a) {
@@ -587,8 +605,11 @@ Value op_idiv(Value *a, Value *b)
 
 	return v;
 
-	error:
+	type_error:
 	return makeerr(type_error_unsupported_2("/=", class, getclass(b)));
+
+	div_by_zero_error:
+	return makeerr(div_by_zero_error());
 }
 
 Value op_imod(Value *a, Value *b)
@@ -601,7 +622,7 @@ Value op_imod(Value *a, Value *b)
 	if (!mod) {
 		mod = resolve_mod(class);
 		if (!mod) {
-			goto error;
+			goto type_error;
 		}
 		release_a = true;
 	}
@@ -609,7 +630,11 @@ Value op_imod(Value *a, Value *b)
 	Value v = mod(a, b);
 
 	if (isut(&v)) {
-		goto error;
+		goto type_error;
+	}
+
+	if (isdbz(&v)) {
+		goto div_by_zero_error;
 	}
 
 	if (release_a) {
@@ -618,8 +643,11 @@ Value op_imod(Value *a, Value *b)
 
 	return v;
 
-	error:
+	type_error:
 	return makeerr(type_error_unsupported_2("%=", class, getclass(b)));
+
+	div_by_zero_error:
+	return makeerr(div_by_zero_error());
 }
 
 Value op_ipow(Value *a, Value *b)

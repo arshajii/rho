@@ -5,6 +5,7 @@
 #include "util.h"
 #include "err.h"
 #include "intobject.h"
+#include <stdio.h>
 
 #define TYPE_ERR_STR(op) "invalid operator types for operator " #op "."
 
@@ -106,11 +107,17 @@ static Value int_mul(Value *this, Value *other)
 
 static Value int_div(Value *this, Value *other)
 {
+	if (isint(other) && !intvalue(other)) {
+		return makedbz();
+	}
 	INT_BINOP_FUNC_BODY(/)
 }
 
 static Value int_mod(Value *this, Value *other)
 {
+	if (isint(other) && !intvalue(other)) {
+		return makedbz();
+	}
 	INT_BINOP_FUNC_BODY_NOFLOAT(%)
 }
 
@@ -172,11 +179,17 @@ static Value int_imul(Value *this, Value *other)
 
 static Value int_idiv(Value *this, Value *other)
 {
+	if (isint(other) && !intvalue(other)) {
+		return makedbz();
+	}
 	INT_IBINOP_FUNC_BODY(/)
 }
 
 static Value int_imod(Value *this, Value *other)
 {
+	if (isint(other) && !intvalue(other)) {
+		return makedbz();
+	}
 	INT_IBINOP_FUNC_BODY_NOFLOAT(%)
 }
 

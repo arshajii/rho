@@ -120,7 +120,8 @@ struct value {
 
 		/* flags */
 		VAL_TYPE_ERROR,
-		VAL_TYPE_UNSUPPORTED_TYPES
+		VAL_TYPE_UNSUPPORTED_TYPES,
+		VAL_TYPE_DIV_BY_ZERO
 	} type;
 
 	union {
@@ -135,8 +136,10 @@ struct value {
 #define isint(val)      ((val)->type == VAL_TYPE_INT)
 #define isfloat(val)    ((val)->type == VAL_TYPE_FLOAT)
 #define isobject(val)   ((val)->type == VAL_TYPE_OBJECT)
+
 #define iserror(val)    ((val)->type == VAL_TYPE_ERROR)
 #define isut(val)       ((val)->type == VAL_TYPE_UNSUPPORTED_TYPES)
+#define isdbz(val)      ((val)->type == VAL_TYPE_DIV_BY_ZERO)
 
 #define intvalue(val)   ((val)->data.i)
 #define floatvalue(val) ((val)->data.f)
@@ -146,8 +149,10 @@ struct value {
 #define makeint(val)    ((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
 #define makefloat(val)  ((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
 #define makeobj(val)    ((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
+
 #define makeerr(val)    ((Value){.type = VAL_TYPE_ERROR, .data = {.e = (val)}})
-#define makeut(val)     ((Value){.type = VAL_TYPE_UNSUPPORTED_TYPES})
+#define makeut()        ((Value){.type = VAL_TYPE_UNSUPPORTED_TYPES})
+#define makedbz()       ((Value){.type = VAL_TYPE_DIV_BY_ZERO})
 
 Class *getclass(Value *v);
 

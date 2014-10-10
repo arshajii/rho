@@ -9,10 +9,11 @@
  * Irrecoverable runtime-error handling facilities:
  */
 
-#define ERR_TYPE_LIST                   \
-	X(ERR_TYPE_TYPE,      "Type Error") \
-	X(ERR_TYPE_ATTR, "Attribute Error") \
-	X(ERR_TYPE_NAME,      "Name Error")
+#define ERR_TYPE_LIST \
+	X(ERR_TYPE_TYPE,        "Type Error") \
+	X(ERR_TYPE_ATTR,        "Attribute Error") \
+	X(ERR_TYPE_NAME,        "Name Error") \
+	X(ERR_TYPE_DIV_BY_ZERO, "Division by Zero Error")
 
 #define X(a, b) a,
 typedef enum {
@@ -39,6 +40,7 @@ Error *call_error_args(const char *fn, unsigned int expected, unsigned int got);
 Error *attr_error_not_found(const Class *type, const char *attr);
 Error *attr_error_readonly(const Class *type, const char *attr);
 Error *attr_error_mismatch(const Class *type, const char *attr, const Class *assign_type);
+Error *div_by_zero_error(void);
 
 void fatal_error(const char *msg);
 

@@ -1198,6 +1198,7 @@ static void print(Value *v)
 	case VAL_TYPE_EMPTY:
 	case VAL_TYPE_ERROR:
 	case VAL_TYPE_UNSUPPORTED_TYPES:
+	case VAL_TYPE_DIV_BY_ZERO:
 		INTERNAL_ERROR();
 		break;
 	}
