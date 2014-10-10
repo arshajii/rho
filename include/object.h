@@ -60,7 +60,6 @@ struct num_methods {
 
 struct seq_methods {
 	LenFunc len;
-	BinOp concat;
 	BinOp get;
 	SeqSetFunc set;
 	BoolBinOp contains;
@@ -195,7 +194,6 @@ UnOp resolve_to_int(Class *class);
 UnOp resolve_to_float(Class *class);
 
 LenFunc resolve_len(Class *class);
-BinOp resolve_concat(Class *class);
 BinOp resolve_get(Class *class);
 SeqSetFunc resolve_set(Class *class);
 BoolBinOp resolve_contains (Class *class);

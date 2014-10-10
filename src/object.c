@@ -88,7 +88,6 @@ struct num_methods obj_num_methods = {
 
 struct seq_methods obj_seq_methods = {
 	NULL,    /* len */
-	NULL,    /* conctat */
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
@@ -223,7 +222,6 @@ MAKE_METHOD_RESOLVER(to_int, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(to_float, num_methods, UnOp)
 
 MAKE_METHOD_RESOLVER(len, seq_methods, LenFunc)
-MAKE_METHOD_RESOLVER(concat, seq_methods, BinOp)
 MAKE_METHOD_RESOLVER(get, seq_methods, BinOp)
 MAKE_METHOD_RESOLVER(set, seq_methods, SeqSetFunc)
 MAKE_METHOD_RESOLVER(contains, seq_methods, BoolBinOp)

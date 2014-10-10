@@ -274,7 +274,6 @@ struct num_methods co_num_methods = {
 
 struct seq_methods co_seq_methods = {
 	NULL,    /* len */
-	NULL,    /* conctat */
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */

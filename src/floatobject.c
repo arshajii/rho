@@ -192,7 +192,6 @@ struct num_methods float_num_methods = {
 
 struct seq_methods float_seq_methods = {
 	NULL,    /* len */
-	NULL,    /* conctat */
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */

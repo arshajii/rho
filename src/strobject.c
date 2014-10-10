@@ -136,7 +136,6 @@ struct num_methods str_num_methods = {
 
 struct seq_methods str_seq_methods = {
 	NULL,    /* len */
-	NULL,    /* conctat */
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */

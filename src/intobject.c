@@ -287,7 +287,6 @@ struct num_methods int_num_methods = {
 
 struct seq_methods int_seq_methods = {
 	NULL,    /* len */
-	NULL,    /* conctat */
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */

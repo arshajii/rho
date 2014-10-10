@@ -65,7 +65,6 @@ struct num_methods meth_num_methods = {
 
 struct seq_methods meth_seq_methods = {
 	NULL,    /* len */
-	NULL,    /* conctat */
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
