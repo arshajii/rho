@@ -32,9 +32,9 @@ struct num_methods {
 	BinOp mod;
 	BinOp pow;
 
-	UnOp not;
-	BinOp and;
-	BinOp or;
+	UnOp bitnot;
+	BinOp bitand;
+	BinOp bitor;
 	BinOp xor;
 	BinOp shiftl;
 	BinOp shiftr;
@@ -46,8 +46,8 @@ struct num_methods {
 	BinOp imod;
 	BinOp ipow;
 
-	BinOp iand;
-	BinOp ior;
+	BinOp ibitand;
+	BinOp ibitor;
 	BinOp ixor;
 	BinOp ishiftl;
 	BinOp ishiftr;
@@ -172,9 +172,9 @@ BinOp resolve_mul(Class *class);
 BinOp resolve_div(Class *class);
 BinOp resolve_mod(Class *class);
 BinOp resolve_pow(Class *class);
-UnOp resolve_not(Class *class);
-BinOp resolve_and(Class *class);
-BinOp resolve_or(Class *class);
+UnOp resolve_bitnot(Class *class);
+BinOp resolve_bitand(Class *class);
+BinOp resolve_bitor(Class *class);
 BinOp resolve_xor(Class *class);
 BinOp resolve_shiftl(Class *class);
 BinOp resolve_shiftr(Class *class);
@@ -184,8 +184,8 @@ BinOp resolve_imul(Class *class);
 BinOp resolve_idiv(Class *class);
 BinOp resolve_imod(Class *class);
 BinOp resolve_ipow(Class *class);
-BinOp resolve_iand(Class *class);
-BinOp resolve_ior(Class *class);
+BinOp resolve_ibitand(Class *class);
+BinOp resolve_ibitor(Class *class);
 BinOp resolve_ixor(Class *class);
 BinOp resolve_ishiftl(Class *class);
 BinOp resolve_ishiftr(Class *class);

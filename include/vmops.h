@@ -45,9 +45,9 @@ Value op_le(Value *a, Value *b);
 
 Value op_ge(Value *a, Value *b);
 
-Value op_uplus(Value *a);
+Value op_plus(Value *a);
 
-Value op_uminus(Value *a);
+Value op_minus(Value *a);
 
 Value op_iadd(Value *a, Value *b);
 

@@ -487,7 +487,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_UPLUS: {
 			v1 = STACK_TOP();
-			res = op_uplus(v1);
+			res = op_plus(v1);
 
 			if (iserror(&res)) {
 				goto error;
@@ -499,7 +499,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_UMINUS: {
 			v1 = STACK_TOP();
-			res = op_uminus(v1);
+			res = op_minus(v1);
 
 			if (iserror(&res)) {
 				goto error;

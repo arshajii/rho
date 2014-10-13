@@ -108,9 +108,9 @@ struct num_methods str_num_methods = {
 	NULL,    /* mod */
 	NULL,    /* pow */
 
-	NULL,    /* not */
-	NULL,    /* and */
-	NULL,    /* or */
+	NULL,    /* bitnot */
+	NULL,    /* bitand */
+	NULL,    /* bitor */
 	NULL,    /* xor */
 	NULL,    /* shiftl */
 	NULL,    /* shiftr */
@@ -122,8 +122,8 @@ struct num_methods str_num_methods = {
 	NULL,    /* imod */
 	NULL,    /* ipow */
 
-	NULL,    /* iand */
-	NULL,    /* ior */
+	NULL,    /* ibitand */
+	NULL,    /* ibitor */
 	NULL,    /* ixor */
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */

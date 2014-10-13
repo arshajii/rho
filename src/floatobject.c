@@ -164,9 +164,9 @@ struct num_methods float_num_methods = {
 	NULL,    /* mod */
 	float_pow,    /* pow */
 
-	NULL,    /* not */
-	NULL,    /* and */
-	NULL,    /* or */
+	NULL,    /* bitnot */
+	NULL,    /* bitand */
+	NULL,    /* bitor */
 	NULL,    /* xor */
 	NULL,    /* shiftl */
 	NULL,    /* shiftr */
@@ -178,8 +178,8 @@ struct num_methods float_num_methods = {
 	NULL,    /* imod */
 	float_ipow,    /* ipow */
 
-	NULL,    /* iand */
-	NULL,    /* ior */
+	NULL,    /* ibitand */
+	NULL,    /* ibitor */
 	NULL,    /* ixor */
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */

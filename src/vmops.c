@@ -8,262 +8,82 @@
  * ------------------
  */
 
-Value op_add(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp add = resolve_add(class);
-
-	if (!add) {
-		goto error;
-	}
-
-	Value v = add(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("+", class, getclass(b)));
+#define MAKE_VM_BINOP(op, tok) \
+Value op_##op(Value *a, Value *b) \
+{ \
+	Class *class = getclass(a); \
+	const BinOp binop = resolve_##op(class); \
+\
+	if (!binop) { \
+		goto error; \
+	} \
+\
+	Value v = binop(a, b); \
+\
+	if (isut(&v)) { \
+		goto error; \
+	} \
+\
+	return v; \
+\
+	error: \
+	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
 }
 
-Value op_sub(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp sub = resolve_sub(class);
-
-	if (!sub) {
-		goto error;
-	}
-
-	Value v = sub(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("-", class, getclass(b)));
+#define MAKE_VM_BINOP_DBZ_AWARE(op, tok) \
+Value op_##op(Value *a, Value *b) \
+{ \
+	Class *class = getclass(a); \
+	const BinOp binop = resolve_##op(class); \
+\
+	if (!binop) { \
+		goto type_error; \
+	} \
+\
+	Value v = binop(a, b); \
+\
+	if (isut(&v)) { \
+		goto type_error; \
+	} \
+\
+	if (isdbz(&v)) { \
+		goto div_by_zero_error; \
+	} \
+\
+	return v; \
+\
+	type_error: \
+	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
+\
+	div_by_zero_error: \
+	return makeerr(div_by_zero_error()); \
 }
 
-Value op_mul(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp mul = resolve_mul(class);
-
-	if (!mul) {
-		goto error;
-	}
-
-	Value v = mul(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("*", class, getclass(b)));
+#define MAKE_VM_UNOP(op, tok) \
+Value op_##op(Value *a) \
+{ \
+	Class *class = getclass(a); \
+	const UnOp unop = resolve_##op(class); \
+\
+	if (!unop) { \
+		return makeerr(type_error_unsupported_1(#tok, class)); \
+	} \
+\
+	return unop(a); \
 }
 
-Value op_div(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp div = resolve_div(class);
-
-	if (!div) {
-		goto type_error;
-	}
-
-	Value v = div(a, b);
-
-	if (isut(&v)) {
-		goto type_error;
-	}
-
-	if (isdbz(&v)) {
-		goto div_by_zero_error;
-	}
-
-	return v;
-
-	type_error:
-	return makeerr(type_error_unsupported_2("/", class, getclass(b)));
-
-	div_by_zero_error:
-	return makeerr(div_by_zero_error());
-}
-
-Value op_mod(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp mod = resolve_mod(class);
-
-	if (!mod) {
-		goto type_error;
-	}
-
-	Value v = mod(a, b);
-
-	if (isut(&v)) {
-		goto type_error;
-	}
-
-	if (isdbz(&v)) {
-		goto div_by_zero_error;
-	}
-
-	return v;
-
-	type_error:
-	return makeerr(type_error_unsupported_2("%", class, getclass(b)));
-
-	div_by_zero_error:
-	return makeerr(div_by_zero_error());
-}
-
-Value op_pow(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp pow = resolve_pow(class);
-
-	if (!pow) {
-		goto error;
-	}
-
-	Value v = pow(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("**", class, getclass(b)));
-}
-
-Value op_bitand(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp and = resolve_and(class);
-
-	if (!and) {
-		goto error;
-	}
-
-	Value v = and(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("&", class, getclass(b)));
-}
-
-Value op_bitor(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp or = resolve_or(class);
-
-	if (!or) {
-		goto error;
-	}
-
-	Value v = or(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("|", class, getclass(b)));
-}
-
-Value op_xor(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp xor = resolve_xor(class);
-
-	if (!xor) {
-		goto error;
-	}
-
-	Value v = xor(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("^", class, getclass(b)));
-}
-
-Value op_bitnot(Value *a)
-{
-	Class *class = getclass(a);
-	const UnOp not = resolve_not(class);
-
-	if (!not) {
-		return makeerr(type_error_unsupported_1("~", class));
-	}
-
-	return not(a);
-}
-
-Value op_shiftl(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp shiftl = resolve_shiftl(class);
-
-	if (!shiftl) {
-		goto error;
-	}
-
-	Value v = shiftl(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("<<", class, getclass(b)));
-}
-
-Value op_shiftr(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp shiftr = resolve_shiftr(class);
-
-	if (!shiftr) {
-		goto error;
-	}
-
-	Value v = shiftr(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2(">>", class, getclass(b)));
-}
+MAKE_VM_BINOP(add, +)
+MAKE_VM_BINOP(sub, -)
+MAKE_VM_BINOP(mul, *)
+MAKE_VM_BINOP_DBZ_AWARE(div, /)
+MAKE_VM_BINOP_DBZ_AWARE(mod, %)
+MAKE_VM_BINOP(pow, **)
+MAKE_VM_BINOP(bitand, &)
+MAKE_VM_BINOP(bitor, |)
+MAKE_VM_BINOP(xor, ^)
+MAKE_VM_UNOP(bitnot, ~)
+MAKE_VM_BINOP(shiftl, <<)
+MAKE_VM_BINOP(shiftr, >>)
 
 /*
  * Logical boolean operations
@@ -305,6 +125,32 @@ Value op_not(Value *a)
  * ---------------------
  */
 
+#define MAKE_VM_CMPOP(op, tok) \
+Value op_##op(Value *a, Value *b) \
+{ \
+	Class *class = getclass(a); \
+	const BinOp cmp = resolve_cmp(class); \
+\
+	if (!cmp) { \
+		goto error; \
+	} \
+\
+	Value v = cmp(a, b); \
+\
+	if (isut(&v)) { \
+		goto error; \
+	} \
+\
+	if (!isint(&v)) { \
+		return makeerr(type_error_invalid_cmp(class)); \
+	} \
+\
+	return makeint(intvalue(&v) tok 0); \
+\
+	error: \
+	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
+}
+
 Value op_eq(Value *a, Value *b)
 {
 	Class *class = getclass(a);
@@ -329,134 +175,18 @@ Value op_neq(Value *a, Value *b)
 	return makeint(!eq(a, b));
 }
 
-Value op_lt(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp cmp = resolve_cmp(class);
-
-	if (!cmp) {
-		goto error;
-	}
-
-	Value v = cmp(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (!isint(&v)) {
-		return makeerr(type_error_invalid_cmp(class));
-	}
-
-	return makeint(intvalue(&v) < 0);
-
-	error:
-	return makeerr(type_error_unsupported_2("<", class, getclass(b)));
-}
-
-Value op_gt(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp cmp = resolve_cmp(class);
-
-	if (!cmp) {
-		goto error;
-	}
-
-	Value v = cmp(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (!isint(&v)) {
-		return makeerr(type_error_invalid_cmp(class));
-	}
-
-	return makeint(intvalue(&v) > 0);
-
-	error:
-	return makeerr(type_error_unsupported_2(">", class, getclass(b)));
-}
-
-Value op_le(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp cmp = resolve_cmp(class);
-
-	if (!cmp) {
-		goto error;
-	}
-
-	Value v = cmp(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (!isint(&v)) {
-		return makeerr(type_error_invalid_cmp(class));
-	}
-
-	return makeint(intvalue(&v) <= 0);
-
-	error:
-	return makeerr(type_error_unsupported_2("<=", class, getclass(b)));
-}
-
-Value op_ge(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	const BinOp cmp = resolve_cmp(class);
-
-	if (!cmp) {
-		goto error;
-	}
-
-	Value v = cmp(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (!isint(&v)) {
-		return makeerr(type_error_invalid_cmp(class));
-	}
-
-	return makeint(intvalue(&v) >= 0);
-
-	error:
-	return makeerr(type_error_unsupported_2(">=", class, getclass(b)));
-}
+MAKE_VM_CMPOP(lt, <)
+MAKE_VM_CMPOP(gt, >)
+MAKE_VM_CMPOP(le, <=)
+MAKE_VM_CMPOP(ge, >=)
 
 /*
  * Other unary operations
  * ----------------------
  */
 
-Value op_uplus(Value *a)
-{
-	Class *class = getclass(a);
-	const UnOp plus = resolve_plus(class);
-
-	if (!plus) {
-		return makeerr(type_error_unsupported_1("unary +", class));
-	}
-
-	return plus(a);
-}
-
-Value op_uminus(Value *a)
-{
-	Class *class = getclass(a);
-	const UnOp minus = resolve_minus(class);
-
-	if (!minus) {
-		return makeerr(type_error_unsupported_1("unary -", class));
-	}
-
-	return minus(a);
-}
+MAKE_VM_UNOP(plus, unary +)
+MAKE_VM_UNOP(minus, unary -)
 
 /*
  * In-place binary operations
@@ -481,357 +211,85 @@ Value op_uminus(Value *a)
  * of the function, wherever it is being stored.
  */
 
-Value op_iadd(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp add = resolve_iadd(class);
-
-	bool release_a = false;
-
-	if (!add) {
-		add = resolve_add(class);
-		if (!add) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = add(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("+=", class, getclass(b)));
+#define MAKE_VM_IBINOP(op, tok) \
+Value op_i##op(Value *a, Value *b) \
+{ \
+	Class *class = getclass(a); \
+	BinOp binop = resolve_i##op(class); \
+\
+	bool release_a = false; \
+\
+	if (!binop) { \
+		binop = resolve_##op(class); \
+		if (!binop) { \
+			goto error; \
+		} \
+		release_a = true; \
+	} \
+\
+	Value v = binop(a, b); \
+\
+	if (isut(&v)) { \
+		goto error; \
+	} \
+\
+	if (release_a) { \
+		release(a); \
+	} \
+\
+	return v; \
+\
+	error: \
+	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
 }
 
-Value op_isub(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp sub = resolve_isub(class);
-
-	bool release_a = false;
-
-	if (!sub) {
-		sub = resolve_sub(class);
-		if (!sub) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = sub(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("-=", class, getclass(b)));
+#define MAKE_VM_IBINOP_DBZ_AWARE(op, tok) \
+Value op_i##op(Value *a, Value *b) \
+{ \
+	Class *class = getclass(a); \
+	BinOp binop = resolve_i##op(class); \
+\
+	bool release_a = false; \
+\
+	if (!binop) { \
+		binop = resolve_##op(class); \
+		if (!binop) { \
+			goto type_error; \
+		} \
+		release_a = true; \
+	} \
+\
+	Value v = binop(a, b); \
+\
+	if (isut(&v)) { \
+		goto type_error; \
+	} \
+\
+	if (isdbz(&v)) { \
+		goto div_by_zero_error; \
+	} \
+\
+	if (release_a) { \
+		release(a); \
+	} \
+\
+	return v; \
+\
+	type_error: \
+	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
+\
+	div_by_zero_error: \
+	return makeerr(div_by_zero_error()); \
 }
 
-Value op_imul(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp mul = resolve_imul(class);
-
-	bool release_a = false;
-
-	if (!mul) {
-		mul = resolve_mul(class);
-		if (!mul) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = mul(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("*=", class, getclass(b)));
-}
-
-Value op_idiv(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp div = resolve_idiv(class);
-
-	bool release_a = false;
-
-	if (!div) {
-		div = resolve_div(class);
-		if (!div) {
-			goto type_error;
-		}
-		release_a = true;
-	}
-
-	Value v = div(a, b);
-
-	if (isut(&v)) {
-		goto type_error;
-	}
-
-	if (isdbz(&v)) {
-		goto div_by_zero_error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	type_error:
-	return makeerr(type_error_unsupported_2("/=", class, getclass(b)));
-
-	div_by_zero_error:
-	return makeerr(div_by_zero_error());
-}
-
-Value op_imod(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp mod = resolve_imod(class);
-
-	bool release_a = false;
-
-	if (!mod) {
-		mod = resolve_mod(class);
-		if (!mod) {
-			goto type_error;
-		}
-		release_a = true;
-	}
-
-	Value v = mod(a, b);
-
-	if (isut(&v)) {
-		goto type_error;
-	}
-
-	if (isdbz(&v)) {
-		goto div_by_zero_error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	type_error:
-	return makeerr(type_error_unsupported_2("%=", class, getclass(b)));
-
-	div_by_zero_error:
-	return makeerr(div_by_zero_error());
-}
-
-Value op_ipow(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp pow = resolve_ipow(class);
-
-	bool release_a = false;
-
-	if (!pow) {
-		pow = resolve_pow(class);
-		if (!pow) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = pow(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("**=", class, getclass(b)));
-}
-
-Value op_ibitand(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp and = resolve_iand(class);
-
-	bool release_a = false;
-
-	if (!and) {
-		and = resolve_and(class);
-		if (!and) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = and(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("&=", class, getclass(b)));
-}
-
-Value op_ibitor(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp or = resolve_ior(class);
-
-	bool release_a = false;
-
-	if (!or) {
-		or = resolve_or(class);
-		if (!or) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = or(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("|=", class, getclass(b)));
-}
-
-Value op_ixor(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp xor = resolve_ixor(class);
-
-	bool release_a = false;
-
-	if (!xor) {
-		xor = resolve_xor(class);
-		if (!xor) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = xor(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("^=", class, getclass(b)));
-}
-
-Value op_ishiftl(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp shiftl = resolve_ishiftl(class);
-
-	bool release_a = false;
-
-	if (!shiftl) {
-		shiftl = resolve_shiftl(class);
-		if (!shiftl) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = shiftl(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2("<<=", class, getclass(b)));
-}
-
-Value op_ishiftr(Value *a, Value *b)
-{
-	Class *class = getclass(a);
-	BinOp shiftr = resolve_ishiftr(class);
-
-	bool release_a = false;
-
-	if (!shiftr) {
-		shiftr = resolve_shiftr(class);
-		if (!shiftr) {
-			goto error;
-		}
-		release_a = true;
-	}
-
-	Value v = shiftr(a, b);
-
-	if (isut(&v)) {
-		goto error;
-	}
-
-	if (release_a) {
-		release(a);
-	}
-
-	return v;
-
-	error:
-	return makeerr(type_error_unsupported_2(">>=", class, getclass(b)));
-}
+MAKE_VM_IBINOP(add, +=)
+MAKE_VM_IBINOP(sub, -=)
+MAKE_VM_IBINOP(mul, *=)
+MAKE_VM_IBINOP_DBZ_AWARE(div, /=)
+MAKE_VM_IBINOP_DBZ_AWARE(mod, %=)
+MAKE_VM_IBINOP(pow, **=)
+MAKE_VM_IBINOP(bitand, &=)
+MAKE_VM_IBINOP(bitor, |=)
+MAKE_VM_IBINOP(xor, ^=)
+MAKE_VM_IBINOP(shiftl, <<=)
+MAKE_VM_IBINOP(shiftr, >>=)

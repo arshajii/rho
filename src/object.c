@@ -60,9 +60,9 @@ struct num_methods obj_num_methods = {
 	NULL,    /* mod */
 	NULL,    /* pow */
 
-	NULL,    /* not */
-	NULL,    /* and */
-	NULL,    /* or */
+	NULL,    /* bitnot */
+	NULL,    /* bitand */
+	NULL,    /* bitor */
 	NULL,    /* xor */
 	NULL,    /* shiftl */
 	NULL,    /* shiftr */
@@ -74,8 +74,8 @@ struct num_methods obj_num_methods = {
 	NULL,    /* imod */
 	NULL,    /* ipow */
 
-	NULL,    /* iand */
-	NULL,    /* ior */
+	NULL,    /* ibitand */
+	NULL,    /* ibitor */
 	NULL,    /* ixor */
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */
@@ -200,9 +200,9 @@ MAKE_METHOD_RESOLVER(mul, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(div, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(mod, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(pow, num_methods, BinOp)
-MAKE_METHOD_RESOLVER(not, num_methods, UnOp)
-MAKE_METHOD_RESOLVER(and, num_methods, BinOp)
-MAKE_METHOD_RESOLVER(or, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(bitnot, num_methods, UnOp)
+MAKE_METHOD_RESOLVER(bitand, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(bitor, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(xor, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(shiftl, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(shiftr, num_methods, BinOp)
@@ -212,8 +212,8 @@ MAKE_METHOD_RESOLVER(imul, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(idiv, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(imod, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ipow, num_methods, BinOp)
-MAKE_METHOD_RESOLVER(iand, num_methods, BinOp)
-MAKE_METHOD_RESOLVER(ior, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(ibitand, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(ibitor, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ixor, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ishiftl, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ishiftr, num_methods, BinOp)

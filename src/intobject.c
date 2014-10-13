@@ -132,17 +132,17 @@ static Value int_pow(Value *this, Value *other)
 	}
 }
 
-static Value int_not(Value *this)
+static Value int_bitnot(Value *this)
 {
 	return makeint(~intvalue(this));
 }
 
-static Value int_and(Value *this, Value *other)
+static Value int_bitand(Value *this, Value *other)
 {
 	INT_BINOP_FUNC_BODY_NOFLOAT(&)
 }
 
-static Value int_or(Value *this, Value *other)
+static Value int_bitor(Value *this, Value *other)
 {
 	INT_BINOP_FUNC_BODY_NOFLOAT(|)
 }
@@ -207,12 +207,12 @@ static Value int_ipow(Value *this, Value *other)
 	}
 }
 
-static Value int_iand(Value *this, Value *other)
+static Value int_ibitand(Value *this, Value *other)
 {
 	INT_IBINOP_FUNC_BODY_NOFLOAT(&)
 }
 
-static Value int_ior(Value *this, Value *other)
+static Value int_ibitor(Value *this, Value *other)
 {
 	INT_IBINOP_FUNC_BODY_NOFLOAT(|)
 }
@@ -259,9 +259,9 @@ struct num_methods int_num_methods = {
 	int_mod,    /* mod */
 	int_pow,    /* pow */
 
-	int_not,    /* not */
-	int_and,    /* and */
-	int_or,    /* or */
+	int_bitnot,    /* bitnot */
+	int_bitand,    /* bitand */
+	int_bitor,    /* bitor */
 	int_xor,    /* xor */
 	int_shiftl,    /* shiftl */
 	int_shiftr,    /* shiftr */
@@ -273,8 +273,8 @@ struct num_methods int_num_methods = {
 	int_imod,    /* imod */
 	int_ipow,    /* ipow */
 
-	int_iand,    /* iand */
-	int_ior,    /* ior */
+	int_ibitand,    /* ibitand */
+	int_ibitor,    /* ibitor */
 	int_ixor,    /* ixor */
 	int_ishiftl,    /* ishiftl */
 	int_ishiftr,    /* ishiftr */
