@@ -30,11 +30,19 @@ static bool obj_eq(Value *this, Value *other)
 
 static Str *obj_str(Value *this)
 {
-	char *buf = malloc(32);
-	sprintf(buf, "<%s at %p>", getclass(this)->name, objvalue(this));
-	Str *str = str_new(buf, strlen(buf));
+#define STR_MAX_LEN 50
+	char *buf = malloc(STR_MAX_LEN);
+	size_t len = snprintf(buf, STR_MAX_LEN, "<%s at %p>", getclass(this)->name, objvalue(this));
+	assert(len > 0);
+
+	if (len > STR_MAX_LEN) {
+		len = STR_MAX_LEN;
+	}
+
+	Str *str = str_new(buf, len);
 	str->freeable = 1;
 	return str;
+#undef STR_MAX_LEN
 }
 
 static bool obj_nonzero(Value *this)
