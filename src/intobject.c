@@ -279,6 +279,19 @@ struct num_methods int_num_methods = {
 	int_ishiftl,    /* ishiftl */
 	int_ishiftr,    /* ishiftr */
 
+	NULL,    /* radd */
+	NULL,    /* rsub */
+	NULL,    /* rmul */
+	NULL,    /* rdiv */
+	NULL,    /* rmod */
+	NULL,    /* rpow */
+
+	NULL,    /* rbitand */
+	NULL,    /* rbitor */
+	NULL,    /* rxor */
+	NULL,    /* rshiftl */
+	NULL,    /* rshiftr */
+
 	int_nonzero,    /* nonzero */
 
 	int_to_int,    /* to_int */

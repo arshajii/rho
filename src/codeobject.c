@@ -266,6 +266,19 @@ struct num_methods co_num_methods = {
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */
 
+	NULL,    /* radd */
+	NULL,    /* rsub */
+	NULL,    /* rmul */
+	NULL,    /* rdiv */
+	NULL,    /* rmod */
+	NULL,    /* rpow */
+
+	NULL,    /* rbitand */
+	NULL,    /* rbitor */
+	NULL,    /* rxor */
+	NULL,    /* rshiftl */
+	NULL,    /* rshiftr */
+
 	NULL,    /* nonzero */
 
 	NULL,    /* to_int */

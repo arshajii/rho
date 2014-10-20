@@ -184,6 +184,19 @@ struct num_methods float_num_methods = {
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */
 
+	NULL,    /* radd */
+	NULL,    /* rsub */
+	NULL,    /* rmul */
+	NULL,    /* rdiv */
+	NULL,    /* rmod */
+	NULL,    /* rpow */
+
+	NULL,    /* rbitand */
+	NULL,    /* rbitor */
+	NULL,    /* rxor */
+	NULL,    /* rshiftl */
+	NULL,    /* rshiftr */
+
 	float_nonzero,    /* nonzero */
 
 	float_to_int,    /* to_int */

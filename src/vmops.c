@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include "object.h"
 #include "err.h"
 #include "vmops.h"
@@ -12,19 +13,44 @@
 Value op_##op(Value *a, Value *b) \
 { \
 	Class *class = getclass(a); \
-	const BinOp binop = resolve_##op(class); \
+	BinOp binop = resolve_##op(class); \
+	bool r_op = false; \
+	Value result; \
 \
 	if (!binop) { \
-		goto error; \
+		Class *class2 = getclass(b); \
+		binop = resolve_r##op(class2); \
+\
+		if (!binop) { \
+			goto error; \
+		} \
+\
+		r_op = true; \
+		result = binop(b, a); \
+	} else { \
+		result = binop(a, b); \
 	} \
 \
-	Value v = binop(a, b); \
+	if (isut(&result)) { \
+		if (r_op) { \
+			goto error; \
+		} \
 \
-	if (isut(&v)) { \
-		goto error; \
+		Class *class2 = getclass(b); \
+		binop = resolve_r##op(class2); \
+\
+		if (!binop) { \
+			goto error; \
+		} \
+\
+		result = binop(b, a); \
+\
+		if (isut(&result)) { \
+			goto error; \
+		} \
 	} \
 \
-	return v; \
+	return result; \
 \
 	error: \
 	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
@@ -34,23 +60,48 @@ Value op_##op(Value *a, Value *b) \
 Value op_##op(Value *a, Value *b) \
 { \
 	Class *class = getclass(a); \
-	const BinOp binop = resolve_##op(class); \
+	BinOp binop = resolve_##op(class); \
+	bool r_op = false; \
+	Value result; \
 \
 	if (!binop) { \
-		goto type_error; \
+		Class *class2 = getclass(b); \
+		binop = resolve_r##op(class2); \
+\
+		if (!binop) { \
+			goto type_error; \
+		} \
+\
+		r_op = true; \
+		result = binop(b, a); \
+	} else { \
+		result = binop(a, b); \
 	} \
 \
-	Value v = binop(a, b); \
+	if (isut(&result)) { \
+		if (r_op) { \
+			goto type_error; \
+		} \
 \
-	if (isut(&v)) { \
-		goto type_error; \
+		Class *class2 = getclass(b); \
+		binop = resolve_r##op(class2); \
+\
+		if (!binop) { \
+			goto type_error; \
+		} \
+\
+		result = binop(b, a); \
+\
+		if (isut(&result)) { \
+			goto type_error; \
+		} \
 	} \
 \
-	if (isdbz(&v)) { \
+	if (isdbz(&result)) { \
 		goto div_by_zero_error; \
 	} \
 \
-	return v; \
+	return result; \
 \
 	type_error: \
 	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
@@ -216,28 +267,72 @@ Value op_i##op(Value *a, Value *b) \
 { \
 	Class *class = getclass(a); \
 	BinOp binop = resolve_i##op(class); \
-\
-	bool release_a = false; \
+	bool r_op = false; \
+	bool i_op = true; \
+	Value result; \
 \
 	if (!binop) { \
 		binop = resolve_##op(class); \
 		if (!binop) { \
-			goto error; \
+			Class *class2 = getclass(b); \
+			binop = resolve_r##op(class2); \
+\
+			if (!binop) { \
+				goto error; \
+			} else { \
+				result = binop(b, a); \
+			} \
+\
+			r_op = true; \
+		} else { \
+			result = binop(a, b); \
 		} \
-		release_a = true; \
+		i_op = false; \
+	} else { \
+		result = binop(a, b); \
 	} \
 \
-	Value v = binop(a, b); \
+	while (isut(&result)) { \
+		if (i_op) { \
+			binop = resolve_##op(class); \
 \
-	if (isut(&v)) { \
-		goto error; \
+			if (!binop) { \
+				Class *class2 = getclass(b); \
+				binop = resolve_r##op(class2); \
+\
+				if (!binop) { \
+					goto error; \
+				} else { \
+					result = binop(b, a); \
+				} \
+\
+				r_op = true; \
+			} else { \
+				result = binop(a, b); \
+			} \
+\
+			i_op = false; \
+		} else if (r_op) { \
+			goto error; \
+		} else { \
+			Class *class2 = getclass(b); \
+			binop = resolve_r##op(class2); \
+\
+			if (!binop) { \
+				goto error; \
+			} else { \
+				result = binop(b, a); \
+			} \
+\
+			r_op = true; \
+		} \
 	} \
 \
-	if (release_a) { \
+	if (!i_op) { \
 		release(a); \
 	} \
 \
-	return v; \
+	return result; \
 \
 	error: \
 	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
@@ -248,32 +343,76 @@ Value op_i##op(Value *a, Value *b) \
 { \
 	Class *class = getclass(a); \
 	BinOp binop = resolve_i##op(class); \
-\
-	bool release_a = false; \
+	bool r_op = false; \
+	bool i_op = true; \
+	Value result; \
 \
 	if (!binop) { \
 		binop = resolve_##op(class); \
 		if (!binop) { \
-			goto type_error; \
+			Class *class2 = getclass(b); \
+			binop = resolve_r##op(class2); \
+\
+			if (!binop) { \
+				goto type_error; \
+			} else { \
+				result = binop(b, a); \
+			} \
+\
+			r_op = true; \
+		} else { \
+			result = binop(a, b); \
 		} \
-		release_a = true; \
+		i_op = false; \
+	} else { \
+		result = binop(a, b); \
 	} \
 \
-	Value v = binop(a, b); \
+	while (isut(&result)) { \
+		if (i_op) { \
+			binop = resolve_##op(class); \
 \
-	if (isut(&v)) { \
-		goto type_error; \
+			if (!binop) { \
+				Class *class2 = getclass(b); \
+				binop = resolve_r##op(class2); \
+\
+				if (!binop) { \
+					goto type_error; \
+				} else { \
+					result = binop(b, a); \
+				} \
+\
+				r_op = true; \
+			} else { \
+				result = binop(a, b); \
+			} \
+\
+			i_op = false; \
+		} else if (r_op) { \
+			goto type_error; \
+		} else { \
+			Class *class2 = getclass(b); \
+			binop = resolve_r##op(class2); \
+\
+			if (!binop) { \
+				goto type_error; \
+			} else { \
+				result = binop(b, a); \
+			} \
+\
+			r_op = true; \
+		} \
 	} \
 \
-	if (isdbz(&v)) { \
+	if (isdbz(&result)) { \
 		goto div_by_zero_error; \
 	} \
 \
-	if (release_a) { \
+	if (!i_op) { \
 		release(a); \
 	} \
 \
-	return v; \
+	return result; \
 \
 	type_error: \
 	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \

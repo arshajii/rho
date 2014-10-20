@@ -128,6 +128,19 @@ struct num_methods str_num_methods = {
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */
 
+	NULL,    /* radd */
+	NULL,    /* rsub */
+	NULL,    /* rmul */
+	NULL,    /* rdiv */
+	NULL,    /* rmod */
+	NULL,    /* rpow */
+
+	NULL,    /* rbitand */
+	NULL,    /* rbitor */
+	NULL,    /* rxor */
+	NULL,    /* rshiftl */
+	NULL,    /* rshiftr */
+
 	strobj_nonzero,    /* nonzero */
 
 	NULL,    /* to_int */

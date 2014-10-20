@@ -52,6 +52,19 @@ struct num_methods {
 	BinOp ishiftl;
 	BinOp ishiftr;
 
+	BinOp radd;
+	BinOp rsub;
+	BinOp rmul;
+	BinOp rdiv;
+	BinOp rmod;
+	BinOp rpow;
+
+	BinOp rbitand;
+	BinOp rbitor;
+	BinOp rxor;
+	BinOp rshiftl;
+	BinOp rshiftr;
+
 	BoolUnOp nonzero;
 
 	UnOp to_int;
@@ -189,6 +202,17 @@ BinOp resolve_ibitor(Class *class);
 BinOp resolve_ixor(Class *class);
 BinOp resolve_ishiftl(Class *class);
 BinOp resolve_ishiftr(Class *class);
+BinOp resolve_radd(Class *class);
+BinOp resolve_rsub(Class *class);
+BinOp resolve_rmul(Class *class);
+BinOp resolve_rdiv(Class *class);
+BinOp resolve_rmod(Class *class);
+BinOp resolve_rpow(Class *class);
+BinOp resolve_rbitand(Class *class);
+BinOp resolve_rbitor(Class *class);
+BinOp resolve_rxor(Class *class);
+BinOp resolve_rshiftl(Class *class);
+BinOp resolve_rshiftr(Class *class);
 BoolUnOp resolve_nonzero(Class *class);
 UnOp resolve_to_int(Class *class);
 UnOp resolve_to_float(Class *class);

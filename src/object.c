@@ -88,6 +88,19 @@ struct num_methods obj_num_methods = {
 	NULL,    /* ishiftl */
 	NULL,    /* ishiftr */
 
+	NULL,    /* radd */
+	NULL,    /* rsub */
+	NULL,    /* rmul */
+	NULL,    /* rdiv */
+	NULL,    /* rmod */
+	NULL,    /* rpow */
+
+	NULL,    /* rbitand */
+	NULL,    /* rbitor */
+	NULL,    /* rxor */
+	NULL,    /* rshiftl */
+	NULL,    /* rshiftr */
+
 	obj_nonzero,    /* nonzero */
 
 	NULL,    /* to_int */
@@ -225,6 +238,17 @@ MAKE_METHOD_RESOLVER(ibitor, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ixor, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ishiftl, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(ishiftr, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(radd, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rsub, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rmul, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rdiv, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rmod, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rpow, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rbitand, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rbitor, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rxor, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rshiftl, num_methods, BinOp)
+MAKE_METHOD_RESOLVER(rshiftr, num_methods, BinOp)
 MAKE_METHOD_RESOLVER(nonzero, num_methods, BoolUnOp)
 MAKE_METHOD_RESOLVER(to_int, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(to_float, num_methods, UnOp)
