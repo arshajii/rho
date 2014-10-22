@@ -22,53 +22,6 @@ Value op_##op(Value *a, Value *b) \
 		binop = resolve_r##op(class2); \
 \
 		if (!binop) { \
-			goto error; \
-		} \
-\
-		r_op = true; \
-		result = binop(b, a); \
-	} else { \
-		result = binop(a, b); \
-	} \
-\
-	if (isut(&result)) { \
-		if (r_op) { \
-			goto error; \
-		} \
-\
-		Class *class2 = getclass(b); \
-		binop = resolve_r##op(class2); \
-\
-		if (!binop) { \
-			goto error; \
-		} \
-\
-		result = binop(b, a); \
-\
-		if (isut(&result)) { \
-			goto error; \
-		} \
-	} \
-\
-	return result; \
-\
-	error: \
-	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
-}
-
-#define MAKE_VM_BINOP_DBZ_AWARE(op, tok) \
-Value op_##op(Value *a, Value *b) \
-{ \
-	Class *class = getclass(a); \
-	BinOp binop = resolve_##op(class); \
-	bool r_op = false; \
-	Value result; \
-\
-	if (!binop) { \
-		Class *class2 = getclass(b); \
-		binop = resolve_r##op(class2); \
-\
-		if (!binop) { \
 			goto type_error; \
 		} \
 \
@@ -126,8 +79,8 @@ Value op_##op(Value *a) \
 MAKE_VM_BINOP(add, +)
 MAKE_VM_BINOP(sub, -)
 MAKE_VM_BINOP(mul, *)
-MAKE_VM_BINOP_DBZ_AWARE(div, /)
-MAKE_VM_BINOP_DBZ_AWARE(mod, %)
+MAKE_VM_BINOP(div, /)
+MAKE_VM_BINOP(mod, %)
 MAKE_VM_BINOP(pow, **)
 MAKE_VM_BINOP(bitand, &)
 MAKE_VM_BINOP(bitor, |)
@@ -278,82 +231,6 @@ Value op_i##op(Value *a, Value *b) \
 			binop = resolve_r##op(class2); \
 \
 			if (!binop) { \
-				goto error; \
-			} else { \
-				result = binop(b, a); \
-			} \
-\
-			r_op = true; \
-		} else { \
-			result = binop(a, b); \
-		} \
-		i_op = false; \
-	} else { \
-		result = binop(a, b); \
-	} \
-\
-	while (isut(&result)) { \
-		if (i_op) { \
-			binop = resolve_##op(class); \
-\
-			if (!binop) { \
-				Class *class2 = getclass(b); \
-				binop = resolve_r##op(class2); \
-\
-				if (!binop) { \
-					goto error; \
-				} else { \
-					result = binop(b, a); \
-				} \
-\
-				r_op = true; \
-			} else { \
-				result = binop(a, b); \
-			} \
-\
-			i_op = false; \
-		} else if (r_op) { \
-			goto error; \
-		} else { \
-			Class *class2 = getclass(b); \
-			binop = resolve_r##op(class2); \
-\
-			if (!binop) { \
-				goto error; \
-			} else { \
-				result = binop(b, a); \
-			} \
-\
-			r_op = true; \
-		} \
-	} \
-\
-	if (!i_op) { \
-		release(a); \
-	} \
-\
-	return result; \
-\
-	error: \
-	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
-}
-
-#define MAKE_VM_IBINOP_DBZ_AWARE(op, tok) \
-Value op_i##op(Value *a, Value *b) \
-{ \
-	Class *class = getclass(a); \
-	BinOp binop = resolve_i##op(class); \
-	bool r_op = false; \
-	bool i_op = true; \
-	Value result; \
-\
-	if (!binop) { \
-		binop = resolve_##op(class); \
-		if (!binop) { \
-			Class *class2 = getclass(b); \
-			binop = resolve_r##op(class2); \
-\
-			if (!binop) { \
 				goto type_error; \
 			} else { \
 				result = binop(b, a); \
@@ -424,8 +301,8 @@ Value op_i##op(Value *a, Value *b) \
 MAKE_VM_IBINOP(add, +=)
 MAKE_VM_IBINOP(sub, -=)
 MAKE_VM_IBINOP(mul, *=)
-MAKE_VM_IBINOP_DBZ_AWARE(div, /=)
-MAKE_VM_IBINOP_DBZ_AWARE(mod, %=)
+MAKE_VM_IBINOP(div, /=)
+MAKE_VM_IBINOP(mod, %=)
 MAKE_VM_IBINOP(pow, **=)
 MAKE_VM_IBINOP(bitand, &=)
 MAKE_VM_IBINOP(bitor, |=)
