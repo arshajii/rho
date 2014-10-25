@@ -165,6 +165,12 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_IF:
 		printf("if");
 		break;
+	case NODE_ELIF:
+		printf("elif");
+		break;
+	case NODE_ELSE:
+		printf("else");
+		break;
 	case NODE_WHILE:
 		printf("while");
 		break;

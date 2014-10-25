@@ -55,6 +55,8 @@ typedef enum {
 
 	NODE_PRINT,
 	NODE_IF,
+	NODE_ELIF,
+	NODE_ELSE,
 	NODE_WHILE,
 	NODE_DEF,
 	NODE_BREAK,
@@ -73,7 +75,7 @@ typedef struct ast_list Block;
 typedef struct ast_list ParamList;
 
 /*
- * `AST` represents a single statement.
+ * Fundamental syntax tree unit
  */
 typedef struct AST {
 	NodeType type;
@@ -87,7 +89,7 @@ typedef struct AST {
 		struct AST *middle;
 		Block *block;
 		ParamList *params;
-	} v;  // value
+	} v;
 
 	struct AST *left;
 	struct AST *right;

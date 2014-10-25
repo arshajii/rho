@@ -131,7 +131,10 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 	case NODE_IF:
 		populate_symtable_from_node(st, ast->left);
 		populate_symtable_from_node(st, ast->right);
-		populate_symtable_from_node(st, ast->v.middle);
+
+		for (AST *node = ast->v.middle; node != NULL; node = node->v.middle) {
+			populate_symtable_from_node(st, node);
+		}
 		break;
 	case NODE_ASSIGN:
 		if (ast->left->type != NODE_IDENT) {

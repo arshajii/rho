@@ -493,13 +493,41 @@ static AST *parse_if(Lexer *lex)
 	AST *body = parse_block(lex);
 	AST *ast = ast_new(NODE_IF, condition, body, tok->lineno);
 
-	if (lex_peek_token(lex)->type == TOK_ELSE) {
+	AST *else_chain_base = NULL;
+	AST *else_chain_last = NULL;
+
+	while ((tok = lex_peek_token(lex))->type == TOK_ELIF) {
+		expect(lex, TOK_ELIF);
+		AST *elif_condition = parse_expr(lex);
+		AST *elif_body = parse_block(lex);
+		AST *elif = ast_new(NODE_ELIF, elif_condition, elif_body, tok->lineno);
+
+		if (else_chain_base == NULL) {
+			else_chain_base = else_chain_last = elif;
+		} else {
+			else_chain_last->v.middle = elif;
+			else_chain_last = elif;
+		}
+	}
+
+	if ((tok = lex_peek_token(lex))->type == TOK_ELSE) {
 		expect(lex, TOK_ELSE);
 		AST *else_body = parse_block(lex);
-		ast->v.middle = else_body;
-	} else {
-		ast->v.middle = NULL;
+		AST *else_ast = ast_new(NODE_ELSE, else_body, NULL, tok->lineno);
+
+		if (else_chain_base == NULL) {
+			else_chain_base = else_chain_last = else_ast;
+		} else {
+			else_chain_last->v.middle = else_ast;
+			else_chain_last = else_ast;
+		}
 	}
+
+	if (else_chain_last != NULL) {
+		else_chain_last->v.middle = NULL;
+	}
+
+	ast->v.middle = else_chain_base;
 
 	return ast;
 }

@@ -428,32 +428,64 @@ static void compile_if(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_IF);
 
-	const unsigned int lineno = ast->lineno;
-	const bool has_else = (ast->v.middle != NULL);
+	AST *else_chain_base = ast->v.middle;
+	unsigned int n_elifs = 0;
+	bool has_else = false;
 
-	compile_node(compiler, ast->left, false);
-	write_ins(compiler, INS_JMP_IF_FALSE, lineno);
-
-	// jump placeholder:
-	const size_t jmp_index = compiler->code.size;
-	write_uint16(compiler, 0);
-
-	compile_node(compiler, ast->right, false);
-
-	// fill in placeholder:
-	if (has_else) {
-		write_ins(compiler, INS_JMP, lineno);
-		const size_t jmp_index_2 = compiler->code.size;
-		write_uint16(compiler, 0);
-
-		write_uint16_at(compiler, compiler->code.size - jmp_index - 2, jmp_index);
-
-		compile_node(compiler, ast->v.middle, false);
-
-		write_uint16_at(compiler, compiler->code.size - jmp_index_2 - 2, jmp_index_2);
-	} else {
-		write_uint16_at(compiler, compiler->code.size - jmp_index - 2, jmp_index);
+	for (AST *node = else_chain_base; node != NULL; node = node->v.middle) {
+		if (node->type == NODE_ELSE) {
+			assert(node->v.middle == NULL);   // this'd better be the last node
+			has_else = true;
+		} else {
+			assert(node->type == NODE_ELIF);  // only ELSE and ELIF nodes allowed here
+			++n_elifs;
+		}
 	}
+
+	/*
+	 * Placeholder indices for jump offsets following the ELSE/ELIF bodies.
+	 */
+	size_t *jmp_placeholder_indices = malloc((1 + n_elifs) * sizeof(size_t));
+	size_t node_index = 0;
+
+	for (AST *node = ast; node != NULL; node = node->v.middle) {
+		NodeType type = node->type;
+		const unsigned int lineno = node->lineno;
+
+		switch (type) {
+		case NODE_IF:
+		case NODE_ELIF: {
+			compile_node(compiler, node->left, false);
+			write_ins(compiler, INS_JMP_IF_FALSE, lineno);
+			const size_t jmp_to_next_index = compiler->code.size;
+			write_uint16(compiler, 0);
+
+			compile_node(compiler, node->right, false);
+			write_ins(compiler, INS_JMP, lineno);
+			const size_t jmp_out_index = compiler->code.size;
+			write_uint16(compiler, 0);
+
+			jmp_placeholder_indices[node_index++] = jmp_out_index;
+			write_uint16_at(compiler, compiler->code.size - jmp_to_next_index - 2, jmp_to_next_index);
+			break;
+		}
+		case NODE_ELSE: {
+			compile_node(compiler, node->left, false);
+			break;
+		}
+		default:
+			INTERNAL_ERROR();
+		}
+	}
+
+	const size_t final_size = compiler->code.size;
+
+	for (size_t i = 0; i <= n_elifs; i++) {
+		const size_t jmp_placeholder_index = jmp_placeholder_indices[i];
+		write_uint16_at(compiler, final_size - jmp_placeholder_index - 2, jmp_placeholder_index);
+	}
+
+	free(jmp_placeholder_indices);
 }
 
 static void compile_while(Compiler *compiler, AST *ast)
@@ -934,7 +966,10 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 	case NODE_IF:
 		fill_ct_from_ast(compiler, ast->left);
 		fill_ct_from_ast(compiler, ast->right);
-		fill_ct_from_ast(compiler, ast->v.middle);
+
+		for (AST *node = ast->v.middle; node != NULL; node = node->v.middle) {
+			fill_ct_from_ast(compiler, node);
+		}
 		return;
 	case NODE_CALL:
 		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
