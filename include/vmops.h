@@ -71,4 +71,6 @@ Value op_ishiftl(Value *a, Value *b);
 
 Value op_ishiftr(Value *a, Value *b);
 
+void op_print(Value *v, FILE *out);
+
 #endif /* VMOPS_H */

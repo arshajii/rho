@@ -180,6 +180,8 @@ Class str_class = {
 	.num_methods = &str_num_methods,
 	.seq_methods  = &str_seq_methods,
 
+	.print = NULL,
+
 	.members = str_members,
 	.methods = NULL
 };

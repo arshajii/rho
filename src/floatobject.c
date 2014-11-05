@@ -228,6 +228,8 @@ Class float_class = {
 	.str = NULL,
 	.call = NULL,
 
+	.print = NULL,
+
 	.num_methods = &float_num_methods,
 	.seq_methods  = &float_seq_methods,
 

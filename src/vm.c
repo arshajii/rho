@@ -94,7 +94,6 @@ static void vm_popframe(VM *vm)
 }
 
 static void eval_frame(VM *vm);
-static void print(Value *v);
 
 // TODO: move this out of vm.c
 void execute(FILE *compiled)
@@ -1040,7 +1039,7 @@ static void eval_frame(VM *vm)
 		}
 		case INS_PRINT: {
 			v1 = STACK_POP();
-			print(v1);
+			op_print(v1, stdout);
 			release(v1);
 			break;
 		}
@@ -1171,37 +1170,6 @@ static void eval_frame(VM *vm)
 #undef STACK_POP
 #undef STACK_TOP
 #undef STACK_PUSH
-}
-
-static void print(Value *v)
-{
-	switch (v->type) {
-	case VAL_TYPE_INT:
-		printf("%ld\n", intvalue(v));
-		break;
-	case VAL_TYPE_FLOAT:
-		printf("%f\n", floatvalue(v));
-		break;
-	case VAL_TYPE_OBJECT: {
-		const Object *o = objvalue(v);
-		const StrUnOp op = resolve_str(o->class);
-		Str *str = op(v);
-
-		printf("%s\n", str->value);
-
-		if (str->freeable) {
-			str_free(str);
-		}
-
-		break;
-	}
-	case VAL_TYPE_EMPTY:
-	case VAL_TYPE_ERROR:
-	case VAL_TYPE_UNSUPPORTED_TYPES:
-	case VAL_TYPE_DIV_BY_ZERO:
-		INTERNAL_ERROR();
-		break;
-	}
 }
 
 static unsigned int get_lineno(Frame *frame)

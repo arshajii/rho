@@ -101,6 +101,8 @@ Class method_class = {
 	.str = NULL,
 	.call = methobj_invoke,
 
+	.print = NULL,
+
 	.num_methods = &meth_num_methods,
 	.seq_methods  = &meth_seq_methods,
 

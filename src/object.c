@@ -132,6 +132,8 @@ Class obj_class = {
 	.str = obj_str,
 	.call = NULL,
 
+	.print = NULL,
+
 	.num_methods = &obj_num_methods,
 	.seq_methods = &obj_seq_methods,
 
@@ -211,6 +213,7 @@ MAKE_METHOD_RESOLVER_DIRECT(hash, IntUnOp)
 MAKE_METHOD_RESOLVER_DIRECT(cmp, BinOp)
 MAKE_METHOD_RESOLVER_DIRECT(str, StrUnOp)
 MAKE_METHOD_RESOLVER_DIRECT(call, CallFunc)
+MAKE_METHOD_RESOLVER_DIRECT(print, PrintFunc)
 
 MAKE_METHOD_RESOLVER(plus, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(minus, num_methods, UnOp)

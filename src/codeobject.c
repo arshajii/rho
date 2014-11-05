@@ -310,6 +310,8 @@ Class co_class = {
 	.str = NULL,
 	.call = NULL,
 
+	.print = NULL,
+
 	.num_methods = &co_num_methods,
 	.seq_methods = &co_seq_methods,
 

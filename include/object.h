@@ -1,6 +1,8 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include "str.h"
 #include "attr.h"
@@ -17,6 +19,7 @@ typedef Str *(*StrUnOp)(Value *this);
 typedef void (*InitFunc)(Value *this, Value *args, size_t nargs);
 typedef void (*DelFunc)(Value *this);
 typedef Value (*CallFunc)(Value *this, Value *args, size_t nargs);
+typedef int (*PrintFunc)(Value *this, FILE *out);
 typedef size_t (*LenFunc)(Value *this);
 typedef void (*SeqSetFunc)(Value *this, Value *idx, Value *v);
 
@@ -95,6 +98,8 @@ typedef struct class {
 	BinOp cmp;
 	StrUnOp str;
 	CallFunc call;
+
+	PrintFunc print;
 
 	struct num_methods *num_methods;
 	struct seq_methods *seq_methods;
@@ -175,6 +180,7 @@ IntUnOp resolve_hash(Class *class);
 BinOp resolve_cmp(Class *class);
 StrUnOp resolve_str(Class *class);
 CallFunc resolve_call(Class *class);
+PrintFunc resolve_print(Class *class);
 
 UnOp resolve_plus(Class *class);
 UnOp resolve_minus(Class *class);

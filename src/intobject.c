@@ -323,6 +323,8 @@ Class int_class = {
 	.str = NULL,
 	.call = NULL,
 
+	.print = NULL,
+
 	.num_methods = &int_num_methods,
 	.seq_methods  = &int_seq_methods,
 

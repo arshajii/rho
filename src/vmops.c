@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include "object.h"
 #include "err.h"
@@ -309,3 +310,39 @@ MAKE_VM_IBINOP(bitor, |=)
 MAKE_VM_IBINOP(xor, ^=)
 MAKE_VM_IBINOP(shiftl, <<=)
 MAKE_VM_IBINOP(shiftr, >>=)
+
+void op_print(Value *v, FILE *out)
+{
+	switch (v->type) {
+	case VAL_TYPE_INT:
+		fprintf(out, "%ld\n", intvalue(v));
+		break;
+	case VAL_TYPE_FLOAT:
+		fprintf(out, "%f\n", floatvalue(v));
+		break;
+	case VAL_TYPE_OBJECT: {
+		const Object *o = objvalue(v);
+		PrintFunc print = resolve_print(o->class);
+
+		if (print) {
+			print(v, out);
+		} else {
+			const StrUnOp op = resolve_str(o->class);
+			Str *str = op(v);
+
+			fprintf(out, "%s\n", str->value);
+
+			if (str->freeable) {
+				str_free(str);
+			}
+		}
+		break;
+	}
+	case VAL_TYPE_EMPTY:
+	case VAL_TYPE_ERROR:
+	case VAL_TYPE_UNSUPPORTED_TYPES:
+	case VAL_TYPE_DIV_BY_ZERO:
+		INTERNAL_ERROR();
+		break;
+	}
+}
