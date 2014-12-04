@@ -21,7 +21,7 @@ typedef void (*DelFunc)(Value *this);
 typedef Value (*CallFunc)(Value *this, Value *args, size_t nargs);
 typedef int (*PrintFunc)(Value *this, FILE *out);
 typedef size_t (*LenFunc)(Value *this);
-typedef void (*SeqSetFunc)(Value *this, Value *idx, Value *v);
+typedef Value (*SeqSetFunc)(Value *this, Value *idx, Value *v);
 
 struct num_methods {
 	UnOp plus;

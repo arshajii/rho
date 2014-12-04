@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "err.h"
 #include "ast.h"
 
 AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno)
@@ -14,7 +15,7 @@ AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno)
 
 struct ast_list *ast_list_new(void)
 {
-	struct ast_list *list = malloc(sizeof(Block));
+	struct ast_list *list = malloc(sizeof(struct ast_list));
 	list->ast = NULL;
 	list->next = NULL;
 	return list;
@@ -189,8 +190,14 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_BLOCK:
 		printf("{}");
 		break;
+	case NODE_LIST:
+		printf("[]");
+		break;
 	case NODE_CALL:
 		printf("()");
+		break;
+	case NODE_INDEX:
+		printf("[n]");
 		break;
 	}
 	printf("\n");
@@ -226,15 +233,19 @@ void ast_free(AST *ast)
 	case NODE_IDENT:
 		str_free(ast->v.ident);
 		break;
-	case NODE_BLOCK:
-		ast_list_free(ast->v.block);
-		break;
 	case NODE_IF:
+	case NODE_ELIF:
 		ast_free(ast->v.middle);
 		break;
 	case NODE_DEF:
 	case NODE_CALL:
 		ast_list_free(ast->v.params);
+		break;
+	case NODE_BLOCK:
+		ast_list_free(ast->v.block);
+		break;
+	case NODE_LIST:
+		ast_list_free(ast->v.list);
 		break;
 	default:
 		break;

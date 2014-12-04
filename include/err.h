@@ -33,6 +33,7 @@ Error *error_new(ErrorType type, const char *msg_format, ...);
 Error *unbound_error(const char *var);
 Error *type_error_unsupported_1(const char *op, const Class *c1);
 Error *type_error_unsupported_2(const char *op, const Class *c1, const Class *c2);
+Error *type_error_cannot_index(const Class *c1);
 Error *type_error_cannot_instantiate(const Class *c1);
 Error *type_error_not_callable(const Class *c1);
 Error *type_error_invalid_cmp(const Class *c1);

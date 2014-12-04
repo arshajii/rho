@@ -1,6 +1,7 @@
 #ifndef VMOPS_H
 #define VMOPS_H
 
+#include "str.h"
 #include "object.h"
 
 Value op_add(Value *a, Value *b);
@@ -70,6 +71,12 @@ Value op_ixor(Value *a, Value *b);
 Value op_ishiftl(Value *a, Value *b);
 
 Value op_ishiftr(Value *a, Value *b);
+
+Value op_get(Value *v, Value *idx);
+
+Value op_set(Value *v, Value *idx, Value *e);
+
+Str *op_str(Value *v);
 
 void op_print(Value *v, FILE *out);
 

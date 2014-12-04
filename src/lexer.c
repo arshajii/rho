@@ -502,18 +502,34 @@ static Token next_paren_close(Lexer *lex)
 	return tok;
 }
 
-static Token next_bracket_open(Lexer *lex)
+static Token next_brace_open(Lexer *lex)
 {
 	assert(currc(lex) == '{');
-	Token tok = get(lex, TOK_BRACKET_OPEN);
+	Token tok = get(lex, TOK_BRACE_OPEN);
+	fwd(lex);
+	return tok;
+}
+
+static Token next_brace_close(Lexer *lex)
+{
+	assert(currc(lex) == '}');
+	Token tok = get(lex, TOK_BRACE_CLOSE);
+	fwd(lex);
+	return tok;
+}
+
+static Token next_bracket_open(Lexer *lex)
+{
+	assert(currc(lex) == '[');
+	Token tok = get(lex, TOK_BRACK_OPEN);
 	fwd(lex);
 	return tok;
 }
 
 static Token next_bracket_close(Lexer *lex)
 {
-	assert(currc(lex) == '}');
-	Token tok = get(lex, TOK_BRACKET_CLOSE);
+	assert(currc(lex) == ']');
+	Token tok = get(lex, TOK_BRACK_CLOSE);
 	fwd(lex);
 	return tok;
 }
@@ -604,9 +620,15 @@ static void tokenize(Lexer *lex)
 				tok = next_paren_close(lex);
 				break;
 			case '{':
-				tok = next_bracket_open(lex);
+				tok = next_brace_open(lex);
 				break;
 			case '}':
+				tok = next_brace_close(lex);
+				break;
+			case '[':
+				tok = next_bracket_open(lex);
+				break;
+			case ']':
 				tok = next_bracket_close(lex);
 				break;
 			case ',':
@@ -827,10 +849,14 @@ const char *type_to_str(TokType type)
 		return "(";
 	case TOK_PAREN_CLOSE:
 		return ")";
-	case TOK_BRACKET_OPEN:
+	case TOK_BRACE_OPEN:
 		return "{";
-	case TOK_BRACKET_CLOSE:
+	case TOK_BRACE_CLOSE:
 		return "}";
+	case TOK_BRACK_OPEN:
+		return "[";
+	case TOK_BRACK_CLOSE:
+		return "]";
 	case TOK_PRINT:
 		return "print";
 	case TOK_IF:

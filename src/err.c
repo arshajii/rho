@@ -49,6 +49,11 @@ Error *type_error_unsupported_2(const char *op, const Class *c1, const Class *c2
 	                 c2->name);
 }
 
+Error *type_error_cannot_index(const Class *c1)
+{
+	return error_new(ERR_TYPE_TYPE, "type %s does not support indexing", c1->name);
+}
+
 Error *type_error_cannot_instantiate(const Class *c1)
 {
 	return error_new(ERR_TYPE_TYPE, "class %s cannot be instantiated", c1->name);

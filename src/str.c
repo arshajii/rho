@@ -4,7 +4,7 @@
 #include <string.h>
 #include "str.h"
 
-Str *str_new(const char *value, size_t len)
+Str *str_new(const char *value, const size_t len)
 {
 	Str *str = malloc(sizeof(Str));
 	str->value = value;
@@ -15,7 +15,7 @@ Str *str_new(const char *value, size_t len)
 	return str;
 }
 
-Str *str_new_copy(const char *value, size_t len)
+Str *str_new_copy(const char *value, const size_t len)
 {
 	Str *str = malloc(sizeof(Str));
 	char *copy = malloc(len + 1);

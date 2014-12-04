@@ -302,7 +302,7 @@ void destroyo(Object *o)
 
 void retain(Value *v)
 {
-	if (v == NULL || v->type != VAL_TYPE_OBJECT) {
+	if (v == NULL || !isobject(v)) {
 		return;
 	}
 
@@ -312,7 +312,7 @@ void retain(Value *v)
 
 void release(Value *v)
 {
-	if (v == NULL || v->type != VAL_TYPE_OBJECT) {
+	if (v == NULL || !isobject(v)) {
 		return;
 	}
 

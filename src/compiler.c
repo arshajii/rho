@@ -195,6 +195,9 @@ static void compile_assignment(Compiler *compiler, AST *ast);
 static void compile_call(Compiler *compiler, AST *ast);
 
 static void compile_block(Compiler *compiler, AST *ast);
+static void compile_list(Compiler *compiler, AST *ast);
+static void compile_index(Compiler *compiler, AST *ast);
+
 static void compile_if(Compiler *compiler, AST *ast);
 static void compile_while(Compiler *compiler, AST *ast);
 static void compile_def(Compiler *compiler, AST *ast);
@@ -369,6 +372,16 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 			write_ins(compiler, INS_SET_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 		}
+	} else if (lhs->type == NODE_INDEX) {
+		if (type == NODE_ASSIGN) {
+			compile_node(compiler, rhs, false);
+			compile_node(compiler, lhs->left, false);
+			compile_node(compiler, lhs->right, false);
+			write_ins(compiler, INS_SET_INDEX, ast->lineno);
+		} else {
+			/* TODO -- compound list assignment */
+			assert(0);
+		}
 	} else {
 		const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, lhs->v.ident);
 		const unsigned int sym_id = sym->id;
@@ -422,6 +435,28 @@ static void compile_block(Compiler *compiler, AST *ast)
 	for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
 		compile_node(compiler, node->ast, false);
 	}
+}
+
+static void compile_list(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_LIST);
+
+	size_t len = 0;
+	for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+		compile_node(compiler, node->ast, false);
+		++len;
+	}
+
+	write_ins(compiler, INS_MAKE_LIST, ast->lineno);
+	write_uint16(compiler, len);
+}
+
+static void compile_index(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_INDEX);
+	compile_node(compiler, ast->left, false);
+	compile_node(compiler, ast->right, false);
+	write_ins(compiler, INS_LOAD_INDEX, ast->lineno);
 }
 
 static void compile_if(Compiler *compiler, AST *ast)
@@ -762,11 +797,17 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_BLOCK:
 		compile_block(compiler, ast);
 		break;
+	case NODE_LIST:
+		compile_list(compiler, ast);
+		break;
 	case NODE_CALL:
 		compile_call(compiler, ast);
 		if (toplevel) {
 			write_ins(compiler, INS_POP, lineno);
 		}
+		break;
+	case NODE_INDEX:
+		compile_index(compiler, ast);
 		break;
 	default:
 		INTERNAL_ERROR();
@@ -971,13 +1012,18 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 			fill_ct_from_ast(compiler, node);
 		}
 		return;
-	case NODE_CALL:
-		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
+	case NODE_BLOCK:
+		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
 		goto end;
-	case NODE_BLOCK:
-		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
+	case NODE_LIST:
+		for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+			fill_ct_from_ast(compiler, node->ast);
+		}
+		goto end;
+	case NODE_CALL:
+		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
 		goto end;
@@ -1140,6 +1186,9 @@ int arg_size(Opcode opcode)
 	case INS_LOAD_ATTR:
 	case INS_SET_ATTR:
 		return 2;
+	case INS_LOAD_INDEX:
+	case INS_SET_INDEX:
+		return 0;
 	case INS_PRINT:
 		return 0;
 	case INS_JMP:
@@ -1151,6 +1200,9 @@ int arg_size(Opcode opcode)
 	case INS_CALL:
 		return 2;
 	case INS_RETURN:
+		return 0;
+	case INS_MAKE_LIST:
+		return 2;
 	case INS_POP:
 	case INS_DUP:
 	case INS_ROT:
@@ -1256,6 +1308,10 @@ static int stack_delta(Opcode opcode, int arg)
 		return 0;
 	case INS_SET_ATTR:
 		return -2;
+	case INS_LOAD_INDEX:
+		return -1;
+	case INS_SET_INDEX:
+		return -3;
 	case INS_PRINT:
 		return -1;
 	case INS_JMP:
@@ -1270,6 +1326,8 @@ static int stack_delta(Opcode opcode, int arg)
 		return -arg;
 	case INS_RETURN:
 		return -1;
+	case INS_MAKE_LIST:
+		return -arg + 1;
 	case INS_POP:
 		return -1;
 	case INS_DUP:

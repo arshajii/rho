@@ -147,6 +147,11 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 			populate_symtable_from_node(st, node->ast);
 		}
 		break;
+	case NODE_LIST:
+		for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+			populate_symtable_from_node(st, node->ast);
+		}
+		break;
 	case NODE_DEF: {
 		assert(ast->left->type == NODE_IDENT);
 		assert(ast->right->type == NODE_BLOCK);

@@ -79,8 +79,14 @@ static AST *parse_continue(Lexer *lex);
 static AST *parse_return(Lexer *lex);
 
 static AST *parse_block(Lexer *lex);
+static AST *parse_list(Lexer *lex);
 
 static AST *parse_empty(Lexer *lex);
+
+static struct ast_list *parse_comma_separated_list(Lexer *lex,
+                                                   const TokType open_type, const TokType close_type,
+                                                   AST *(*sub_element_parse_routine)(Lexer *),
+                                                   unsigned int *count);
 
 static Token *expect(Lexer *lex, TokType type);
 
@@ -187,7 +193,7 @@ static AST *parse_stmt(Lexer *lex)
 	if (stmt_end_type != TOK_SEMICOLON &&
 	    stmt_end_type != TOK_NEWLINE &&
 	    stmt_end_type != TOK_EOF &&
-	    stmt_end_type != TOK_BRACKET_CLOSE) {
+	    stmt_end_type != TOK_BRACE_CLOSE) {
 
 		parse_err_unexpected_token(lex, stmt_end);
 	}
@@ -291,26 +297,24 @@ static AST *parse_atom(Lexer *lex)
 	AST *ast;
 
 	switch (tok->type) {
-	case TOK_PAREN_OPEN: {
+	case TOK_PAREN_OPEN:
 		ast = parse_subexpr(lex);
 		break;
-	}
-	case TOK_INT: {
+	case TOK_INT:
 		ast = parse_int(lex);
 		break;
-	}
-	case TOK_FLOAT: {
+	case TOK_FLOAT:
 		ast = parse_float(lex);
 		break;
-	}
-	case TOK_STR: {
+	case TOK_STR:
 		ast = parse_str(lex);
 		break;
-	}
-	case TOK_IDENT: {
+	case TOK_IDENT:
 		ast = parse_ident(lex);
 		break;
-	}
+	case TOK_BRACK_OPEN:
+		ast = parse_list(lex);
+		break;
 	case TOK_NOT:
 	case TOK_BITNOT:
 	case TOK_PLUS:
@@ -344,56 +348,26 @@ static AST *parse_atom(Lexer *lex)
 	}
 
 	/*
-	 * Deal with function calls...
+	 * Deal with function calls and index expressions...
 	 */
-	while (tok->type == TOK_PAREN_OPEN) {
-		Token *paren_open = expect(lex, TOK_PAREN_OPEN);
-
-		ParamList *params_head = NULL;
-		ParamList *params = NULL;
-
-		do {
-			Token *next = lex_peek_token(lex);
-
-			if (next->type == TOK_EOF) {
-				parse_err_unclosed(lex, paren_open);
-			}
-
-			if (next->type == TOK_PAREN_CLOSE) {
-				break;
-			}
-
-			if (params_head == NULL) {
-				params_head = ast_list_new();
-				params = params_head;
-			}
-
-			if (params->ast != NULL) {
-				params->next = ast_list_new();
-				params = params->next;
-			}
-
-			params->ast = parse_expr(lex);
-
-			next = lex_peek_token(lex);
-
-			if (next->type == TOK_COMMA) {
-				expect(lex, TOK_COMMA);
-
-				next = lex_peek_token(lex);
-				if (next->type == TOK_PAREN_CLOSE) {
-					parse_err_unexpected_token(lex, next);
-				}
-			} else if (next->type != TOK_PAREN_CLOSE) {
-				parse_err_unexpected_token(lex, next);
-			}
-		} while (true);
-
-		expect(lex, TOK_PAREN_CLOSE);
-
-		AST *call = ast_new(NODE_CALL, ast, NULL, tok->lineno);
-		call->v.params = params_head;
-		ast = call;
+	while (tok->type == TOK_PAREN_OPEN || tok->type == TOK_BRACK_OPEN) {
+		if (tok->type == TOK_PAREN_OPEN) {
+			ParamList *params = parse_comma_separated_list(lex,
+														   TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
+														   parse_expr,
+														   NULL);
+			AST *call = ast_new(NODE_CALL, ast, NULL, tok->lineno);
+			call->v.params = params;
+			ast = call;
+		} else if (tok->type == TOK_BRACK_OPEN) {
+			expect(lex, TOK_BRACK_OPEN);
+			AST *index = parse_expr(lex);
+			expect(lex, TOK_BRACK_CLOSE);
+			AST *index_expr = ast_new(NODE_INDEX, ast, index, tok->lineno);
+			ast = index_expr;
+		} else {
+			INTERNAL_ERROR();
+		}
 
 		tok = lex_peek_token(lex);
 	}
@@ -552,52 +526,11 @@ static AST *parse_def(Lexer *lex)
 	Token *name_tok = lex_peek_token(lex);
 	AST *name = parse_ident(lex);
 
-	Token *paren_open = expect(lex, TOK_PAREN_OPEN);
-
-	ParamList *params_head = NULL;
-	ParamList *params = NULL;
-
 	unsigned int nargs = 0;
-
-	do {
-		Token *next = lex_peek_token(lex);
-
-		if (next->type == TOK_EOF) {
-			parse_err_unclosed(lex, paren_open);
-		}
-
-		if (next->type == TOK_PAREN_CLOSE) {
-			break;
-		}
-
-		if (params_head == NULL) {
-			params_head = ast_list_new();
-			params = params_head;
-		}
-
-		if (params->ast != NULL) {
-			params->next = ast_list_new();
-			params = params->next;
-		}
-
-		params->ast = parse_ident(lex);
-		++nargs;
-
-		next = lex_peek_token(lex);
-
-		if (next->type == TOK_COMMA) {
-			expect(lex, TOK_COMMA);
-
-			next = lex_peek_token(lex);
-			if (next->type == TOK_PAREN_CLOSE) {
-				parse_err_unexpected_token(lex, next);
-			}
-		} else if (next->type != TOK_PAREN_CLOSE) {
-			parse_err_unexpected_token(lex, next);
-		}
-	} while (true);
-
-	expect(lex, TOK_PAREN_CLOSE);
+	ParamList *params = parse_comma_separated_list(lex,
+	                                               TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
+	                                               parse_ident,
+	                                               &nargs);
 
 	unsigned old_in_function = lex->in_function;
 	lex->in_function = 1;
@@ -609,7 +542,7 @@ static AST *parse_def(Lexer *lex)
 	}
 
 	AST *ast = ast_new(NODE_DEF, name, body, tok->lineno);
-	ast->v.params = params_head;
+	ast->v.params = params;
 	return ast;
 }
 
@@ -652,19 +585,19 @@ static AST *parse_return(Lexer *lex)
 
 static AST *parse_block(Lexer *lex)
 {
-	Token *bracket_open = expect(lex, TOK_BRACKET_OPEN);
+	Token *brace_open = expect(lex, TOK_BRACE_OPEN);
 
-	Block *block_head = ast_list_new();
-	Block *block = block_head;
+	Block *block_head = NULL;
+	Block *block = NULL;
 
 	do {
 		Token *next = lex_peek_token(lex);
 
 		if (next->type == TOK_EOF) {
-			parse_err_unclosed(lex, bracket_open);
+			parse_err_unclosed(lex, brace_open);
 		}
 
-		if (next->type == TOK_BRACKET_CLOSE) {
+		if (next->type == TOK_BRACE_CLOSE) {
 			break;
 		}
 
@@ -679,6 +612,11 @@ static AST *parse_block(Lexer *lex)
 			continue;
 		}
 
+		if (block_head == NULL) {
+			block_head = ast_list_new();
+			block = block_head;
+		}
+
 		if (block->ast != NULL) {
 			block->next = ast_list_new();
 			block = block->next;
@@ -687,10 +625,23 @@ static AST *parse_block(Lexer *lex)
 		block->ast = stmt;
 	} while (true);
 
-	expect(lex, TOK_BRACKET_CLOSE);
+	expect(lex, TOK_BRACE_CLOSE);
 
-	AST *ast = ast_new(NODE_BLOCK, NULL, NULL, bracket_open->lineno);
+	AST *ast = ast_new(NODE_BLOCK, NULL, NULL, brace_open->lineno);
 	ast->v.block = block_head;
+	return ast;
+}
+
+static AST *parse_list(Lexer *lex)
+{
+	Token *brack_open = lex_peek_token(lex);  /* parse_comma_separated_list does error checking */
+	struct ast_list *list_head = parse_comma_separated_list(lex,
+	                                                        TOK_BRACK_OPEN,
+	                                                        TOK_BRACK_CLOSE,
+	                                                        parse_expr,
+	                                                        NULL);
+	AST *ast = ast_new(NODE_LIST, NULL, NULL, brack_open->lineno);
+	ast->v.list = list_head;
 	return ast;
 }
 
@@ -699,6 +650,69 @@ static AST *parse_empty(Lexer *lex)
 	Token *tok = expect(lex, TOK_SEMICOLON);
 	AST *ast = ast_new(NODE_EMPTY, NULL, NULL, tok->lineno);
 	return ast;
+}
+
+/*
+ * Parses generic comma-separated list with given start and end delimiters.
+ * Returns the number of elements in this parsed list.
+ */
+static struct ast_list *parse_comma_separated_list(Lexer *lex,
+                                                   const TokType open_type, const TokType close_type,
+                                                   AST *(*sub_element_parse_routine)(Lexer *),
+                                                   unsigned int *count)
+{
+	Token *tok_open = expect(lex, open_type);
+
+	struct ast_list *list_head = NULL;
+	struct ast_list *list = NULL;
+
+	unsigned int nelements = 0;
+
+	do {
+		Token *next = lex_peek_token(lex);
+
+		if (next->type == TOK_EOF) {
+			parse_err_unclosed(lex, tok_open);
+		}
+
+		if (next->type == close_type) {
+			break;
+		}
+
+		if (list_head == NULL) {
+			list_head = ast_list_new();
+			list = list_head;
+		}
+
+		if (list->ast != NULL) {
+			list->next = ast_list_new();
+			list = list->next;
+		}
+
+		list->ast = sub_element_parse_routine(lex);
+		++nelements;
+
+		next = lex_peek_token(lex);
+
+		if (next->type == TOK_COMMA) {
+			expect(lex, TOK_COMMA);
+
+			next = lex_peek_token(lex);
+			if (next->type == close_type) {
+				parse_err_unexpected_token(lex, next);
+			}
+		} else if (next->type != close_type) {
+			parse_err_unexpected_token(lex, next);
+		}
+	} while (true);
+
+	expect(lex, close_type);
+
+	if (count != NULL) {
+		*count = nelements;
+	}
+
+	return list_head;
 }
 
 static Op op_from_tok_type(TokType type)

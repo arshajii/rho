@@ -64,7 +64,10 @@ typedef enum {
 	NODE_RETURN,
 
 	NODE_BLOCK,
-	NODE_CALL
+	NODE_LIST,
+
+	NODE_CALL,
+	NODE_INDEX
 } NodeType;
 
 #define AST_TYPE_ASSERT(ast, nodetype) assert((ast)->type == (nodetype))
@@ -89,6 +92,7 @@ typedef struct AST {
 		struct AST *middle;
 		Block *block;
 		ParamList *params;
+		struct ast_list *list;
 	} v;
 
 	struct AST *left;
@@ -112,6 +116,6 @@ void ast_free(AST *ast);
 #define IS_ASSIGNMENT(type) (NODE_ASSIGNMENTS_START < (type) && (type) < NODE_ASSIGNMENTS_END)
 #define IS_CALL(type) ((type) == NODE_CALL)
 #define IS_EXPR_STMT(type) (IS_CALL(type) || IS_ASSIGNMENT(type))
-#define IS_ASSIGNABLE(type) ((type) == NODE_IDENT || (type) == NODE_DOT)
+#define IS_ASSIGNABLE(type) ((type) == NODE_IDENT || (type) == NODE_DOT || (type) == NODE_INDEX)
 
 #endif /* AST_H */

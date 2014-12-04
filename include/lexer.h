@@ -57,8 +57,10 @@ typedef enum {
 
 	TOK_PAREN_OPEN,     // literal: (
 	TOK_PAREN_CLOSE,    // literal: )
-	TOK_BRACKET_OPEN,   // literal: {
-	TOK_BRACKET_CLOSE,  // literal: }
+	TOK_BRACE_OPEN,     // literal: {
+	TOK_BRACE_CLOSE,    // literal: }
+	TOK_BRACK_OPEN,     // literal: [
+	TOK_BRACK_CLOSE,    // literal: ]
 
 	/* keywords */
 	TOK_PRINT,

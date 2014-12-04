@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #include "object.h"
 #include "err.h"
 #include "vmops.h"
@@ -310,6 +311,60 @@ MAKE_VM_IBINOP(bitor, |=)
 MAKE_VM_IBINOP(xor, ^=)
 MAKE_VM_IBINOP(shiftl, <<=)
 MAKE_VM_IBINOP(shiftr, >>=)
+
+Value op_get(Value *v, Value *idx)
+{
+	Class *class = getclass(v);
+	BinOp get = resolve_get(class);
+
+	if (!get) {
+		return makeerr(type_error_cannot_index(class));
+	}
+
+	return get(v, idx);
+}
+
+Value op_set(Value *v, Value *idx, Value *e)
+{
+	Class *class = getclass(v);
+	SeqSetFunc set = resolve_set(class);
+
+	if (!set) {
+		return makeerr(type_error_cannot_index(class));
+	}
+
+	return set(v, idx, e);
+}
+
+Str *op_str(Value *v)
+{
+	char buf[64];
+	switch (v->type) {
+	case VAL_TYPE_INT:
+		snprintf(buf, sizeof(buf), "%ld", intvalue(v));
+		break;
+	case VAL_TYPE_FLOAT:
+		snprintf(buf, sizeof(buf), "%f", floatvalue(v));
+		break;
+	case VAL_TYPE_OBJECT: {
+		const Object *o = objvalue(v);
+		const StrUnOp op = resolve_str(o->class);
+		Str *str = op(v);
+		return str;
+	}
+	case VAL_TYPE_EMPTY:
+	case VAL_TYPE_ERROR:
+	case VAL_TYPE_UNSUPPORTED_TYPES:
+	case VAL_TYPE_DIV_BY_ZERO:
+		INTERNAL_ERROR();
+		break;
+	}
+
+	const size_t len = strlen(buf);
+	Str *str = str_new_copy(buf, len);
+	str->freeable = 1;
+	return str;
+}
 
 void op_print(Value *v, FILE *out)
 {

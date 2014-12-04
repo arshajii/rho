@@ -10,6 +10,7 @@
 #include "intobject.h"
 #include "floatobject.h"
 #include "strobject.h"
+#include "listobject.h"
 #include "codeobject.h"
 #include "method.h"
 #include "attr.h"
@@ -20,13 +21,12 @@
 #include "vmops.h"
 #include "vm.h"
 
-bool classes_init = false;
-
 static Class *classes[] = {
 		&obj_class,
 		&int_class,
 		&float_class,
 		&str_class,
+		&list_class,
 		&co_class,
 		&method_class,
 		NULL
@@ -34,11 +34,13 @@ static Class *classes[] = {
 
 VM *vm_new(void)
 {
-	if (!classes_init) {
+	static bool init = false;
+
+	if (!init) {
 		for (Class **class = &classes[0]; *class != NULL; class++) {
 			class_init(*class);
 		}
-		classes_init = true;
+		init = true;
 	}
 
 	VM *vm = malloc(sizeof(VM));
@@ -149,6 +151,7 @@ static void eval_frame(VM *vm)
 #define GET_UINT16() (read_uint16_from_bc(bc, &pos))
 
 #define STACK_POP()          (--stack)
+#define STACK_POPN(n)        (stack -= (n))
 #define STACK_TOP()          (&stack[-1])
 #define STACK_SECOND()       (&stack[-2])
 #define STACK_PUSH(v)        (*stack++ = (v))
@@ -173,7 +176,7 @@ static void eval_frame(VM *vm)
 	/* position in the bytecode */
 	size_t pos = 0;
 
-	Value *v1, *v2;
+	Value *v1, *v2, *v3;
 	Value res;
 
 	while (true) {
@@ -798,7 +801,7 @@ static void eval_frame(VM *vm)
 				}
 			}
 
-			release(v1);
+			releaseo(o);
 			break;
 
 			get_attr_error_not_found:
@@ -1037,6 +1040,37 @@ static void eval_frame(VM *vm)
 
 			break;
 		}
+		case INS_LOAD_INDEX: {
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_get(v1, v2);
+
+			if (iserror(&res)) {
+				goto error;
+			}
+
+			release(v1);
+			release(v2);
+			STACK_SET_TOP(res);
+			break;
+		}
+		case INS_SET_INDEX: {
+			/* X[N] = Y */
+			v3 = STACK_POP();  /* N */
+			v2 = STACK_POP();  /* X */
+			v1 = STACK_POP();  /* Y */
+			res = op_set(v2, v3, v1);
+
+			if (iserror(&res)) {
+				goto error;
+			}
+
+			release(&res);
+			release(v1);
+			release(v2);
+			release(v3);
+			break;
+		}
 		case INS_PRINT: {
 			v1 = STACK_POP();
 			op_print(v1, stdout);
@@ -1093,6 +1127,7 @@ static void eval_frame(VM *vm)
 			const unsigned int argcount = GET_UINT16();
 			v1 = STACK_POP();
 			Class *class = getclass(v1);
+
 			if (class == &co_class) {
 				CodeObject *co = objvalue(v1);
 
@@ -1109,8 +1144,13 @@ static void eval_frame(VM *vm)
 				}
 
 				eval_frame(vm);
-				retain(&top->return_value);
-				STACK_PUSH(top->return_value);
+				res = top->return_value;
+
+				if (iserror(&res)) {
+					goto error;
+				}
+
+				STACK_PUSH(res);
 				vm_popframe(vm);
 			} else {
 				CallFunc call = resolve_call(class);
@@ -1120,20 +1160,40 @@ static void eval_frame(VM *vm)
 					goto error;
 				}
 
-				Value result = call(v1, stack - argcount, argcount);
-				retain(&result);
+				res = call(v1, stack - argcount, argcount);
+
+				if (iserror(&res)) {
+					goto error;
+				}
+
 				for (unsigned int i = 0; i < argcount; i++) {
 					release(STACK_POP());
 				}
-				STACK_PUSH(result);
+
 				release(v1);
+				STACK_PUSH(res);
 			}
 			break;
 		}
 		case INS_RETURN: {
 			v1 = STACK_POP();
+			retain(v1);
 			frame->return_value = *v1;
 			return;
+		}
+		case INS_MAKE_LIST: {
+			const unsigned int len = GET_UINT16();
+			Value list;
+
+			if (len > 0) {
+				list = list_make(stack - len, len);
+			} else {
+				list = list_make(NULL, 0);
+			}
+
+			STACK_POPN(len);
+			STACK_PUSH(list);
+			break;
 		}
 		case INS_POP: {
 			release(STACK_POP());
