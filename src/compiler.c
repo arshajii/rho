@@ -362,6 +362,7 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 			write_ins(compiler, INS_SET_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 		} else {
+			/* compound assignment */
 			compile_node(compiler, lhs->left, false);
 			write_ins(compiler, INS_DUP, lineno);
 			write_ins(compiler, INS_LOAD_ATTR, lineno);
@@ -377,10 +378,17 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 			compile_node(compiler, rhs, false);
 			compile_node(compiler, lhs->left, false);
 			compile_node(compiler, lhs->right, false);
-			write_ins(compiler, INS_SET_INDEX, ast->lineno);
+			write_ins(compiler, INS_SET_INDEX, lineno);
 		} else {
-			/* TODO -- compound list assignment */
-			assert(0);
+			/* compound assignment */
+			compile_node(compiler, lhs->left, false);
+			compile_node(compiler, lhs->right, false);
+			write_ins(compiler, INS_DUP_TWO, lineno);
+			write_ins(compiler, INS_LOAD_INDEX, lineno);
+			compile_node(compiler, rhs, false);
+			write_ins(compiler, to_opcode(type), lineno);
+			write_ins(compiler, INS_ROT_THREE, lineno);
+			write_ins(compiler, INS_SET_INDEX, lineno);
 		}
 	} else {
 		const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, lhs->v.ident);
@@ -1205,7 +1213,9 @@ int arg_size(Opcode opcode)
 		return 2;
 	case INS_POP:
 	case INS_DUP:
+	case INS_DUP_TWO:
 	case INS_ROT:
+	case INS_ROT_THREE:
 		return 0;
 	default:
 		return -1;
@@ -1332,7 +1342,10 @@ static int stack_delta(Opcode opcode, int arg)
 		return -1;
 	case INS_DUP:
 		return 1;
+	case INS_DUP_TWO:
+		return 2;
 	case INS_ROT:
+	case INS_ROT_THREE:
 		return 0;
 	}
 }

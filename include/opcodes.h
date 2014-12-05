@@ -58,7 +58,9 @@ typedef enum {
 	INS_MAKE_LIST,
 	INS_POP,
 	INS_DUP,
-	INS_ROT
+	INS_DUP_TWO,
+	INS_ROT,
+	INS_ROT_THREE
 } Opcode;
 
 typedef enum {

@@ -154,9 +154,11 @@ static void eval_frame(VM *vm)
 #define STACK_POPN(n)        (stack -= (n))
 #define STACK_TOP()          (&stack[-1])
 #define STACK_SECOND()       (&stack[-2])
+#define STACK_THIRD()        (&stack[-3])
 #define STACK_PUSH(v)        (*stack++ = (v))
 #define STACK_SET_TOP(v)     (stack[-1] = (v))
 #define STACK_SET_SECOND(v)  (stack[-2] = (v))
+#define STACK_SET_THIRD(v)   (stack[-3] = (v))
 
 	Frame *frame = vm->callstack;
 	Frame *module = vm->module;
@@ -1205,10 +1207,28 @@ static void eval_frame(VM *vm)
 			STACK_PUSH(*v1);
 			break;
 		}
+		case INS_DUP_TWO: {
+			v1 = STACK_TOP();
+			v2 = STACK_SECOND();
+			retain(v1);
+			retain(v2);
+			STACK_PUSH(*v2);
+			STACK_PUSH(*v1);
+			break;
+		}
 		case INS_ROT: {
 			Value v1 = *STACK_SECOND();
 			STACK_SET_SECOND(*STACK_TOP());
 			STACK_SET_TOP(v1);
+			break;
+		}
+		case INS_ROT_THREE: {
+			Value v1 = *STACK_TOP();
+			Value v2 = *STACK_SECOND();
+			Value v3 = *STACK_THIRD();
+			STACK_SET_TOP(v2);
+			STACK_SET_SECOND(v3);
+			STACK_SET_THIRD(v1);
 			break;
 		}
 		default: {
