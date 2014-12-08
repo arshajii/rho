@@ -71,7 +71,10 @@ static ConstTable *ct_new_specific(const size_t capacity, const float load_facto
 	}
 
 	ConstTable *ct = malloc(sizeof(ConstTable));
-	ct->table = calloc(capacity_real, sizeof(CTEntry *));
+	ct->table = malloc(capacity_real * sizeof(CTEntry *));
+	for (size_t i = 0; i < capacity_real; i++) {
+		ct->table[i] = NULL;
+	}
 	ct->table_size = 0;
 	ct->capacity = capacity_real;
 	ct->load_factor = load_factor;
@@ -169,8 +172,10 @@ void ct_grow(ConstTable *ct, const size_t new_capacity)
 		}
 	}
 
-	CTEntry **new_table = calloc(capacity_real, sizeof(CTEntry *));
-
+	CTEntry **new_table = malloc(capacity_real * sizeof(CTEntry *));
+	for (size_t i = 0; i < capacity_real; i++) {
+		new_table[i] = NULL;
+	}
 	const size_t capacity = ct->capacity;
 
 	for (size_t i = 0; i < capacity; i++) {

@@ -63,13 +63,19 @@ static STEntry *ste_new(const char *name, STEContext context)
 	STEntry *ste = malloc(sizeof(STEntry));
 	ste->name = name;
 	ste->context = context;
-	ste->table = calloc(STE_INIT_CAPACITY, sizeof(STSymbol *));
+	ste->table = malloc(STE_INIT_CAPACITY * sizeof(STSymbol *));
+	for (size_t i = 0; i < STE_INIT_CAPACITY; i++) {
+		ste->table[i] = NULL;
+	}
 	ste->table_size = 0;
 	ste->table_capacity = STE_INIT_CAPACITY;
 	ste->table_threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
 	ste->table_next_id = 0;
 	ste->n_locals = 0;
-	ste->attributes = calloc(STE_INIT_CAPACITY, sizeof(STSymbol *));
+	ste->attributes = malloc(STE_INIT_CAPACITY * sizeof(STSymbol *));
+	for (size_t i = 0; i < STE_INIT_CAPACITY; i++) {
+		ste->attributes[i] = NULL;
+	}
 	ste->attr_size = 0;
 	ste->attr_capacity = STE_INIT_CAPACITY;
 	ste->attr_threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
@@ -419,7 +425,10 @@ static void ste_grow(STEntry *ste, const size_t new_capacity)
 		}
 	}
 
-	STSymbol **new_table = calloc(capacity_real, sizeof(STSymbol *));
+	STSymbol **new_table = malloc(capacity_real * sizeof(STSymbol *));
+	for (size_t i = 0; i < capacity_real; i++) {
+		new_table[i] = NULL;
+	}
 
 	const size_t capacity = ste->table_capacity;
 
@@ -460,7 +469,10 @@ static void ste_grow_attr(STEntry *ste, const size_t new_capacity)
 		}
 	}
 
-	STSymbol **new_attributes = calloc(capacity_real, sizeof(STSymbol *));
+	STSymbol **new_attributes = malloc(capacity_real * sizeof(STSymbol *));
+	for (size_t i = 0; i < capacity_real; i++) {
+		new_attributes[i] = NULL;
+	}
 
 	const size_t capacity = ste->attr_capacity;
 

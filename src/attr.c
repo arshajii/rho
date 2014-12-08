@@ -10,7 +10,10 @@ static int hash(const char *key);
 void attr_dict_init(AttrDict *d, const size_t max_size)
 {
 	const size_t capacity = max_size * 8/5;
-	d->table = calloc(capacity, sizeof(AttrDictEntry *));
+	d->table = malloc(capacity * sizeof(AttrDictEntry *));
+	for (size_t i = 0; i < capacity; i++) {
+		d->table[i] = NULL;
+	}
 	d->table_capacity = capacity;
 	d->table_size = 0;
 }
