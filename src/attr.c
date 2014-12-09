@@ -83,11 +83,11 @@ static int hash(const char *key)
 {
 	char *p = (char *)key;
 
-	int h = 0;
+	unsigned int h = 0;
 	while (*p) {
 		h = 31*h + *p;
 		++p;
 	}
 
-	return secondary_hash(h);
+	return secondary_hash((int)h);
 }

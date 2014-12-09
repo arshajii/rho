@@ -51,7 +51,7 @@ int str_hash(Str *str)
 		return str->hash;
 	}
 
-	int h = str->hash;
+	unsigned int h = str->hash;
 
 	if (h == 0 && str->len > 0) {
 		const size_t len = str->len;
@@ -60,7 +60,7 @@ int str_hash(Str *str)
 			h = 31*h + str->value[i];
 		}
 
-		str->hash = h;
+		str->hash = (int)h;
 	}
 
 	str->hashed = true;
