@@ -12,8 +12,7 @@ static void list_ensure_capacity(ListObject *list, const size_t min_capacity);
 /* Does not retain elements; direct transfer from value stack. */
 Value list_make(Value *elements, const size_t count)
 {
-	ListObject *list = malloc(sizeof(ListObject));
-	list->base = OBJ_INIT(&list_class);
+	ListObject *list = obj_alloc(&list_class);
 
 	const size_t size = count * sizeof(Value);
 	list->elements = malloc(size);

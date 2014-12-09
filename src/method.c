@@ -4,8 +4,7 @@
 
 Value methobj_make(Object *binder, MethodFunc meth_func)
 {
-	Method *meth = malloc(sizeof(Method));
-	meth->base = OBJ_INIT(&method_class);
+	Method *meth = obj_alloc(&method_class);
 	retaino(binder);
 	meth->binder = binder;
 	meth->method = meth_func;

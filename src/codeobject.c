@@ -1,10 +1,11 @@
 #include <stdlib.h>
 #include <assert.h>
+#include "err.h"
 #include "code.h"
 #include "compiler.h"
 #include "opcodes.h"
+#include "object.h"
 #include "strobject.h"
-#include "err.h"
 #include "codeobject.h"
 
 /*
@@ -46,8 +47,7 @@ CodeObject *codeobj_make(Code *code,
                          unsigned int argcount,
                          int stack_depth)
 {
-	CodeObject *co = malloc(sizeof(CodeObject));
-	co->base = OBJ_INIT(&co_class);
+	CodeObject *co = obj_alloc(&co_class);
 	co->name = name;
 	co->head = code->bc;
 

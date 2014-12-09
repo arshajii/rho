@@ -266,6 +266,14 @@ MAKE_METHOD_RESOLVER(iternext, seq_methods, UnOp)
 #undef MAKE_METHOD_RESOLVER_DIRECT
 #undef MAKE_METHOD_RESOLVER
 
+void *obj_alloc(Class *class)
+{
+	Object *o = malloc(class->instance_size);
+	o->class = class;
+	o->refcnt = 1;
+	return o;
+}
+
 Value instantiate(Class *class, Value *args, size_t nargs)
 {
 	if (class == &int_class) {

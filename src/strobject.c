@@ -10,8 +10,7 @@
 
 Value strobj_make(Str value)
 {
-	StrObject *s = malloc(sizeof(StrObject));
-	s->base = OBJ_INIT(&str_class);
+	StrObject *s = obj_alloc(&str_class);
 	s->freeable = value.freeable;
 	value.freeable = 0;
 	s->str = value;

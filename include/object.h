@@ -121,8 +121,6 @@ struct object {
 	unsigned int refcnt;
 };
 
-#define OBJ_INIT(type) ((Object){.class = (type), .refcnt = 1})
-
 struct error;
 
 struct value {
@@ -230,6 +228,7 @@ BoolBinOp resolve_contains (Class *class);
 UnOp resolve_iter(Class *class);
 UnOp resolve_iternext(Class *class);
 
+void *obj_alloc(Class *class);
 Value instantiate(Class *class, Value *args, size_t nargs);
 
 void retaino(Object *o);
