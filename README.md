@@ -9,8 +9,8 @@ So far...
 The language is still in its very early stages of development. So far, the following have been implemented and tested:
 
 - Parser and compiler
-- Rudimentary object system
-- Rudimentary virtual machine
+- ~~Rudimentary~~ object system
+- ~~Rudimentary~~ virtual machine
 
 Each of these components will likely change and evolve as time goes on.
 
