@@ -2,7 +2,7 @@ TARGET = rho
 LIBS =
 CC = gcc
 WARNINGS = -Wall -Wextra -Werror
-CFLAGS = -std=c99 -pedantic -pedantic-errors -fstrict-aliasing $(WARNINGS)
+CFLAGS = -std=c99 -g -pedantic -pedantic-errors -fstrict-aliasing $(WARNINGS)
 
 SRCDIR = src
 OBJDIR = obj
