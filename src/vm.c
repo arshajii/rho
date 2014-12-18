@@ -1142,7 +1142,7 @@ static void eval_frame(VM *vm)
 
 				Frame *top = vm->callstack;
 				for (unsigned int i = 0; i < argcount; i++) {
-					top->locals[i] = *STACK_POP();
+					top->locals[argcount - i - 1] = *STACK_POP();
 				}
 
 				eval_frame(vm);
