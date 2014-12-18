@@ -3,6 +3,7 @@
 #include <assert.h>
 #include "str.h"
 #include "strbuf.h"
+#include <stdio.h>
 
 #define STRBUF_DEFAULT_INIT_CAPACITY 16
 
@@ -25,7 +26,7 @@ void strbuf_init_default(StrBuf *sb)
 void strbuf_append(StrBuf *sb, const char *str, const size_t len)
 {
 	size_t new_len = sb->len + len;
-	if (new_len + 1 < sb->cap) {
+	if (new_len + 1 > sb->cap) {
 		strbuf_grow(sb, new_len + 1);
 	}
 	memcpy(sb->buf + sb->len, str, len);
@@ -49,6 +50,7 @@ static void strbuf_grow(StrBuf *sb, const size_t min_cap)
 	if (new_cap < min_cap) {
 		new_cap = min_cap;
 	}
+
 	sb->buf = realloc(sb->buf, new_cap);
 	sb->cap = new_cap;
 }
