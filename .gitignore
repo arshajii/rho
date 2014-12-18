@@ -47,3 +47,5 @@ Thumbs.db
 .cproject
 /misc/
 /Debug/
+*.dSYM
+rho
