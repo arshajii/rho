@@ -26,13 +26,24 @@ Value list_make(Value *elements, const size_t count)
 
 Str *list_str(Value *this)
 {
+	static Str empty_list_str = {.value = "[]",
+	                             .len = 2,
+	                             .hash = 0,
+	                             .hashed = 0,
+	                             .freeable = 0};
+
 	ListObject *list = objvalue(this);
+	const size_t count = list->count;
+
+	if (count == 0) {
+		return &empty_list_str;
+	}
+
 	StrBuf sb;
 	strbuf_init(&sb, 16);
 	strbuf_append(&sb, "[", 1);
 
 	Value *elements = list->elements;
-	const size_t count = list->count;
 
 	for (size_t i = 0; i < count; i++) {
 		Value *v = &elements[i];
