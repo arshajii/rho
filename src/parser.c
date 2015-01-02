@@ -696,11 +696,6 @@ static struct ast_list *parse_comma_separated_list(Lexer *lex,
 
 		if (next->type == TOK_COMMA) {
 			expect(lex, TOK_COMMA);
-
-			next = lex_peek_token(lex);
-			if (next->type == close_type) {
-				parse_err_unexpected_token(lex, next);
-			}
 		} else if (next->type != close_type) {
 			parse_err_unexpected_token(lex, next);
 		}
