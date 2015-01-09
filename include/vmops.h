@@ -72,6 +72,10 @@ Value op_ishiftl(Value *a, Value *b);
 
 Value op_ishiftr(Value *a, Value *b);
 
+Value op_get_attr(Value *v, const char *attr);
+
+Value op_set_attr(Value *v, const char *attr, Value *new);
+
 Value op_get(Value *v, Value *idx);
 
 Value op_set(Value *v, Value *idx, Value *e);

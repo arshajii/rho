@@ -3,6 +3,9 @@
 #include <stdbool.h>
 #include <string.h>
 #include "object.h"
+#include "strobject.h"
+#include "method.h"
+#include "attr.h"
 #include "err.h"
 #include "vmops.h"
 
@@ -311,6 +314,347 @@ MAKE_VM_IBINOP(bitor, |=)
 MAKE_VM_IBINOP(xor, ^=)
 MAKE_VM_IBINOP(shiftl, <<=)
 MAKE_VM_IBINOP(shiftr, >>=)
+
+Value op_get_attr(Value *v, const char *attr)
+{
+	Class *class = getclass(v);
+
+	if (!isobject(v)) {
+		goto get_attr_error_not_found;
+	}
+
+	const unsigned int value = attr_dict_get(&class->attr_dict, attr);
+
+	if (!(value & ATTR_DICT_FLAG_FOUND)) {
+		goto get_attr_error_not_found;
+	}
+
+	const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
+	const unsigned int idx = (value >> 2);
+
+	Object *o = objvalue(v);
+	Value res;
+
+	if (is_method) {
+		const struct attr_method *method = &class->methods[idx];
+		res = methobj_make(o, method->meth);
+	} else {
+		const struct attr_member *member = &class->members[idx];
+		const size_t offset = member->offset;
+
+		switch (member->type) {
+		case ATTR_T_CHAR: {
+			char *c = malloc(1);
+			*c = getmember(o, offset, char);
+			res = strobj_make(STR_INIT(c, 1, 1));
+			break;
+		}
+		case ATTR_T_BYTE: {
+			const long n = getmember(o, offset, char);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_SHORT: {
+			const long n = getmember(o, offset, short);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_INT: {
+			const long n = getmember(o, offset, int);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_LONG: {
+			const long n = getmember(o, offset, long);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_UBYTE: {
+			const long n = getmember(o, offset, unsigned char);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_USHORT: {
+			const long n = getmember(o, offset, unsigned short);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_UINT: {
+			const long n = getmember(o, offset, unsigned int);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_ULONG: {
+			const long n = getmember(o, offset, unsigned long);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_SIZE_T: {
+			const long n = getmember(o, offset, size_t);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_BOOL: {
+			const long n = getmember(o, offset, bool);
+			res = makeint(n);
+			break;
+		}
+		case ATTR_T_FLOAT: {
+			const double d = getmember(o, offset, float);
+			res = makefloat(d);
+			break;
+		}
+		case ATTR_T_DOUBLE: {
+			const double d = getmember(o, offset, double);
+			res = makefloat(d);
+			break;
+		}
+		case ATTR_T_STRING: {
+			char *str = getmember(o, offset, char *);
+			const size_t len = strlen(str);
+			char *copy = malloc(len);
+			memcpy(copy, str, len);
+			res = strobj_make(STR_INIT(copy, len, 1));
+			break;
+		}
+		case ATTR_T_OBJECT: {
+			Object *obj = getmember(o, offset, Object *);
+			retaino(obj);
+			res = makeobj(obj);
+			break;
+		}
+		}
+	}
+
+	return res;
+
+	get_attr_error_not_found:
+	return makeerr(attr_error_not_found(class, attr));
+}
+
+Value op_set_attr(Value *v, const char *attr, Value *new)
+{
+	Class *v_class = getclass(v);
+	Class *new_class = getclass(new);
+
+	if (!isobject(v)) {
+		goto set_attr_error_not_found;
+	}
+
+	const unsigned int value = attr_dict_get(&v_class->attr_dict, attr);
+
+	if (!(value & ATTR_DICT_FLAG_FOUND)) {
+		goto set_attr_error_not_found;
+	}
+
+	const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
+
+	if (is_method) {
+		goto set_attr_error_readonly;
+	}
+
+	const unsigned int idx = (value >> 2);
+
+	const struct attr_member *member = &v_class->members[idx];
+
+	const int member_flags = member->flags;
+
+	if (member_flags & ATTR_FLAG_READONLY) {
+		goto set_attr_error_readonly;
+	}
+
+	const size_t offset = member->offset;
+
+	Object *o = objvalue(v);
+	char *o_raw = (char *)o;
+
+	switch (member->type) {
+	case ATTR_T_CHAR: {
+		if (new_class != &str_class) {
+			goto set_attr_error_mismatch;
+		}
+
+		StrObject *str = objvalue(new);
+		const size_t len = str->str.len;
+
+		if (len != 1) {
+			goto set_attr_error_mismatch;
+		}
+
+		const char c = str->str.value[0];
+		char *member_raw = (char *)(o_raw + offset);
+		*member_raw = c;
+		break;
+	}
+	case ATTR_T_BYTE: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		char *member_raw = (char *)(o_raw + offset);
+		*member_raw = (char)n;
+		break;
+	}
+	case ATTR_T_SHORT: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		short *member_raw = (short *)(o_raw + offset);
+		*member_raw = (short)n;
+		break;
+	}
+	case ATTR_T_INT: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		int *member_raw = (int *)(o_raw + offset);
+		*member_raw = (int)n;
+		break;
+	}
+	case ATTR_T_LONG: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		long *member_raw = (long *)(o_raw + offset);
+		*member_raw = n;
+		break;
+	}
+	case ATTR_T_UBYTE: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		unsigned char *member_raw = (unsigned char *)(o_raw + offset);
+		*member_raw = (unsigned char)n;
+		break;
+	}
+	case ATTR_T_USHORT: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		unsigned short *member_raw = (unsigned short *)(o_raw + offset);
+		*member_raw = (unsigned short)n;
+		break;
+	}
+	case ATTR_T_UINT: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		unsigned int *member_raw = (unsigned int *)(o_raw + offset);
+		*member_raw = (unsigned int)n;
+		break;
+	}
+	case ATTR_T_ULONG: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		unsigned long *member_raw = (unsigned long *)(o_raw + offset);
+		*member_raw = (unsigned long)n;
+		break;
+	}
+	case ATTR_T_SIZE_T: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		size_t *member_raw = (size_t *)(o_raw + offset);
+		*member_raw = (size_t)n;
+		break;
+	}
+	case ATTR_T_BOOL: {
+		if (!isint(new)) {
+			goto set_attr_error_mismatch;
+		}
+		const long n = intvalue(new);
+		bool *member_raw = (bool *)(o_raw + offset);
+		*member_raw = (bool)n;
+		break;
+	}
+	case ATTR_T_FLOAT: {
+		float d;
+
+		/* ints get promoted */
+		if (isint(new)) {
+			d = (float)intvalue(new);
+		} else if (!isfloat(new)) {
+			d = 0;
+			goto set_attr_error_mismatch;
+		} else {
+			d = (float)floatvalue(new);
+		}
+
+		float *member_raw = (float *)(o_raw + offset);
+		*member_raw = d;
+		break;
+	}
+	case ATTR_T_DOUBLE: {
+		double d;
+
+		/* ints get promoted */
+		if (isint(new)) {
+			d = (double)intvalue(new);
+		} else if (!isfloat(new)) {
+			d = 0;
+			goto set_attr_error_mismatch;
+		} else {
+			d = floatvalue(new);
+		}
+
+		float *member_raw = (float *)(o_raw + offset);
+		*member_raw = d;
+		break;
+	}
+	case ATTR_T_STRING: {
+		if (new_class != &str_class) {
+			goto set_attr_error_mismatch;
+		}
+
+		StrObject *str = objvalue(new);
+
+		char **member_raw = (char **)(o_raw + offset);
+		*member_raw = (char *)str->str.value;
+		break;
+	}
+	case ATTR_T_OBJECT: {
+		if (!isobject(new)) {
+			goto set_attr_error_mismatch;
+		}
+
+		Object **member_raw = (Object **)(o_raw + offset);
+
+		if ((member_flags & ATTR_FLAG_TYPE_STRICT) &&
+		    ((*member_raw)->class != new_class)) {
+
+			goto set_attr_error_mismatch;
+		}
+
+		Object *new_o = objvalue(new);
+		if (*member_raw != NULL) {
+			releaseo(*member_raw);
+		}
+		retaino(new_o);
+		*member_raw = new_o;
+		break;
+	}
+	}
+
+	return makeint(0);
+
+	set_attr_error_not_found:
+	return makeerr(attr_error_not_found(v_class, attr));
+
+	set_attr_error_readonly:
+	return makeerr(attr_error_readonly(v_class, attr));
+
+	set_attr_error_mismatch:
+	return makeerr(attr_error_mismatch(v_class, attr, new_class));
+}
 
 Value op_get(Value *v, Value *idx)
 {
