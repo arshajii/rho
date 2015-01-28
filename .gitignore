@@ -45,6 +45,7 @@ Thumbs.db
 #########
 .project
 .cproject
+/.settings/
 /misc/
 /Debug/
 *.dSYM
