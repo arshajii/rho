@@ -53,7 +53,7 @@ const Op ops[] = {
 	{TOK_DOT,           99,          true},
 };
 
-const size_t ops_size = (sizeof(ops) / sizeof(Op));
+static const size_t ops_size = (sizeof(ops) / sizeof(Op));
 
 #define FUNCTION_MAX_PARAMS 128
 
