@@ -80,8 +80,6 @@ struct seq_methods meth_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
-	NULL,    /* iter */
-	NULL,    /* iternext */
 };
 
 Class method_class = {
@@ -101,6 +99,9 @@ Class method_class = {
 	.call = methobj_invoke,
 
 	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
 
 	.num_methods = &meth_num_methods,
 	.seq_methods  = &meth_seq_methods,

@@ -151,8 +151,6 @@ struct seq_methods str_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
-	NULL,    /* iter */
-	NULL,    /* iternext */
 };
 
 struct attr_member str_members[] = {
@@ -180,6 +178,9 @@ Class str_class = {
 	.seq_methods  = &str_seq_methods,
 
 	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
 
 	.members = str_members,
 	.methods = NULL

@@ -290,8 +290,6 @@ struct seq_methods co_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
-	NULL,    /* iter */
-	NULL,    /* iternext */
 };
 
 Class co_class = {
@@ -311,6 +309,9 @@ Class co_class = {
 	.call = NULL,
 
 	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
 
 	.num_methods = &co_num_methods,
 	.seq_methods = &co_seq_methods,

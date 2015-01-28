@@ -315,8 +315,6 @@ struct seq_methods list_seq_methods = {
 	list_get,    /* get */
 	list_set,    /* set */
 	NULL,    /* contains */
-	NULL,    /* iter */
-	NULL,    /* iternext */
 };
 
 struct attr_member list_members[] = {
@@ -348,6 +346,9 @@ Class list_class = {
 	.call = NULL,
 
 	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
 
 	.num_methods = &list_num_methods,
 	.seq_methods  = &list_seq_methods,

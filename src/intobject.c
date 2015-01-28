@@ -303,8 +303,6 @@ struct seq_methods int_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
-	NULL,    /* iter */
-	NULL,    /* iternext */
 };
 
 Class int_class = {
@@ -324,6 +322,9 @@ Class int_class = {
 	.call = NULL,
 
 	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
 
 	.num_methods = &int_num_methods,
 	.seq_methods  = &int_seq_methods,

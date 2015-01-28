@@ -79,8 +79,6 @@ struct seq_methods {
 	BinOp get;
 	SeqSetFunc set;
 	BoolBinOp contains;
-	UnOp iter;
-	UnOp iternext;
 };
 
 typedef struct class {
@@ -100,6 +98,9 @@ typedef struct class {
 	CallFunc call;
 
 	PrintFunc print;
+
+	UnOp iter;
+	UnOp iternext;
 
 	struct num_methods *num_methods;
 	struct seq_methods *seq_methods;

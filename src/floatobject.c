@@ -208,8 +208,6 @@ struct seq_methods float_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
-	NULL,    /* iter */
-	NULL,    /* iternext */
 };
 
 Class float_class = {
@@ -229,6 +227,9 @@ Class float_class = {
 	.call = NULL,
 
 	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
 
 	.num_methods = &float_num_methods,
 	.seq_methods  = &float_seq_methods,

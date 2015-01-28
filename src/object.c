@@ -112,8 +112,6 @@ struct seq_methods obj_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
-	NULL,    /* iter */
-	NULL,    /* iternext */
 };
 
 Class obj_class = {
@@ -133,6 +131,9 @@ Class obj_class = {
 	.call = NULL,
 
 	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
 
 	.num_methods = &obj_num_methods,
 	.seq_methods = &obj_seq_methods,
@@ -214,6 +215,8 @@ MAKE_METHOD_RESOLVER_DIRECT(cmp, BinOp)
 MAKE_METHOD_RESOLVER_DIRECT(str, StrUnOp)
 MAKE_METHOD_RESOLVER_DIRECT(call, CallFunc)
 MAKE_METHOD_RESOLVER_DIRECT(print, PrintFunc)
+MAKE_METHOD_RESOLVER_DIRECT(iter, UnOp)
+MAKE_METHOD_RESOLVER_DIRECT(iternext, UnOp)
 
 MAKE_METHOD_RESOLVER(plus, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(minus, num_methods, UnOp)
@@ -260,8 +263,6 @@ MAKE_METHOD_RESOLVER(len, seq_methods, LenFunc)
 MAKE_METHOD_RESOLVER(get, seq_methods, BinOp)
 MAKE_METHOD_RESOLVER(set, seq_methods, SeqSetFunc)
 MAKE_METHOD_RESOLVER(contains, seq_methods, BoolBinOp)
-MAKE_METHOD_RESOLVER(iter, seq_methods, UnOp)
-MAKE_METHOD_RESOLVER(iternext, seq_methods, UnOp)
 
 #undef MAKE_METHOD_RESOLVER_DIRECT
 #undef MAKE_METHOD_RESOLVER
