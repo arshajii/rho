@@ -43,6 +43,29 @@ int hash_ptr(const void *p)
 	return (int)((13*ad) ^ (ad >> 15));
 }
 
+int hash_cstr(const char *str)
+{
+	unsigned int h = 0;
+	char *p = (char *)str;
+
+	while (*p++) {
+		h = 31*h + *p;
+	}
+
+	return h;
+}
+
+int hash_cstr2(const char *str, const size_t len)
+{
+	unsigned int h = 0;
+
+	for (size_t i = 0; i < len; i++) {
+		h = 31*h + str[i];
+	}
+
+	return h;
+}
+
 /* Adapted from java.util.HashMap#hash */
 int secondary_hash(int h)
 {

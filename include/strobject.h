@@ -1,6 +1,7 @@
 #ifndef STROBJECT_H
 #define STROBJECT_H
 
+#include <stdlib.h>
 #include <stdbool.h>
 #include "str.h"
 #include "object.h"
@@ -16,5 +17,6 @@ typedef struct {
 } StrObject;
 
 Value strobj_make(Str value);
+Value strobj_make_direct(const char *value, const size_t len);
 
 #endif /* STROBJECT_H */

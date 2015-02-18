@@ -40,7 +40,7 @@ typedef struct st_entry {
 	size_t table_capacity;
 	size_t table_threshold;
 
-	unsigned int table_next_id;  /* used internally for assigning IDs to locals */
+	unsigned int next_local_id;  /* used internally for assigning IDs to locals */
 	size_t n_locals;
 
 	/* attribute-to-symbol hash table */
@@ -49,8 +49,11 @@ typedef struct st_entry {
 	size_t attr_capacity;
 	size_t attr_threshold;
 
-	/* used internally for assigning IDs to attributes: */
-	unsigned int attr_next_id;
+	/* used internally for assigning IDs to attributes */
+	unsigned int next_attr_id;
+
+	/* used internally for assigning IDs to free variables */
+	unsigned int next_free_var_id;
 
 	struct st_entry *parent;
 	struct sym_table *sym_table;

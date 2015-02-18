@@ -34,9 +34,9 @@ void strbuf_append(StrBuf *sb, const char *str, const size_t len)
 	sb->buf[new_len] = '\0';
 }
 
-Str *strbuf_as_str(StrBuf *sb)
+void strbuf_to_str(StrBuf *sb, Str *dest)
 {
-	return str_new_copy(sb->buf, sb->len);
+	*dest = STR_INIT(sb->buf, sb->len, 0);
 }
 
 void strbuf_dealloc(StrBuf *sb)

@@ -32,18 +32,18 @@ Error *error_new(ErrorType type, const char *msg_format, ...)
 
 Error *unbound_error(const char *var)
 {
-	return error_new(ERR_TYPE_NAME, "cannot reference unbound variable %s", var);
+	return error_new(ERR_TYPE_NAME, "cannot reference unbound variable '%s'", var);
 }
 
 Error *type_error_unsupported_1(const char *op, const Class *c1)
 {
-	return error_new(ERR_TYPE_TYPE, "unsupported operand type for %s: %s", op, c1->name);
+	return error_new(ERR_TYPE_TYPE, "unsupported operand type for %s: '%s'", op, c1->name);
 }
 
 Error *type_error_unsupported_2(const char *op, const Class *c1, const Class *c2)
 {
 	return error_new(ERR_TYPE_TYPE,
-	                 "unsupported operand types for %s: %s and %s",
+	                 "unsupported operand types for %s: '%s' and '%s'",
 	                 op,
 	                 c1->name,
 	                 c2->name);
@@ -51,22 +51,22 @@ Error *type_error_unsupported_2(const char *op, const Class *c1, const Class *c2
 
 Error *type_error_cannot_index(const Class *c1)
 {
-	return error_new(ERR_TYPE_TYPE, "type %s does not support indexing", c1->name);
+	return error_new(ERR_TYPE_TYPE, "type '%s' does not support indexing", c1->name);
 }
 
 Error *type_error_cannot_instantiate(const Class *c1)
 {
-	return error_new(ERR_TYPE_TYPE, "class %s cannot be instantiated", c1->name);
+	return error_new(ERR_TYPE_TYPE, "class '%s' cannot be instantiated", c1->name);
 }
 
 Error *type_error_not_callable(const Class *c1)
 {
-	return error_new(ERR_TYPE_TYPE, "object of type %s is not callable", c1->name);
+	return error_new(ERR_TYPE_TYPE, "object of type '%s' is not callable", c1->name);
 }
 
 Error *type_error_invalid_cmp(const Class *c1)
 {
-	return error_new(ERR_TYPE_TYPE, "comparison of type %s did not return an int", c1->name);
+	return error_new(ERR_TYPE_TYPE, "comparison of type '%s' did not return an int", c1->name);
 }
 
 Error *call_error_args(const char *fn, unsigned int expected, unsigned int got)
@@ -81,7 +81,7 @@ Error *call_error_args(const char *fn, unsigned int expected, unsigned int got)
 Error *attr_error_not_found(const Class *type, const char *attr)
 {
 	return error_new(ERR_TYPE_ATTR,
-	                 "object of type %s has no attribute '%s'",
+	                 "object of type '%s' has no attribute '%s'",
 	                 type->name,
 	                 attr);
 }
@@ -89,7 +89,7 @@ Error *attr_error_not_found(const Class *type, const char *attr)
 Error *attr_error_readonly(const Class *type, const char *attr)
 {
 	return error_new(ERR_TYPE_ATTR,
-	                 "attribute '%s' of type %s object is read-only",
+	                 "attribute '%s' of type '%s' object is read-only",
 	                 attr,
 	                 type->name);
 }
@@ -97,7 +97,7 @@ Error *attr_error_readonly(const Class *type, const char *attr)
 Error *attr_error_mismatch(const Class *type, const char *attr, const Class *assign_type)
 {
 	return error_new(ERR_TYPE_ATTR,
-	                 "cannot assign %s to attribute '%s' of %s object",
+	                 "cannot assign '%s' to attribute '%s' of '%s' object",
 	                 assign_type->name,
 	                 attr,
 	                 type->name);

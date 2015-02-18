@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
 #include "attr.h"
 #include "err.h"
 #include "str.h"
@@ -14,6 +15,17 @@ Value strobj_make(Str value)
 	s->freeable = value.freeable;
 	value.freeable = 0;
 	s->str = value;
+	return makeobj(s);
+}
+
+Value strobj_make_direct(const char *value, const size_t len)
+{
+	StrObject *s = obj_alloc(&str_class);
+	char *copy = malloc(len + 1);
+	memcpy(copy, value, len);
+	copy[len] = '\0';
+	s->str = STR_INIT(copy, len, 0);
+	s->freeable = 1;
 	return makeobj(s);
 }
 
@@ -55,16 +67,16 @@ static void strobj_free(Value *this)
 {
 	StrObject *s = objvalue(this);
 	if (s->freeable) {
-		free((char *) s->str.value);
+		free((char *)s->str.value);
 	}
 
 	s->base.class->super->del(this);
 }
 
-static Str *strobj_str(Value *this)
+static void strobj_str(Value *this, Str *dest)
 {
 	StrObject *s = objvalue(this);
-	return &s->str;
+	*dest = s->str;
 }
 
 static Value strobj_cat(Value *this, Value *other)

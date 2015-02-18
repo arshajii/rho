@@ -17,6 +17,7 @@
 #include "err.h"
 #include "code.h"
 #include "compiler.h"
+#include "builtins.h"
 #include "util.h"
 #include "vmops.h"
 #include "vm.h"
@@ -32,6 +33,8 @@ static Class *classes[] = {
 		NULL
 };
 
+static void load_builtins(VM *vm);
+
 VM *vm_new(void)
 {
 	static bool init = false;
@@ -46,11 +49,16 @@ VM *vm_new(void)
 	VM *vm = malloc(sizeof(VM));
 	vm->module = NULL;
 	vm->callstack = NULL;
+	strdict_init(&vm->imports);
+	strdict_init(&vm->builtins);
+	load_builtins(vm);
 	return vm;
 }
 
 void vm_free(VM *vm)
 {
+	strdict_dealloc(&vm->imports);
+	strdict_dealloc(&vm->builtins);
 	free(vm);
 }
 
@@ -72,6 +80,14 @@ static void vm_pushframe(VM *vm, CodeObject *co)
 	const size_t stack_depth = co->stack_depth;
 	frame->locals = calloc(n_locals + stack_depth, sizeof(Value));
 	frame->valuestack = frame->locals + n_locals;
+
+	const size_t frees_len = co->frees.length;
+	Str *frees = malloc(frees_len * sizeof(Str));
+	for (size_t i = 0; i < frees_len; i++) {
+		frees[i] = STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
+	}
+	frame->frees = frees;
+
 	frame->pos = 0;
 	frame->prev = vm->callstack;
 	vm->callstack = frame;
@@ -90,6 +106,7 @@ static void vm_popframe(VM *vm)
 	}
 
 	free(frame->locals);
+	free(frame->frees);
 	releaseo((Object *)frame->co);
 	release(&frame->return_value);
 	free(frame);
@@ -165,6 +182,7 @@ static void eval_frame(VM *vm)
 
 	Value *locals = frame->locals;
 	Value *globals = module->locals;
+	Str *frees = frame->frees;
 
 	const CodeObject *co = frame->co;
 	struct str_array symbols = co->names;
@@ -668,7 +686,7 @@ static void eval_frame(VM *vm)
 			const unsigned int id = GET_UINT16();
 			v1 = &locals[id];
 
-			if (v1->type == VAL_TYPE_EMPTY) {
+			if (isempty(v1)) {
 				res = makeerr(unbound_error(symbols.array[id].str));
 				goto error;
 			}
@@ -681,7 +699,7 @@ static void eval_frame(VM *vm)
 			const unsigned int id = GET_UINT16();
 			v1 = &globals[id];
 
-			if (v1->type == VAL_TYPE_EMPTY) {
+			if (isempty(v1)) {
 				res = makeerr(unbound_error(global_symbols.array[id].str));
 				goto error;
 			}
@@ -748,6 +766,29 @@ static void eval_frame(VM *vm)
 			release(v1);
 			release(v2);
 			release(v3);
+			break;
+		}
+		case INS_LOAD_NAME: {
+			const unsigned int id = GET_UINT16();
+			Str *key = &frees[id];
+			res = strdict_get(&vm->imports, key);
+
+			if (!isempty(&res)) {
+				retain(&res);
+				STACK_PUSH(res);
+				break;
+			}
+
+			res = strdict_get(&vm->builtins, key);
+
+			if (!isempty(&res)) {
+				retain(&res);
+				STACK_PUSH(res);
+				break;
+			}
+
+			res = makeerr(unbound_error(key->value));
+			goto error;
 			break;
 		}
 		case INS_PRINT: {
@@ -929,6 +970,14 @@ static void eval_frame(VM *vm)
 #undef STACK_PUSH
 }
 
+static void load_builtins(VM *vm)
+{
+	StrDict *builtins_dict = &vm->builtins;
+	for (size_t i = 0; builtins[i].name != NULL; i++) {
+		strdict_put(builtins_dict, builtins[i].name, (Value *)&builtins[i].value);
+	}
+}
+
 static unsigned int get_lineno(Frame *frame)
 {
 	const size_t raw_pos = frame->pos;
@@ -945,7 +994,7 @@ static unsigned int get_lineno(Frame *frame)
 	/* translate raw position into actual instruction position */
 	while (p != dest) {
 		++ins_pos;
-		int size = arg_size(*p);
+		const int size = arg_size(*p);
 
 		if (size < 0) {
 			INTERNAL_ERROR();

@@ -15,11 +15,6 @@ static void obj_init(Value *this, Value *args, size_t nargs)
 	UNUSED(nargs);
 }
 
-static int obj_hash(Value *this)
-{
-	return hash_ptr(objvalue(this));
-}
-
 static bool obj_eq(Value *this, Value *other)
 {
 	if (getclass(other) != &obj_class) {
@@ -28,10 +23,10 @@ static bool obj_eq(Value *this, Value *other)
 	return objvalue(this) == objvalue(other);
 }
 
-static Str *obj_str(Value *this)
+static void obj_str(Value *this, Str *dest)
 {
 #define STR_MAX_LEN 50
-	char *buf = malloc(STR_MAX_LEN);
+	char buf[STR_MAX_LEN];
 	size_t len = snprintf(buf, STR_MAX_LEN, "<%s at %p>", getclass(this)->name, objvalue(this));
 	assert(len > 0);
 
@@ -39,9 +34,9 @@ static Str *obj_str(Value *this)
 		len = STR_MAX_LEN;
 	}
 
-	Str *str = str_new(buf, len);
-	str->freeable = 1;
-	return str;
+	char *copy = malloc(len + 1);
+	strcpy(copy, buf);
+	*dest = STR_INIT(copy, len, 1);
 #undef STR_MAX_LEN
 }
 
@@ -125,7 +120,7 @@ Class obj_class = {
 	.del = obj_free,
 
 	.eq = obj_eq,
-	.hash = obj_hash,
+	.hash = NULL,
 	.cmp = NULL,
 	.str = obj_str,
 	.call = NULL,
@@ -195,6 +190,10 @@ type resolve_##name(Class *class) { \
 
 #define MAKE_METHOD_RESOLVER(name, category, type) \
 type resolve_##name(Class *class) { \
+	if (class->category == NULL) { \
+		return NULL; \
+	} \
+\
 	Class *target = class; \
 	type op; \
 	while (target != NULL && (op = target->category->name) == NULL) { \

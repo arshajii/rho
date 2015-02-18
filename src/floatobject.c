@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include "object.h"
 #include "util.h"
@@ -152,6 +154,17 @@ static Value float_to_float(Value *this)
 	return *this;
 }
 
+static void float_str(Value *this, Str *dest)
+{
+	char buf[32];
+	const double d = floatvalue(this);
+	const size_t len = sprintf(buf, "%f", d);
+	assert(len > 0);
+	char *copy = malloc(len + 1);
+	strcpy(copy, buf);
+	*dest = STR_INIT(copy, len, 1);
+}
+
 struct num_methods float_num_methods = {
 	float_plus,    /* plus */
 	float_minus,    /* minus */
@@ -203,13 +216,6 @@ struct num_methods float_num_methods = {
 	float_to_float,    /* to_float */
 };
 
-struct seq_methods float_seq_methods = {
-	NULL,    /* len */
-	NULL,    /* get */
-	NULL,    /* set */
-	NULL,    /* contains */
-};
-
 Class float_class = {
 	.name = "Float",
 
@@ -223,7 +229,7 @@ Class float_class = {
 	.eq = float_eq,
 	.hash = float_hash,
 	.cmp = float_cmp,
-	.str = NULL,
+	.str = float_str,
 	.call = NULL,
 
 	.print = NULL,
@@ -232,7 +238,7 @@ Class float_class = {
 	.iternext = NULL,
 
 	.num_methods = &float_num_methods,
-	.seq_methods  = &float_seq_methods,
+	.seq_methods  = NULL,
 
 	.members = NULL,
 	.methods = NULL

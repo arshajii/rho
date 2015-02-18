@@ -24,6 +24,7 @@ int str_hash(Str *str);
 
 Str *str_cat(Str *s1, Str *s2);
 
+void str_dealloc(Str *str);
 void str_free(Str *str);
 
 #endif /* STR_H */

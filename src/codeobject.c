@@ -72,6 +72,7 @@ void codeobj_free(Value *this)
 	free(co->head);
 	free(co->names.array);
 	free(co->attrs.array);
+	free(co->frees.array);
 
 	struct value_array *consts = &co->consts;
 	Value *consts_array = consts->array;
@@ -99,6 +100,20 @@ static void read_lno_table(CodeObject *co, Code *code)
 	}
 }
 
+/*
+ * Symbol table has 3 components:
+ *
+ *   - Table of local (bounded) variable names
+ *   - Table of attributes
+ *   - Table of free (unbounded) variable names
+ *
+ * "Table" in this context refers to the following format:
+ *
+ *   - 2 bytes: number of table entries (N)
+ *   - N null-terminated strings
+ *
+ * Example table: 2 0 'f' 'o' 'o' 0 'b' 'a' 'r' 0
+ */
 static void read_sym_table(CodeObject *co, Code *code)
 {
 	if (code_read_byte(code) != ST_ENTRY_BEGIN) {
@@ -153,8 +168,30 @@ static void read_sym_table(CodeObject *co, Code *code)
 		off += len + 1;
 	}
 
+	const size_t n_frees = read_uint16_from_stream(symtab_bc + off);
+	off += 2;
+
+	struct str_array frees;
+	frees.array = malloc(sizeof(*frees.array) * n_frees);
+	frees.length = n_frees;
+
+	for (size_t i = 0; i < n_frees; i++) {
+		size_t len = 0;
+
+		while (symtab_bc[off + len] != '\0') {
+			++len;
+		}
+
+		assert(len > 0);
+
+		frees.array[i].str = (char *)symtab_bc + off;
+		frees.array[i].length = len;
+		off += len + 1;
+	}
+
 	co->names = names;
 	co->attrs = attrs;
+	co->frees = frees;
 }
 
 static void read_const_table(CodeObject *co, Code *code)

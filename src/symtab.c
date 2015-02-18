@@ -70,7 +70,7 @@ static STEntry *ste_new(const char *name, STEContext context)
 	ste->table_size = 0;
 	ste->table_capacity = STE_INIT_CAPACITY;
 	ste->table_threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
-	ste->table_next_id = 0;
+	ste->next_local_id = 0;
 	ste->n_locals = 0;
 	ste->attributes = malloc(STE_INIT_CAPACITY * sizeof(STSymbol *));
 	for (size_t i = 0; i < STE_INIT_CAPACITY; i++) {
@@ -79,7 +79,8 @@ static STEntry *ste_new(const char *name, STEContext context)
 	ste->attr_size = 0;
 	ste->attr_capacity = STE_INIT_CAPACITY;
 	ste->attr_threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
-	ste->attr_next_id = 0;
+	ste->next_attr_id = 0;
+	ste->next_free_var_id = 0;
 	ste->parent = NULL;
 	ste->children = malloc(STE_INIT_CHILDVEC_CAPACITY * sizeof(STEntry));
 	ste->n_children = 0;
@@ -215,6 +216,7 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 		}
 		break;
 	case NODE_IF:
+	case NODE_ELIF:
 		register_bindings_from_node(st, ast->left);
 		register_bindings_from_node(st, ast->right);
 		register_bindings_from_node(st, ast->v.middle);
@@ -311,11 +313,8 @@ static bool ste_register_ident(STEntry *ste, Str *ident, int flags)
 		symbol = calloc(1, sizeof(STSymbol));
 		symbol->key = ident;
 
-		if (flags & FLAG_ATTRIBUTE) {
-			symbol->id = ste->table_next_id++;
-		} else if (flags & FLAG_BOUND_HERE) {
-			symbol->id = ste->table_next_id++;
-			++ste->n_locals;
+		if (flags & FLAG_BOUND_HERE) {
+			symbol->id = ste->next_local_id++;
 		} else if (flags & FLAG_GLOBAL_VAR) {
 			STEntry *module = ste;
 
@@ -331,7 +330,8 @@ static bool ste_register_ident(STEntry *ste, Str *ident, int flags)
 
 			symbol->id = global_symbol->id;
 		} else {
-			symbol->id = 0;
+			assert(flags & FLAG_FREE_VAR);
+			symbol->id = ste->next_free_var_id++;
 		}
 
 		symbol->hash = HASH(ident);
@@ -366,7 +366,7 @@ static bool ste_register_ident(STEntry *ste, Str *ident, int flags)
 		symbol->decl_const = 1;
 	}
 
-	/* this should be handled seperately */
+	/* this should be handled separately */
 	if (flags & FLAG_ATTRIBUTE) {
 		INTERNAL_ERROR();
 	}
@@ -391,14 +391,12 @@ static bool ste_register_attr(STEntry *ste, Str *attr)
 		symbol = calloc(1, sizeof(STSymbol));
 		symbol->key = attr;
 		symbol->attribute = 1;
-		symbol->id = ste->attr_next_id++;
+		symbol->id = ste->next_attr_id++;
 		symbol->hash = HASH(attr);
 		symbol->next = ste->attributes[index];
 		ste->attributes[index] = symbol;
 
-		++ste->attr_size;
-
-		if (ste->attr_size > ste->attr_threshold) {
+		if (ste->next_attr_id > ste->attr_threshold) {
 			ste_grow_attr(ste, 2 * ste->attr_capacity);
 		}
 	}

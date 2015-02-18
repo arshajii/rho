@@ -19,6 +19,8 @@ int hash_double(const double d);
 int hash_float(const float f);
 int hash_bool(const bool b);
 int hash_ptr(const void *p);
+int hash_cstr(const char *str);
+int hash_cstr2(const char *str, const size_t len);
 int secondary_hash(int hash);
 
 void write_int32_to_stream(unsigned char *stream, const int n);

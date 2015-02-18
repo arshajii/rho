@@ -14,7 +14,7 @@ typedef Value (*BinOp)(Value *this, Value *other);
 typedef int (*IntUnOp)(Value *this);
 typedef bool (*BoolUnOp)(Value *this);
 typedef bool (*BoolBinOp)(Value *this, Value *other);
-typedef Str *(*StrUnOp)(Value *this);
+typedef void (*StrUnOp)(Value *this, Str *dest);
 
 typedef void (*InitFunc)(Value *this, Value *args, size_t nargs);
 typedef void (*DelFunc)(Value *this);
@@ -89,7 +89,7 @@ typedef struct class {
 	const size_t instance_size;
 
 	InitFunc init;
-	DelFunc del;
+	DelFunc del;  /* every class should implement this */
 
 	BoolBinOp eq;
 	IntUnOp hash;
@@ -162,6 +162,7 @@ struct value {
 #define objvalue(val)   ((val)->data.o)
 #define errvalue(val)   ((val)->data.e)
 
+#define makeempty()     ((Value){.type = VAL_TYPE_EMPTY, .data = {.i = 0}})
 #define makeint(val)    ((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
 #define makefloat(val)  ((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
 #define makeobj(val)    ((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})

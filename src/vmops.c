@@ -14,6 +14,62 @@
  * ------------------
  */
 
+Value op_hash(Value *v)
+{
+	Class *class = getclass(v);
+	IntUnOp hash = resolve_hash(class);
+
+	if (!hash) {
+		return makeerr(type_error_unsupported_1("hash", class));
+	}
+
+	return makeint(hash(v));
+}
+
+void op_str(Value *v, Str *dest)
+{
+	Class *class = getclass(v);
+	StrUnOp str = resolve_str(class);
+	str(v, dest);
+}
+
+void op_print(Value *v, FILE *out)
+{
+	switch (v->type) {
+	case VAL_TYPE_INT:
+		fprintf(out, "%ld\n", intvalue(v));
+		break;
+	case VAL_TYPE_FLOAT:
+		fprintf(out, "%f\n", floatvalue(v));
+		break;
+	case VAL_TYPE_OBJECT: {
+		const Object *o = objvalue(v);
+		PrintFunc print = resolve_print(o->class);
+
+		if (print) {
+			print(v, out);
+		} else {
+			const StrUnOp op = resolve_str(o->class);
+			Str str;
+			op(v, &str);
+
+			fprintf(out, "%s\n", str.value);
+
+			if (str.freeable) {
+				str_dealloc(&str);
+			}
+		}
+		break;
+	}
+	case VAL_TYPE_EMPTY:
+	case VAL_TYPE_ERROR:
+	case VAL_TYPE_UNSUPPORTED_TYPES:
+	case VAL_TYPE_DIV_BY_ZERO:
+		INTERNAL_ERROR();
+		break;
+	}
+}
+
 #define MAKE_VM_BINOP(op, tok) \
 Value op_##op(Value *a, Value *b) \
 { \
@@ -314,6 +370,30 @@ MAKE_VM_IBINOP(bitor, |=)
 MAKE_VM_IBINOP(xor, ^=)
 MAKE_VM_IBINOP(shiftl, <<=)
 MAKE_VM_IBINOP(shiftr, >>=)
+
+Value op_get(Value *v, Value *idx)
+{
+	Class *class = getclass(v);
+	BinOp get = resolve_get(class);
+
+	if (!get) {
+		return makeerr(type_error_cannot_index(class));
+	}
+
+	return get(v, idx);
+}
+
+Value op_set(Value *v, Value *idx, Value *e)
+{
+	Class *class = getclass(v);
+	SeqSetFunc set = resolve_set(class);
+
+	if (!set) {
+		return makeerr(type_error_cannot_index(class));
+	}
+
+	return set(v, idx, e);
+}
 
 Value op_get_attr(Value *v, const char *attr)
 {
@@ -654,94 +734,4 @@ Value op_set_attr(Value *v, const char *attr, Value *new)
 
 	set_attr_error_mismatch:
 	return makeerr(attr_error_mismatch(v_class, attr, new_class));
-}
-
-Value op_get(Value *v, Value *idx)
-{
-	Class *class = getclass(v);
-	BinOp get = resolve_get(class);
-
-	if (!get) {
-		return makeerr(type_error_cannot_index(class));
-	}
-
-	return get(v, idx);
-}
-
-Value op_set(Value *v, Value *idx, Value *e)
-{
-	Class *class = getclass(v);
-	SeqSetFunc set = resolve_set(class);
-
-	if (!set) {
-		return makeerr(type_error_cannot_index(class));
-	}
-
-	return set(v, idx, e);
-}
-
-Str *op_str(Value *v)
-{
-	char buf[64];
-	switch (v->type) {
-	case VAL_TYPE_INT:
-		snprintf(buf, sizeof(buf), "%ld", intvalue(v));
-		break;
-	case VAL_TYPE_FLOAT:
-		snprintf(buf, sizeof(buf), "%f", floatvalue(v));
-		break;
-	case VAL_TYPE_OBJECT: {
-		const Object *o = objvalue(v);
-		const StrUnOp op = resolve_str(o->class);
-		Str *str = op(v);
-		return str;
-	}
-	case VAL_TYPE_EMPTY:
-	case VAL_TYPE_ERROR:
-	case VAL_TYPE_UNSUPPORTED_TYPES:
-	case VAL_TYPE_DIV_BY_ZERO:
-		INTERNAL_ERROR();
-		break;
-	}
-
-	const size_t len = strlen(buf);
-	Str *str = str_new_copy(buf, len);
-	str->freeable = 1;
-	return str;
-}
-
-void op_print(Value *v, FILE *out)
-{
-	switch (v->type) {
-	case VAL_TYPE_INT:
-		fprintf(out, "%ld\n", intvalue(v));
-		break;
-	case VAL_TYPE_FLOAT:
-		fprintf(out, "%f\n", floatvalue(v));
-		break;
-	case VAL_TYPE_OBJECT: {
-		const Object *o = objvalue(v);
-		PrintFunc print = resolve_print(o->class);
-
-		if (print) {
-			print(v, out);
-		} else {
-			const StrUnOp op = resolve_str(o->class);
-			Str *str = op(v);
-
-			fprintf(out, "%s\n", str->value);
-
-			if (str->freeable) {
-				str_free(str);
-			}
-		}
-		break;
-	}
-	case VAL_TYPE_EMPTY:
-	case VAL_TYPE_ERROR:
-	case VAL_TYPE_UNSUPPORTED_TYPES:
-	case VAL_TYPE_DIV_BY_ZERO:
-		INTERNAL_ERROR();
-		break;
-	}
 }

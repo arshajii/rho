@@ -13,7 +13,7 @@ typedef struct {
 void strbuf_init(StrBuf *sb, const size_t cap);
 void strbuf_init_default(StrBuf *sb);
 void strbuf_append(StrBuf *sb, const char *str, const size_t len);
-Str *strbuf_as_str(StrBuf *sb);
+void strbuf_to_str(StrBuf *sb, Str *dest);
 void strbuf_dealloc(StrBuf *sb);
 
 #endif /* STRBUF_H */

@@ -320,10 +320,8 @@ static void compile_load(Compiler *compiler, AST *ast)
 	} else if (sym->global_var) {
 		write_ins(compiler, INS_LOAD_GLOBAL, lineno);
 	} else {
-		/*
-		 * TODO: non-global free variables
-		 */
-		assert(0);
+		assert(sym->free_var);
+		write_ins(compiler, INS_LOAD_NAME, lineno);
 	}
 
 	write_uint16(compiler, sym->id);
@@ -837,10 +835,12 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 static void write_sym_table(Compiler *compiler)
 {
 	const STEntry *ste = compiler->st->ste_current;
-	const size_t n_locals = ste->n_locals;
-	const size_t n_attrs = ste->attr_size;
+	const size_t n_locals = ste->next_local_id;
+	const size_t n_attrs = ste->next_attr_id;
+	const size_t n_free = ste->next_free_var_id;
 
 	Str **locals_sorted = malloc(n_locals * sizeof(Str *));
+	Str **frees_sorted = malloc(n_free * sizeof(Str *));
 
 	const size_t table_capacity = ste->table_capacity;
 
@@ -848,6 +848,8 @@ static void write_sym_table(Compiler *compiler)
 		for (STSymbol *e = ste->table[i]; e != NULL; e = e->next) {
 			if (e->bound_here) {
 				locals_sorted[e->id] = e->key;
+			} else if (e->free_var) {
+				frees_sorted[e->id] = e->key;
 			}
 		}
 	}
@@ -863,21 +865,26 @@ static void write_sym_table(Compiler *compiler)
 	}
 
 	write_byte(compiler, ST_ENTRY_BEGIN);
-	write_uint16(compiler, n_locals);
 
+	write_uint16(compiler, n_locals);
 	for (size_t i = 0; i < n_locals; i++) {
 		write_str(compiler, locals_sorted[i]);
 	}
 
 	write_uint16(compiler, n_attrs);
-
 	for (size_t i = 0; i < n_attrs; i++) {
 		write_str(compiler, attrs_sorted[i]);
+	}
+
+	write_uint16(compiler, n_free);
+	for (size_t i = 0; i < n_free; i++) {
+		write_str(compiler, frees_sorted[i]);
 	}
 
 	write_byte(compiler, ST_ENTRY_END);
 
 	free(locals_sorted);
+	free(frees_sorted);
 	free(attrs_sorted);
 }
 
@@ -1082,6 +1089,13 @@ static int max_stack_depth(byte *bc, size_t len)
 			while (*bc++ != '\0');
 		}
 
+		const size_t n_frees = read_uint16_from_stream(bc);
+		bc += 2;
+
+		for (size_t i = 0; i < n_frees; i++) {
+			while (*bc++ != '\0');
+		}
+
 		++bc;  // ST_ENTRY_END
 	}
 
@@ -1197,6 +1211,8 @@ int arg_size(Opcode opcode)
 	case INS_LOAD_INDEX:
 	case INS_SET_INDEX:
 		return 0;
+	case INS_LOAD_NAME:
+		return 2;
 	case INS_PRINT:
 		return 0;
 	case INS_JMP:
@@ -1322,6 +1338,8 @@ static int stack_delta(Opcode opcode, int arg)
 		return -1;
 	case INS_SET_INDEX:
 		return -3;
+	case INS_LOAD_NAME:
+		return 1;
 	case INS_PRINT:
 		return -1;
 	case INS_JMP:
@@ -1348,6 +1366,9 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_ROT_THREE:
 		return 0;
 	}
+
+	INTERNAL_ERROR();
+	return 0;
 }
 
 void compile(FILE *src, FILE *out, const char *name)

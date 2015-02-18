@@ -31,6 +31,9 @@ typedef struct {
 	/* enumerated attributes used */
 	struct str_array attrs;
 
+	/* enumerated free variables */
+	struct str_array frees;
+
 	/* enumerated constants */
 	struct value_array consts;
 

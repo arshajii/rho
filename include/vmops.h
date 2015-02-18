@@ -4,6 +4,12 @@
 #include "str.h"
 #include "object.h"
 
+Value op_hash(Value *v);
+
+void op_str(Value *v, Str *dest);
+
+void op_print(Value *v, FILE *out);
+
 Value op_add(Value *a, Value *b);
 
 Value op_sub(Value *a, Value *b);
@@ -72,16 +78,12 @@ Value op_ishiftl(Value *a, Value *b);
 
 Value op_ishiftr(Value *a, Value *b);
 
-Value op_get_attr(Value *v, const char *attr);
-
-Value op_set_attr(Value *v, const char *attr, Value *new);
-
 Value op_get(Value *v, Value *idx);
 
 Value op_set(Value *v, Value *idx, Value *e);
 
-Str *op_str(Value *v);
+Value op_get_attr(Value *v, const char *attr);
 
-void op_print(Value *v, FILE *out);
+Value op_set_attr(Value *v, const char *attr, Value *new);
 
 #endif /* VMOPS_H */

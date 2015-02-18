@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include "util.h"
 #include "str.h"
 
 Str *str_new(const char *value, const size_t len)
@@ -47,24 +48,12 @@ int str_cmp(Str *s1, Str *s2)
 
 int str_hash(Str *str)
 {
-	if (str->hashed) {
-		return str->hash;
+	if (!str->hashed) {
+		str->hash = hash_cstr2(str->value, str->len);
+		str->hashed = 1;
 	}
 
-	unsigned int h = str->hash;
-
-	if (h == 0 && str->len > 0) {
-		const size_t len = str->len;
-
-		for (size_t i = 0; i < len; i++) {
-			h = 31*h + str->value[i];
-		}
-
-		str->hash = (int)h;
-	}
-
-	str->hashed = true;
-	return h;
+	return str->hash;
 }
 
 Str *str_cat(Str *s1, Str *s2)
@@ -87,8 +76,13 @@ Str *str_cat(Str *s1, Str *s2)
 	return str_new(cat, len_cat);
 }
 
-void str_free(Str *str)
+void str_dealloc(Str *str)
 {
 	free((char *)str->value);
+}
+
+void str_free(Str *str)
+{
+	str_dealloc(str);
 	free(str);
 }

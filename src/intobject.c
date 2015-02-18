@@ -1,11 +1,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include <math.h>
+#include <assert.h>
 #include "object.h"
+#include "str.h"
 #include "util.h"
 #include "err.h"
 #include "intobject.h"
-#include <stdio.h>
 
 #define TYPE_ERR_STR(op) "invalid operator types for operator " #op "."
 
@@ -247,6 +250,17 @@ static Value int_to_float(Value *this)
 	return makefloat(intvalue(this));
 }
 
+static void int_str(Value *this, Str *dest)
+{
+	char buf[32];
+	const long n = intvalue(this);
+	const size_t len = sprintf(buf, "%ld", n);
+	assert(len > 0);
+	char *copy = malloc(len + 1);
+	strcpy(copy, buf);
+	*dest = STR_INIT(copy, len, 1);
+}
+
 struct num_methods int_num_methods = {
 	int_plus,    /* plus */
 	int_minus,    /* minus */
@@ -298,13 +312,6 @@ struct num_methods int_num_methods = {
 	int_to_float,    /* to_float */
 };
 
-struct seq_methods int_seq_methods = {
-	NULL,    /* len */
-	NULL,    /* get */
-	NULL,    /* set */
-	NULL,    /* contains */
-};
-
 Class int_class = {
 	.name = "Int",
 
@@ -318,7 +325,7 @@ Class int_class = {
 	.eq = int_eq,
 	.hash = int_hash,
 	.cmp = int_cmp,
-	.str = NULL,
+	.str = int_str,
 	.call = NULL,
 
 	.print = NULL,
@@ -327,7 +334,7 @@ Class int_class = {
 	.iternext = NULL,
 
 	.num_methods = &int_num_methods,
-	.seq_methods  = &int_seq_methods,
+	.seq_methods  = NULL,
 
 	.members = NULL,
 	.methods = NULL

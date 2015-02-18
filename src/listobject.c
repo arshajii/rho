@@ -24,19 +24,16 @@ Value list_make(Value *elements, const size_t count)
 	return makeobj(list);
 }
 
-Str *list_str(Value *this)
+void list_str(Value *this, Str *dest)
 {
-	static Str empty_list_str = {.value = "[]",
-	                             .len = 2,
-	                             .hash = 0,
-	                             .hashed = 0,
-	                             .freeable = 0};
+	static Str empty_list_str = STR_INIT("[]", 2, 0);
 
 	ListObject *list = objvalue(this);
 	const size_t count = list->count;
 
 	if (count == 0) {
-		return &empty_list_str;
+		*dest = empty_list_str;
+		return;
 	}
 
 	StrBuf sb;
@@ -50,11 +47,12 @@ Str *list_str(Value *this)
 		if (isobject(v) && objvalue(v) == list) {
 			strbuf_append(&sb, "[...]", 5);
 		} else {
-			Str *str = op_str(v);
+			Str str;
+			op_str(v, &str);
 
-			strbuf_append(&sb, str->value, str->len);
-			if (str->freeable) {
-				str_free(str);
+			strbuf_append(&sb, str.value, str.len);
+			if (str.freeable) {
+				str_dealloc(&str);
 			}
 		}
 
@@ -66,10 +64,8 @@ Str *list_str(Value *this)
 		}
 	}
 
-	Str *str = strbuf_as_str(&sb);
-	str->freeable = 1;
-	strbuf_dealloc(&sb);
-	return str;
+	strbuf_to_str(&sb, dest);
+	dest->freeable = 1;
 }
 
 static void list_free(Value *this)
