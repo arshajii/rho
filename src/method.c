@@ -83,8 +83,8 @@ struct seq_methods meth_seq_methods = {
 };
 
 Class method_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "Method",
-
 	.super = &obj_class,
 
 	.instance_size = sizeof(Method),

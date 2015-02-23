@@ -13,6 +13,8 @@
 #include "listobject.h"
 #include "codeobject.h"
 #include "method.h"
+#include "nativefunc.h"
+#include "metaclass.h"
 #include "attr.h"
 #include "err.h"
 #include "code.h"
@@ -30,6 +32,8 @@ static Class *classes[] = {
 		&list_class,
 		&co_class,
 		&method_class,
+		&native_func_class,
+		&meta_class,
 		NULL
 };
 
@@ -973,8 +977,14 @@ static void eval_frame(VM *vm)
 static void load_builtins(VM *vm)
 {
 	StrDict *builtins_dict = &vm->builtins;
+
 	for (size_t i = 0; builtins[i].name != NULL; i++) {
 		strdict_put(builtins_dict, builtins[i].name, (Value *)&builtins[i].value);
+	}
+
+	for (Class **class = &classes[0]; *class != NULL; class++) {
+		Value v = makeobj(*class);
+		strdict_put(builtins_dict, (*class)->name, &v);
 	}
 }
 

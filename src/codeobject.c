@@ -330,8 +330,8 @@ struct seq_methods co_seq_methods = {
 };
 
 Class co_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "CodeObject",
-
 	.super = &obj_class,
 
 	.instance_size = sizeof(CodeObject),

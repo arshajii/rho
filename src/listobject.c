@@ -326,8 +326,8 @@ struct attr_method list_methods[] = {
 };
 
 Class list_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "List",
-
 	.super = &obj_class,
 
 	.instance_size = sizeof(ListObject),

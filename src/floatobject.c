@@ -217,8 +217,8 @@ struct num_methods float_num_methods = {
 };
 
 Class float_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "Float",
-
 	.super = &obj_class,
 
 	.instance_size = 0,

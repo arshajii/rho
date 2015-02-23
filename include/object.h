@@ -6,8 +6,19 @@
 #include <stdbool.h>
 #include "str.h"
 #include "attr.h"
+#include "metaclass.h"
 
 typedef struct value Value;
+
+struct class;
+typedef struct class Class;
+
+struct object {
+	struct class *class;
+	unsigned int refcnt;
+};
+
+typedef struct object Object;
 
 typedef Value (*UnOp)(Value *this);
 typedef Value (*BinOp)(Value *this, Value *other);
@@ -81,7 +92,8 @@ struct seq_methods {
 	BoolBinOp contains;
 };
 
-typedef struct class {
+struct class {
+	Object base;
 	const char *name;
 
 	struct class *super;
@@ -108,19 +120,13 @@ typedef struct class {
 	struct attr_member *members;
 	struct attr_method *methods;
 	AttrDict attr_dict;
-} Class;
-
-struct object;
-typedef struct object Object;
+};
 
 extern struct num_methods obj_num_methods;
 extern struct seq_methods obj_seq_methods;
 extern Class obj_class;
 
-struct object {
-	Class *class;
-	unsigned int refcnt;
-};
+#define CLASS_BASE_INIT() ((Object){&meta_class, -1})
 
 struct error;
 
@@ -175,12 +181,16 @@ Class *getclass(Value *v);
 
 bool is_a(Value *v, Class *class);
 
+InitFunc resolve_init(Class *class);
+DelFunc resolve_del(Class *class);
 BoolBinOp resolve_eq(Class *class);
 IntUnOp resolve_hash(Class *class);
 BinOp resolve_cmp(Class *class);
 StrUnOp resolve_str(Class *class);
 CallFunc resolve_call(Class *class);
 PrintFunc resolve_print(Class *class);
+UnOp resolve_iter(Class *class);
+UnOp resolve_iternext(Class *class);
 
 UnOp resolve_plus(Class *class);
 UnOp resolve_minus(Class *class);
@@ -227,8 +237,6 @@ LenFunc resolve_len(Class *class);
 BinOp resolve_get(Class *class);
 SeqSetFunc resolve_set(Class *class);
 BoolBinOp resolve_contains (Class *class);
-UnOp resolve_iter(Class *class);
-UnOp resolve_iternext(Class *class);
 
 void *obj_alloc(Class *class);
 Value instantiate(Class *class, Value *args, size_t nargs);

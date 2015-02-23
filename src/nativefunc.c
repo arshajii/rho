@@ -20,8 +20,8 @@ static Value nativefunc_call(Value *this, Value *args, size_t nargs)
 }
 
 Class native_func_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "NativeFunction",
-
 	.super = &obj_class,
 
 	.instance_size = sizeof(NativeFuncObject),

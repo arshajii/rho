@@ -6,19 +6,22 @@
 #include "err.h"
 #include "builtins.h"
 
-#define OBJ_INIT_STATIC(class) (Object){class, 1}
+#define OBJ_INIT_STATIC(class) (Object){class, -1}
 
 #define NFUNC_INIT(func) (NativeFuncObject){OBJ_INIT_STATIC(&native_func_class), func}
 
 static Value hash(Value *args, size_t nargs);
 static Value str(Value *args, size_t nargs);
+static Value type(Value *args, size_t nargs);
 
 static NativeFuncObject hash_nfo = NFUNC_INIT(hash);
 static NativeFuncObject str_nfo  = NFUNC_INIT(str);
+static NativeFuncObject type_nfo = NFUNC_INIT(type);
 
 const struct builtin builtins[] = {
 		{"hash", makeobj(&hash_nfo)},
 		{"str",  makeobj(&str_nfo)},
+		{"type", makeobj(&type_nfo)},
 		{NULL,   makeempty()},
 };
 
@@ -40,4 +43,10 @@ static Value str(Value *args, size_t nargs)
 	op_str(&args[0], &str);
 	Value stro = strobj_make(str);
 	return stro;
+}
+
+static Value type(Value *args, size_t nargs)
+{
+	ARG_CHECK(nargs, 1);
+	return makeobj(getclass(&args[0]));
 }

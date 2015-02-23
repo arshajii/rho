@@ -171,8 +171,8 @@ struct attr_member str_members[] = {
 };
 
 Class str_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "Str",
-
 	.super = &obj_class,
 
 	.instance_size = sizeof(StrObject),

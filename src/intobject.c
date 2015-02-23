@@ -313,8 +313,8 @@ struct num_methods int_num_methods = {
 };
 
 Class int_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "Int",
-
 	.super = &obj_class,
 
 	.instance_size = 0,

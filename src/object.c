@@ -17,7 +17,7 @@ static void obj_init(Value *this, Value *args, size_t nargs)
 
 static bool obj_eq(Value *this, Value *other)
 {
-	if (getclass(other) != &obj_class) {
+	if (!isobject(other)) {
 		return false;
 	}
 	return objvalue(this) == objvalue(other);
@@ -110,8 +110,8 @@ struct seq_methods obj_seq_methods = {
 };
 
 Class obj_class = {
+	.base = CLASS_BASE_INIT(),
 	.name = "Object",
-
 	.super = NULL,
 
 	.instance_size = sizeof(Object),
@@ -177,11 +177,14 @@ type resolve_##name(Class *class) { \
 	Class *target = class; \
 	type op; \
 	while (target != NULL && (op = target->name) == NULL) { \
+		if (target == target->super) { \
+			return obj_class.name; \
+		} \
 		target = target->super; \
 	} \
 \
 	if (target == NULL) { \
-		return NULL; \
+		return obj_class.name; \
 	} \
 \
 	class->name = op; \
@@ -191,21 +194,40 @@ type resolve_##name(Class *class) { \
 #define MAKE_METHOD_RESOLVER(name, category, type) \
 type resolve_##name(Class *class) { \
 	if (class->category == NULL) { \
-		return NULL; \
+		return obj_class.category->name; \
 	} \
 \
 	Class *target = class; \
 	type op; \
 	while (target != NULL && (op = target->category->name) == NULL) { \
+		if (target == target->super) { \
+			return obj_class.category->name; \
+		} \
 		target = target->super; \
 	} \
 \
 	if (target == NULL) { \
-		return NULL; \
+		return obj_class.category->name; \
 	} \
 \
 	class->category->name = op; \
 	return op; \
+}
+
+/*
+ * Initializers should not be inherited.
+ */
+InitFunc resolve_init(Class *class)
+{
+	return class->init;
+}
+
+/*
+ * Every class should implement `del`.
+ */
+DelFunc resolve_del(Class *class)
+{
+	return class->del;
 }
 
 MAKE_METHOD_RESOLVER_DIRECT(eq, BoolBinOp)
@@ -281,24 +303,28 @@ Value instantiate(Class *class, Value *args, size_t nargs)
 	} else if (class == &float_class) {
 		return makefloat(0);
 	} else {
-		if (class->init == NULL) {
-			type_error_cannot_instantiate(class);
+		InitFunc init = resolve_init(class);
+
+		if (!init) {
+			return makeerr(type_error_cannot_instantiate(class));
 		}
 
-		Value instance = makeobj(malloc(class->instance_size));
-		class->init(&instance, args, nargs);
+		Value instance = makeobj(obj_alloc(class));
+		init(&instance, args, nargs);
 		return instance;
 	}
 }
 
 void retaino(Object *o)
 {
-	++o->refcnt;
+	if (o->refcnt != (unsigned)(-1)) {
+		++o->refcnt;
+	}
 }
 
 void releaseo(Object *o)
 {
-	if (--o->refcnt == 0) {
+	if (o->refcnt != (unsigned)(-1) && --o->refcnt == 0) {
 		destroyo(o);
 	}
 }
