@@ -585,47 +585,57 @@ static AST *parse_return(Lexer *lex)
 
 static AST *parse_block(Lexer *lex)
 {
-	Token *brace_open = expect(lex, TOK_BRACE_OPEN);
-
 	Block *block_head = NULL;
-	Block *block = NULL;
 
-	do {
-		Token *next = lex_peek_token(lex);
+	Token *peek = lex_peek_token(lex);
 
-		if (next->type == TOK_EOF) {
-			parse_err_unclosed(lex, brace_open);
-		}
+	Token *brace_open;
 
-		if (next->type == TOK_BRACE_CLOSE) {
-			break;
-		}
+	if (peek->type == TOK_COLON) {
+		brace_open = expect(lex, TOK_COLON);
+		block_head = ast_list_new();
+		block_head->ast = parse_stmt(lex);
+	} else {
+		brace_open = expect(lex, TOK_BRACE_OPEN);
+		Block *block = NULL;
 
-		AST *stmt = parse_stmt(lex);
+		do {
+			Token *next = lex_peek_token(lex);
 
-		/*
-		 * We don't include empty statements
-		 * in the syntax tree.
-		 */
-		if (stmt->type == NODE_EMPTY) {
-			free(stmt);
-			continue;
-		}
+			if (next->type == TOK_EOF) {
+				parse_err_unclosed(lex, brace_open);
+			}
 
-		if (block_head == NULL) {
-			block_head = ast_list_new();
-			block = block_head;
-		}
+			if (next->type == TOK_BRACE_CLOSE) {
+				break;
+			}
 
-		if (block->ast != NULL) {
-			block->next = ast_list_new();
-			block = block->next;
-		}
+			AST *stmt = parse_stmt(lex);
 
-		block->ast = stmt;
-	} while (true);
+			/*
+			 * We don't include empty statements
+			 * in the syntax tree.
+			 */
+			if (stmt->type == NODE_EMPTY) {
+				free(stmt);
+				continue;
+			}
 
-	expect(lex, TOK_BRACE_CLOSE);
+			if (block_head == NULL) {
+				block_head = ast_list_new();
+				block = block_head;
+			}
+
+			if (block->ast != NULL) {
+				block->next = ast_list_new();
+				block = block->next;
+			}
+
+			block->ast = stmt;
+		} while (true);
+
+		expect(lex, TOK_BRACE_CLOSE);
+	}
 
 	AST *ast = ast_new(NODE_BLOCK, NULL, NULL, brace_open->lineno);
 	ast->v.block = block_head;

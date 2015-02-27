@@ -542,6 +542,14 @@ static Token next_comma(Lexer *lex)
 	return tok;
 }
 
+static Token next_colon(Lexer *lex)
+{
+	assert(currc(lex) == ':');
+	Token tok = get(lex, TOK_COLON);
+	fwd(lex);
+	return tok;
+}
+
 static Token next_semicolon(Lexer *lex)
 {
 	assert(currc(lex) == ';');
@@ -637,6 +645,9 @@ static void tokenize(Lexer *lex)
 			case '"':
 			case '\'':
 				tok = next_string(lex, c);
+				break;
+			case ':':
+				tok = next_colon(lex);
 				break;
 			case ';':
 				tok = next_semicolon(lex);
@@ -877,6 +888,8 @@ const char *type_to_str(TokType type)
 		return "return";
 	case TOK_COMMA:
 		return ",";
+	case TOK_COLON:
+		return ":";
 	case TOK_SEMICOLON:
 		return ";";
 	case TOK_NEWLINE:

@@ -75,6 +75,7 @@ typedef enum {
 
 	/* miscellaneous tokens */
 	TOK_COMMA,
+	TOK_COLON,
 
 	/* statement terminators */
 	TOK_SEMICOLON,
