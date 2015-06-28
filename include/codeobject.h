@@ -25,6 +25,9 @@ typedef struct {
 	/* max value stack depth */
 	unsigned int stack_depth;
 
+	/* max try-catch depth */
+	unsigned int try_catch_depth;
+
 	/* enumerated variable names */
 	struct str_array names;
 
@@ -47,6 +50,7 @@ typedef struct {
 CodeObject *codeobj_make(Code *code,
                          const char *name,
                          unsigned int argcount,
-                         int stack_depth);
+                         int stack_depth,
+                         int try_catch_depth);
 
 #endif /* CODEOBJECT_H */

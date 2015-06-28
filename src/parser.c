@@ -77,6 +77,8 @@ static AST *parse_def(Lexer *lex);
 static AST *parse_break(Lexer *lex);
 static AST *parse_continue(Lexer *lex);
 static AST *parse_return(Lexer *lex);
+static AST *parse_throw(Lexer *lex);
+static AST *parse_try_catch(Lexer *lex);
 
 static AST *parse_block(Lexer *lex);
 static AST *parse_list(Lexer *lex);
@@ -98,6 +100,7 @@ static void parse_err_invalid_break(Lexer *lex, Token *tok);
 static void parse_err_invalid_continue(Lexer *lex, Token *tok);
 static void parse_err_invalid_return(Lexer *lex, Token *tok);
 static void parse_err_too_many_params(Lexer *lex, Token *tok);
+static void parse_err_empty_catch(Lexer *lex, Token *tok);
 
 Program *parse(Lexer *lex)
 {
@@ -161,6 +164,12 @@ static AST *parse_stmt(Lexer *lex)
 		break;
 	case TOK_RETURN:
 		stmt = parse_return(lex);
+		break;
+	case TOK_THROW:
+		stmt = parse_throw(lex);
+		break;
+	case TOK_TRY:
+		stmt = parse_try_catch(lex);
 		break;
 	case TOK_SEMICOLON:
 		return parse_empty(lex);
@@ -583,6 +592,36 @@ static AST *parse_return(Lexer *lex)
 	return ast;
 }
 
+static AST *parse_throw(Lexer *lex)
+{
+	Token *tok = expect(lex, TOK_THROW);
+	AST *expr = parse_expr(lex);
+	AST *ast = ast_new(NODE_THROW, expr, NULL, tok->lineno);
+	return ast;
+}
+
+static AST *parse_try_catch(Lexer *lex)
+{
+	Token *tok = expect(lex, TOK_TRY);
+	AST *try_body = parse_block(lex);
+	Token *catch = expect(lex, TOK_CATCH);
+	unsigned int count;
+	struct ast_list *exc_list = parse_comma_separated_list(lex,
+	                                                       TOK_PAREN_OPEN,
+	                                                       TOK_PAREN_CLOSE,
+	                                                       parse_expr,
+	                                                       &count);
+
+	if (count == 0) {
+		parse_err_empty_catch(lex, catch);
+	}
+
+	AST *catch_body = parse_block(lex);
+	AST *ast = ast_new(NODE_TRY_CATCH, try_body, catch_body, tok->lineno);
+	ast->v.excs = exc_list;
+	return ast;
+}
+
 static AST *parse_block(Lexer *lex)
 {
 	Block *block_head = NULL;
@@ -961,6 +1000,18 @@ static void parse_err_too_many_params(Lexer *lex, Token *tok)
 	        lex->name,
 	        tok->lineno,
 	        FUNCTION_MAX_PARAMS);
+
+	err_on_tok(lex, tok);
+
+	exit(EXIT_FAILURE);
+}
+
+static void parse_err_empty_catch(Lexer *lex, Token *tok)
+{
+	fprintf(stderr,
+	        SYNTAX_ERROR " empty catch statement\n\n",
+	        lex->name,
+	        tok->lineno);
 
 	err_on_tok(lex, tok);
 

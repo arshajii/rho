@@ -62,6 +62,8 @@ typedef enum {
 	NODE_BREAK,
 	NODE_CONTINUE,
 	NODE_RETURN,
+	NODE_THROW,
+	NODE_TRY_CATCH,
 
 	NODE_BLOCK,
 	NODE_LIST,
@@ -76,6 +78,7 @@ struct ast_list;
 typedef struct ast_list Program;
 typedef struct ast_list Block;
 typedef struct ast_list ParamList;
+typedef struct ast_list ExcList;
 
 /*
  * Fundamental syntax tree unit
@@ -92,6 +95,7 @@ typedef struct AST {
 		struct AST *middle;
 		Block *block;
 		ParamList *params;
+		ExcList *excs;
 		struct ast_list *list;
 	} v;
 

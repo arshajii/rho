@@ -72,6 +72,9 @@ typedef enum {
 	TOK_BREAK,
 	TOK_CONTINUE,
 	TOK_RETURN,
+	TOK_THROW,
+	TOK_TRY,
+	TOK_CATCH,
 
 	/* miscellaneous tokens */
 	TOK_COMMA,

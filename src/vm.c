@@ -16,6 +16,7 @@
 #include "nativefunc.h"
 #include "metaclass.h"
 #include "attr.h"
+#include "exc.h"
 #include "err.h"
 #include "code.h"
 #include "compiler.h"
@@ -34,6 +35,7 @@ static Class *classes[] = {
 		&method_class,
 		&native_func_class,
 		&meta_class,
+		&exception_class,
 		NULL
 };
 
@@ -82,8 +84,10 @@ static void vm_pushframe(VM *vm, CodeObject *co)
 
 	const size_t n_locals = co->names.length;
 	const size_t stack_depth = co->stack_depth;
+	const size_t try_catch_depth = co->try_catch_depth;
+
 	frame->locals = calloc(n_locals + stack_depth, sizeof(Value));
-	frame->valuestack = frame->locals + n_locals;
+	frame->valuestack = frame->valuestack_base = frame->locals + n_locals;
 
 	const size_t frees_len = co->frees.length;
 	Str *frees = malloc(frees_len * sizeof(Str));
@@ -92,8 +96,11 @@ static void vm_pushframe(VM *vm, CodeObject *co)
 	}
 	frame->frees = frees;
 
+	frame->exc_stack_base = frame->exc_stack = malloc(try_catch_depth * sizeof(struct exc_stack_element));
+
 	frame->pos = 0;
 	frame->prev = vm->callstack;
+	frame->return_value = makeempty();
 	vm->callstack = frame;
 }
 
@@ -111,9 +118,16 @@ static void vm_popframe(VM *vm)
 
 	free(frame->locals);
 	free(frame->frees);
+	free(frame->exc_stack_base);
 	releaseo((Object *)frame->co);
 	release(&frame->return_value);
 	free(frame);
+
+	/*
+	 * It's the frame evaluation function's job to make
+	 * sure nothing is on the value stack before the frame
+	 * is popped.
+	 */
 }
 
 static void eval_frame(VM *vm);
@@ -142,6 +156,19 @@ void execute(FILE *compiled)
 
 	vm_push_module_frame(vm, &code);
 	eval_frame(vm);
+
+	Value *ret = &vm->callstack->return_value;
+	if (isexc(ret)) {
+		Exception *e = (Exception *)objvalue(ret);
+		vm_traceback(vm);
+		if (e->msg != NULL) {
+			fprintf(stderr, "%s: %s\n", e->base.class->name, e->msg);
+		} else {
+			fprintf(stderr, "%s\n", e->base.class->name);
+		}
+		release(ret);
+	}
+
 	vm_popframe(vm);
 
 	vm_free(vm);
@@ -154,22 +181,17 @@ void execute(FILE *compiled)
 static void vm_push_module_frame(VM *vm, Code *code)
 {
 	assert(vm->module == NULL);
-	CodeObject *co = codeobj_make(code, "<module>", 0, -1);
+	CodeObject *co = codeobj_make(code, "<module>", 0, -1, -1);
 	vm_pushframe(vm, co);
 	vm->module = vm->callstack;
 }
 
-static unsigned int read_uint16_from_bc(byte *bc, size_t *pos)
-{
-	const unsigned int n = read_uint16_from_stream(bc + *pos);
-	(*pos) += 2;
-	return n;
-}
-
 static void eval_frame(VM *vm)
 {
-#define GET_BYTE() (bc[pos++])
-#define GET_UINT16() (read_uint16_from_bc(bc, &pos))
+#define GET_BYTE()    (bc[pos++])
+#define GET_UINT16()  (pos += 2, ((bc[pos - 1] << 8) | bc[pos - 2]))
+
+#define IN_TOP_FRAME()  (vm->callstack == vm->module)
 
 #define STACK_POP()          (--stack)
 #define STACK_POPN(n)        (stack -= (n))
@@ -180,6 +202,12 @@ static void eval_frame(VM *vm)
 #define STACK_SET_TOP(v)     (stack[-1] = (v))
 #define STACK_SET_SECOND(v)  (stack[-2] = (v))
 #define STACK_SET_THIRD(v)   (stack[-3] = (v))
+#define STACK_PURGE()        do { while (stack != stack_base) {release(STACK_POP());} } while (0)
+
+#define EXC_STACK_PUSH(start, end, handler)  (*exc_stack++ = (struct exc_stack_element){(start), (end), (handler)})
+#define EXC_STACK_POP()       (--exc_stack)
+#define EXC_STACK_TOP()       (&exc_stack[-1])
+#define EXC_STACK_EMPTY()     (exc_stack == exc_stack_base)
 
 	Frame *frame = vm->callstack;
 	Frame *module = vm->module;
@@ -195,7 +223,11 @@ static void eval_frame(VM *vm)
 
 	Value *constants = co->consts.array;
 	byte *bc = co->bc;
+	Value *stack_base = frame->valuestack_base;
 	Value *stack = frame->valuestack;
+
+	struct exc_stack_element *exc_stack_base = frame->exc_stack_base;
+	struct exc_stack_element *exc_stack = frame->exc_stack;
 
 	/* position in the bytecode */
 	size_t pos = 0;
@@ -203,8 +235,14 @@ static void eval_frame(VM *vm)
 	Value *v1, *v2, *v3;
 	Value res;
 
+	head:
 	while (true) {
 		frame->pos = pos;
+
+		while (!EXC_STACK_EMPTY() && (pos < EXC_STACK_TOP()->start || pos > EXC_STACK_TOP()->end)) {
+			EXC_STACK_POP();
+		}
+
 		const byte opcode = GET_BYTE();
 
 		switch (opcode) {
@@ -869,13 +907,13 @@ static void eval_frame(VM *vm)
 
 				eval_frame(vm);
 				res = top->return_value;
+				vm_popframe(vm);
 
 				if (iserror(&res)) {
 					goto error;
 				}
 
 				STACK_PUSH(res);
-				vm_popframe(vm);
 			} else {
 				CallFunc call = resolve_call(class);
 
@@ -904,6 +942,55 @@ static void eval_frame(VM *vm)
 			retain(v1);
 			frame->return_value = *v1;
 			return;
+		}
+		case INS_THROW: {
+			v1 = STACK_POP();  // exception
+			Class *class = getclass(v1);
+
+			if (!is_subclass(class, &exception_class)) {
+				res = makeerr(type_error_invalid_throw(class));
+				goto error;
+			}
+
+			res = *v1;
+			res.type = VAL_TYPE_EXC;
+			goto error;
+		}
+		case INS_TRY_BEGIN: {
+			const unsigned int try_block_len = GET_UINT16();
+			const unsigned int handler_offset = GET_UINT16();
+
+			EXC_STACK_PUSH(pos, pos + try_block_len, pos + handler_offset);
+
+			break;
+		}
+		case INS_TRY_END: {
+			EXC_STACK_POP();
+			break;
+		}
+		case INS_JMP_IF_EXC_MISMATCH: {
+			const unsigned int jmp = GET_UINT16();
+
+			v1 = STACK_POP();  // exception type
+			v2 = STACK_POP();  // exception
+
+			Class *class = getclass(v1);
+
+			if (class != &meta_class) {
+				res = makeerr(type_error_invalid_catch(class));
+				goto error;
+			}
+
+			Class *exc_type = (Class *)objvalue(v1);
+
+			if (!is_a(v2, exc_type)) {
+				pos += jmp;
+			}
+
+			release(v1);
+			release(v2);
+
+			break;
 		}
 		case INS_MAKE_LIST: {
 			const unsigned int len = GET_UINT16();
@@ -961,13 +1048,32 @@ static void eval_frame(VM *vm)
 	}
 
 	error:
-	assert(iserror(&res));
-	vm_traceback(vm);
-	Error *e = errvalue(&res);
-	fflush(NULL);
-	fprintf(stderr, "%s: ", err_type_headers[e->type]);
-	fprintf(stderr, "%s\n", e->msg);
-	exit(EXIT_FAILURE);
+	switch (res.type) {
+	case VAL_TYPE_EXC: {
+		STACK_PURGE();
+
+		if (EXC_STACK_EMPTY()) {
+			retain(&res);
+			frame->return_value = res;
+			return;
+		} else {
+			STACK_PUSH(res);
+			pos = EXC_STACK_POP()->handler_pos;
+			goto head;
+		}
+		break;
+	}
+	case VAL_TYPE_ERROR: {
+		vm_traceback(vm);
+		Error *e = errvalue(&res);
+		fflush(NULL);
+		fprintf(stderr, "%s: %s\n", err_type_headers[e->type], e->msg);
+		exit(EXIT_FAILURE);
+		break;
+	}
+	default:
+		INTERNAL_ERROR();
+	}
 
 #undef STACK_POP
 #undef STACK_TOP

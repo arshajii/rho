@@ -4,6 +4,7 @@
 #include "object.h"
 #include "util.h"
 #include "err.h"
+#include "object.h"
 #include "metaclass.h"
 
 static void meta_class_del(Value *this)
@@ -39,8 +40,17 @@ static Value meta_class_call(Value *this, Value *args, size_t nargs)
 	}
 
 	Value instance = makeobj(obj_alloc(class));
-	init(&instance, args, nargs);
-	return instance;
+	Value init_result = init(&instance, args, nargs);
+
+	if (iserror(&init_result)) {
+		free(objvalue(&instance));  /* straight-up free; no need to
+		                               go through `release` since we can
+		                               be sure nobody has a reference to
+		                               the newly created instance        */
+		return init_result;
+	} else {
+		return instance;
+	}
 }
 
 Class meta_class = {

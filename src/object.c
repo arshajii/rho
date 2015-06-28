@@ -6,13 +6,20 @@
 #include "util.h"
 #include "intobject.h"
 #include "floatobject.h"
+#include "err.h"
 #include "object.h"
 
-static void obj_init(Value *this, Value *args, size_t nargs)
+static Value obj_init(Value *this, Value *args, size_t nargs)
 {
-	UNUSED(this);
 	UNUSED(args);
-	UNUSED(nargs);
+
+	if (nargs > 0) {
+		return makeerr(error_new(ERR_TYPE_TYPE,
+		                         "Object constructor takes no arguments (got %lu)",
+		                         nargs));
+	}
+
+	return *this;
 }
 
 static bool obj_eq(Value *this, Value *other)
@@ -148,7 +155,8 @@ Class *getclass(Value *v)
 		return &int_class;
 	case VAL_TYPE_FLOAT:
 		return &float_class;
-	case VAL_TYPE_OBJECT: {
+	case VAL_TYPE_OBJECT:
+	case VAL_TYPE_EXC: {
 		const Object *o = objvalue(v);
 		return o->class;
 	case VAL_TYPE_EMPTY:
@@ -170,6 +178,19 @@ Class *getclass(Value *v)
 bool is_a(Value *v, Class *class)
 {
 	return class != NULL && ((getclass(v) == class) || is_a(v, class->super));
+}
+
+bool is_subclass(Class *child, Class *parent)
+{
+	while (child != NULL) {
+		if (child == parent) {
+			return true;
+		} else if (child == &meta_class) {
+			return false;
+		}
+		child = child->super;
+	}
+	return false;
 }
 
 #define MAKE_METHOD_RESOLVER_DIRECT(name, type) \
@@ -336,7 +357,7 @@ void destroyo(Object *o)
 
 void retain(Value *v)
 {
-	if (v == NULL || !isobject(v)) {
+	if (v == NULL || !(isobject(v) || isexc(v))) {
 		return;
 	}
 
@@ -346,10 +367,9 @@ void retain(Value *v)
 
 void release(Value *v)
 {
-	if (v == NULL || !isobject(v)) {
+	if (v == NULL || !(isobject(v) || isexc(v))) {
 		return;
 	}
-
 	releaseo(objvalue(v));
 }
 

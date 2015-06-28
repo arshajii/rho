@@ -178,6 +178,14 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 		}
 		break;
 	}
+	case NODE_TRY_CATCH: {
+		populate_symtable_from_node(st, ast->left);
+		populate_symtable_from_node(st, ast->right);
+		for (struct ast_list *node = ast->v.excs; node != NULL; node = node->next) {
+			populate_symtable_from_node(st, node->ast);
+		}
+		break;
+	}
 	default:
 		populate_symtable_from_node(st, ast->left);
 		populate_symtable_from_node(st, ast->right);

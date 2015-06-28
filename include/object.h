@@ -27,7 +27,7 @@ typedef bool (*BoolUnOp)(Value *this);
 typedef bool (*BoolBinOp)(Value *this, Value *other);
 typedef void (*StrUnOp)(Value *this, Str *dest);
 
-typedef void (*InitFunc)(Value *this, Value *args, size_t nargs);
+typedef Value (*InitFunc)(Value *this, Value *args, size_t nargs);
 typedef void (*DelFunc)(Value *this);
 typedef Value (*CallFunc)(Value *this, Value *args, size_t nargs);
 typedef int (*PrintFunc)(Value *this, FILE *out);
@@ -139,6 +139,7 @@ struct value {
 		VAL_TYPE_INT,
 		VAL_TYPE_FLOAT,
 		VAL_TYPE_OBJECT,
+		VAL_TYPE_EXC,
 
 		/* flags */
 		VAL_TYPE_ERROR,
@@ -158,8 +159,9 @@ struct value {
 #define isint(val)      ((val)->type == VAL_TYPE_INT)
 #define isfloat(val)    ((val)->type == VAL_TYPE_FLOAT)
 #define isobject(val)   ((val)->type == VAL_TYPE_OBJECT)
+#define isexc(val)      ((val)->type == VAL_TYPE_EXC)
 
-#define iserror(val)    ((val)->type == VAL_TYPE_ERROR)
+#define iserror(val)    ((val)->type == VAL_TYPE_ERROR || (val)->type == VAL_TYPE_EXC)
 #define isut(val)       ((val)->type == VAL_TYPE_UNSUPPORTED_TYPES)
 #define isdbz(val)      ((val)->type == VAL_TYPE_DIV_BY_ZERO)
 
@@ -172,6 +174,7 @@ struct value {
 #define makeint(val)    ((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
 #define makefloat(val)  ((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
 #define makeobj(val)    ((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
+#define makeexc(val)    ((Value){.type = VAL_TYPE_EXC, .data = {.o = (val)}})
 
 #define makeerr(val)    ((Value){.type = VAL_TYPE_ERROR, .data = {.e = (val)}})
 #define makeut()        ((Value){.type = VAL_TYPE_UNSUPPORTED_TYPES})
@@ -180,6 +183,7 @@ struct value {
 Class *getclass(Value *v);
 
 bool is_a(Value *v, Class *class);
+bool is_subclass(Class *child, Class *parent);
 
 InitFunc resolve_init(Class *class);
 DelFunc resolve_del(Class *class);

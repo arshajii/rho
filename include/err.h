@@ -37,6 +37,8 @@ Error *type_error_cannot_index(const Class *c1);
 Error *type_error_cannot_instantiate(const Class *c1);
 Error *type_error_not_callable(const Class *c1);
 Error *type_error_invalid_cmp(const Class *c1);
+Error *type_error_invalid_catch(const Class *c1);
+Error *type_error_invalid_throw(const Class *c1);
 Error *call_error_args(const char *fn, unsigned int expected, unsigned int got);
 Error *attr_error_not_found(const Class *type, const char *attr);
 Error *attr_error_readonly(const Class *type, const char *attr);

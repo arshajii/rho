@@ -5,6 +5,7 @@
 #include "intobject.h"
 #include "floatobject.h"
 #include "object.h"
+#include "metaclass.h"
 #include "err.h"
 
 #define X(a, b) b,
@@ -67,6 +68,25 @@ Error *type_error_not_callable(const Class *c1)
 Error *type_error_invalid_cmp(const Class *c1)
 {
 	return error_new(ERR_TYPE_TYPE, "comparison of type '%s' did not return an int", c1->name);
+}
+
+Error *type_error_invalid_catch(const Class *c1)
+{
+	if (c1 == &meta_class) {
+		return error_new(ERR_TYPE_TYPE,
+		                 "cannot catch non-subclass of Exception");
+	} else {
+		return error_new(ERR_TYPE_TYPE,
+		                 "cannot catch instances of class %s",
+		                 c1->name);
+	}
+}
+
+Error *type_error_invalid_throw(const Class *c1)
+{
+	return error_new(ERR_TYPE_TYPE,
+	                 "can only throw instances of a subclass of Exception, not %s",
+	                 c1->name);
 }
 
 Error *call_error_args(const char *fn, unsigned int expected, unsigned int got)

@@ -187,6 +187,12 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_RETURN:
 		printf("return");
 		break;
+	case NODE_THROW:
+		printf("throw");
+		break;
+	case NODE_TRY_CATCH:
+		printf("try ... catch");
+		break;
 	case NODE_BLOCK:
 		printf("{}");
 		break;
@@ -246,6 +252,9 @@ void ast_free(AST *ast)
 		break;
 	case NODE_LIST:
 		ast_list_free(ast->v.list);
+		break;
+	case NODE_TRY_CATCH:
+		ast_list_free(ast->v.excs);
 		break;
 	default:
 		break;

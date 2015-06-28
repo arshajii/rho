@@ -6,6 +6,7 @@
 #include "strobject.h"
 #include "method.h"
 #include "attr.h"
+#include "exc.h"
 #include "err.h"
 #include "vmops.h"
 
@@ -59,6 +60,11 @@ void op_print(Value *v, FILE *out)
 				str_dealloc(&str);
 			}
 		}
+		break;
+	}
+	case VAL_TYPE_EXC: {
+		const Exception *exc = objvalue(v);
+		fprintf(out, "%s\n", exc->msg);
 		break;
 	}
 	case VAL_TYPE_EMPTY:

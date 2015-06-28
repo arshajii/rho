@@ -16,6 +16,7 @@ struct metadata {
 	size_t bc_size;
 	size_t lno_table_size;
 	unsigned int max_vstack_depth;
+	unsigned int max_try_catch_depth;
 };
 
 #define LBI_INIT_CAPACITY 5
@@ -109,6 +110,8 @@ static Compiler *compiler_new(const char *filename, unsigned int first_lineno, S
 	compiler->lbi = NULL;
 	compiler->st = st;
 	compiler->ct = ct_new();
+	compiler->try_catch_depth = 0;
+	compiler->try_catch_depth_max = 0;
 	code_init(&compiler->lno_table, DEFAULT_LNO_TABLE_CAPACITY);
 	compiler->first_lineno = first_lineno;
 	compiler->first_ins_on_line_idx = 0;
@@ -204,6 +207,8 @@ static void compile_def(Compiler *compiler, AST *ast);
 static void compile_break(Compiler *compiler, AST *ast);
 static void compile_continue(Compiler *compiler, AST *ast);
 static void compile_return(Compiler *compiler, AST *ast);
+static void compile_throw(Compiler *compiler, AST *ast);
+static void compile_try_catch(Compiler *compiler, AST *ast);
 
 static void compile_get_attr(Compiler *compiler, AST *ast);
 
@@ -236,6 +241,7 @@ static struct metadata compile_raw(Compiler *compiler, Program *program)
 	const size_t final_size = code->size;
 	const size_t bc_size = final_size - start_size;
 	unsigned int max_vstack_depth = max_stack_depth(code->bc, code->size);
+	unsigned int max_try_catch_depth = compiler->try_catch_depth_max;
 
 	/*
 	 * What follows is somewhat delicate: we want the line number
@@ -259,6 +265,7 @@ static struct metadata compile_raw(Compiler *compiler, Program *program)
 	metadata.bc_size = bc_size;
 	metadata.lno_table_size = lno_table_size;
 	metadata.max_vstack_depth = max_vstack_depth;
+	metadata.max_try_catch_depth = max_try_catch_depth;
 	return metadata;
 }
 
@@ -533,7 +540,6 @@ static void compile_while(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_WHILE);
 
-	//const unsigned int lineno = ast->lineno;
 	const size_t loop_start_index = compiler->code.size;
 	compile_node(compiler, ast->left, false);  // condition
 	write_ins(compiler, INS_JMP_IF_FALSE, 0);
@@ -615,6 +621,73 @@ static void compile_return(Compiler *compiler, AST *ast)
 	const unsigned int lineno = ast->lineno;
 	compile_node(compiler, ast->left, false);
 	write_ins(compiler, INS_RETURN, lineno);
+}
+
+static void compile_throw(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_THROW);
+	const unsigned int lineno = ast->lineno;
+	compile_node(compiler, ast->left, false);
+	write_ins(compiler, INS_THROW, lineno);
+}
+
+static void compile_try_catch(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_TRY_CATCH);
+	const unsigned int try_lineno = ast->lineno;
+	const unsigned int catch_lineno = ast->right->lineno;
+
+	unsigned int exc_count = 0;
+	for (struct ast_list *node = ast->v.excs; node != NULL; node = node->next) {
+		++exc_count;
+	}
+	assert(exc_count > 0);
+	assert(exc_count == 1);  // TODO: handle 2+ exceptions (this is currently valid syntactically)
+
+	/* === Try Block === */
+	write_ins(compiler, INS_TRY_BEGIN, try_lineno);
+	const size_t try_block_size_index = compiler->code.size;
+	write_uint16(compiler, 0);  /* placeholder for try-length */
+	const size_t handler_offset_index = compiler->code.size;
+	write_uint16(compiler, 0);  /* placeholder for handler offset */
+
+	compiler->try_catch_depth += exc_count;
+
+	if (compiler->try_catch_depth > compiler->try_catch_depth_max) {
+		compiler->try_catch_depth_max = compiler->try_catch_depth;
+	}
+
+	compile_node(compiler, ast->left, false);  /* try block */
+	compiler->try_catch_depth -= exc_count;
+
+	write_ins(compiler, INS_TRY_END, catch_lineno);
+	write_uint16_at(compiler, compiler->code.size - try_block_size_index - 4, try_block_size_index);
+
+	write_ins(compiler, INS_JMP, catch_lineno);  /* jump past exception handlers if no exception was thrown */
+	const size_t jmp_over_handlers_index = compiler->code.size;
+	write_uint16(compiler, 0);  /* placeholder for jump offset */
+
+	write_uint16_at(compiler, compiler->code.size - handler_offset_index - 2, handler_offset_index);
+
+	/* === Handler === */
+	write_ins(compiler, INS_DUP, catch_lineno);
+	compile_node(compiler, ast->v.excs->ast, catch_lineno);
+	write_ins(compiler, INS_JMP_IF_EXC_MISMATCH, catch_lineno);
+	const size_t exc_mismatch_jmp_index = compiler->code.size;
+	write_uint16(compiler, 0);  /* placeholder for jump offset */
+
+	write_ins(compiler, INS_POP, catch_lineno);
+	compile_node(compiler, ast->right, false);  /* catch */
+
+	/* jump over re-throw */
+	write_ins(compiler, INS_JMP, catch_lineno);
+	write_uint16(compiler, 1);
+
+	write_uint16_at(compiler, compiler->code.size - exc_mismatch_jmp_index - 2, exc_mismatch_jmp_index);
+
+	write_ins(compiler, INS_THROW, catch_lineno);
+
+	write_uint16_at(compiler, compiler->code.size - jmp_over_handlers_index - 2, jmp_over_handlers_index);
 }
 
 static void compile_get_attr(Compiler *compiler, AST *ast)
@@ -800,6 +873,12 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_RETURN:
 		compile_return(compiler, ast);
 		break;
+	case NODE_THROW:
+		compile_throw(compiler, ast);
+		break;
+	case NODE_TRY_CATCH:
+		compile_try_catch(compiler, ast);
+		break;
 	case NODE_BLOCK:
 		compile_block(compiler, ast);
 		break;
@@ -935,9 +1014,9 @@ static void write_const_table(Compiler *compiler)
 
 			/*
 			 * Write size of actual CodeObject bytecode, excluding
-			 * metadata (name, argcount, stack_depth):
+			 * metadata (name, argcount, stack_depth, try_catch_depth):
 			 */
-			write_uint16(compiler, co_code->size - (name_len + 1) - 2 - 2);
+			write_uint16(compiler, co_code->size - (name_len + 1) - 2 - 2 - 2);
 
 			append(compiler, co_code);
 			code_dealloc(co_code);
@@ -1003,16 +1082,18 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 
 		Code *subcode = &sub->code;
 
-		unsigned int max_vstack_depth = metadata.max_vstack_depth;
+		const unsigned int max_vstack_depth = metadata.max_vstack_depth;
+		const unsigned int max_try_catch_depth = metadata.max_try_catch_depth;
 
 		Code *fncode = malloc(sizeof(Code));
 
 		const size_t name_len = ast->left->v.ident->len;
 
-		code_init(fncode, (name_len + 1) + 2 + 2 + subcode->size);   // total size
-		code_write_str(fncode, ast->left->v.ident);                  // name
-		code_write_uint16(fncode, nargs);                            // arg count
-		code_write_uint16(fncode, max_vstack_depth);                 // max stack depth
+		code_init(fncode, (name_len + 1) + 2 + 2 + 2 + subcode->size);  // total size
+		code_write_str(fncode, ast->left->v.ident);                     // name
+		code_write_uint16(fncode, nargs);                               // argument count
+		code_write_uint16(fncode, max_vstack_depth);                    // max stack depth
+		code_write_uint16(fncode, max_try_catch_depth);                 // max try-catch depth
 		code_append(fncode, subcode);
 
 		compiler_free(sub, false);
@@ -1039,6 +1120,11 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		goto end;
 	case NODE_CALL:
 		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
+			fill_ct_from_ast(compiler, node->ast);
+		}
+		goto end;
+	case NODE_TRY_CATCH:
+		for (struct ast_list *node = ast->v.excs; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
 		goto end;
@@ -1123,6 +1209,7 @@ static int max_stack_depth(byte *bc, size_t len)
 				while (*bc++ != '\0');  // name
 				bc += 2;  // arg count
 				bc += 2;  // stack depth
+				bc += 2;  // try-catch depth
 
 				for (size_t i = 0; i < colen; i++) {
 					++bc;
@@ -1147,8 +1234,11 @@ static int max_stack_depth(byte *bc, size_t len)
 
 		int arg = read_arg(opcode, &bc);
 		int delta = stack_delta(opcode, arg);
+
 		depth += delta;
-		assert(depth >= 0);
+		if (depth < 0) {
+			depth = 0;
+		}
 
 		if (depth > max_depth) {
 			max_depth = depth;
@@ -1224,7 +1314,14 @@ int arg_size(Opcode opcode)
 	case INS_CALL:
 		return 2;
 	case INS_RETURN:
+	case INS_THROW:
 		return 0;
+	case INS_TRY_BEGIN:
+		return 4;
+	case INS_TRY_END:
+		return 0;
+	case INS_JMP_IF_EXC_MISMATCH:
+		return 2;
 	case INS_MAKE_LIST:
 		return 2;
 	case INS_POP:
@@ -1256,8 +1353,9 @@ static int read_arg(Opcode opcode, byte **bc)
 		arg = *(*bc++);
 		break;
 	case 2:
+	case 4:  /* only return the first 2 bytes */
 		arg = read_uint16_from_stream(*bc);
-		*bc += 2;
+		*bc += size;
 		break;
 	default:
 		INTERNAL_ERROR();
@@ -1353,7 +1451,14 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_CALL:
 		return -arg;
 	case INS_RETURN:
+	case INS_THROW:
 		return -1;
+	case INS_TRY_BEGIN:
+		return 0;
+	case INS_TRY_END:
+		return 1;  // technically 0 but exception should be on stack before reaching handlers
+	case INS_JMP_IF_EXC_MISMATCH:
+		return -2;
 	case INS_MAKE_LIST:
 		return -arg + 1;
 	case INS_POP:
@@ -1404,10 +1509,17 @@ void compile(FILE *src, FILE *out, const char *name)
 	/*
 	 * Directly after the magic bytes, we write
 	 * the maximum value stack depth at module
-	 * level:
+	 * level, followed by the maximum try-catch
+	 * depth:
 	 */
 	byte buf[2];
+
 	write_uint16_to_stream(buf, metadata.max_vstack_depth);
+	for (size_t i = 0; i < sizeof(buf); i++) {
+		fputc(buf[i], out);
+	}
+
+	write_uint16_to_stream(buf, metadata.max_try_catch_depth);
 	for (size_t i = 0; i < sizeof(buf); i++) {
 		fputc(buf[i], out);
 	}

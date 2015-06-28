@@ -45,14 +45,17 @@ static void read_const_table(CodeObject *co, Code *code);
 CodeObject *codeobj_make(Code *code,
                          const char *name,
                          unsigned int argcount,
-                         int stack_depth)
+                         int stack_depth,
+                         int try_catch_depth)
 {
 	CodeObject *co = obj_alloc(&co_class);
 	co->name = name;
 	co->head = code->bc;
 
 	if (stack_depth == -1) {
+		assert(try_catch_depth == -1);
 		stack_depth = code_read_uint16(code);
+		try_catch_depth = code_read_uint16(code);
 	} else if (stack_depth < 0) {
 		INTERNAL_ERROR();
 	}
@@ -63,6 +66,7 @@ CodeObject *codeobj_make(Code *code,
 	co->bc = code->bc;
 	co->argcount = argcount;
 	co->stack_depth = stack_depth;
+	co->try_catch_depth = try_catch_depth;
 	return co;
 }
 
@@ -247,6 +251,7 @@ static void read_const_table(CodeObject *co, Code *code)
 			const char *name = code_read_str(code);
 			const unsigned int argcount = code_read_uint16(code);
 			const unsigned int stack_depth = code_read_uint16(code);
+			const unsigned int try_catch_depth = code_read_uint16(code);
 
 			Code sub;
 			code_init(&sub, colen);
@@ -255,7 +260,7 @@ static void read_const_table(CodeObject *co, Code *code)
 				code_write_byte(&sub, b);
 			}
 
-			constants[i].data.o = codeobj_make(&sub, name, argcount, stack_depth);
+			constants[i].data.o = codeobj_make(&sub, name, argcount, stack_depth, try_catch_depth);
 			break;
 		}
 		case CT_ENTRY_END:

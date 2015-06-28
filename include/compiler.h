@@ -31,6 +31,9 @@ typedef struct {
 	SymTable *st;
 	ConstTable *ct;
 
+	unsigned int try_catch_depth;
+	unsigned int try_catch_depth_max;
+
 	Code lno_table;
 	unsigned int first_lineno;
 	unsigned int first_ins_on_line_idx;
