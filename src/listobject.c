@@ -101,9 +101,9 @@ static Value list_get(Value *this, Value *idx)
 
 	if (idx_raw < 0 || (size_t)idx_raw >= list->count) {
 		return makeerr(error_new(ERR_TYPE_TYPE,
-		                        "list index out of range (index = %li, len = %lu)",
-		                        idx_raw,
-		                        list->count));
+		                         "list index out of range (index = %li, len = %lu)",
+		                         idx_raw,
+		                         list->count));
 	}
 
 	retain(&list->elements[idx_raw]);
