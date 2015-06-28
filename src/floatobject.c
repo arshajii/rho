@@ -72,7 +72,7 @@ static Value float_minus(Value *this)
 
 static Value float_abs(Value *this)
 {
-	return makefloat(abs(floatvalue(this)));
+	return makefloat(fabs(floatvalue(this)));
 }
 
 static Value float_add(Value *this, Value *other)

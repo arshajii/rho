@@ -90,7 +90,7 @@ static Value int_minus(Value *this)
 
 static Value int_abs(Value *this)
 {
-	return makeint(abs(intvalue(this)));
+	return makeint(labs(intvalue(this)));
 }
 
 static Value int_add(Value *this, Value *other)
