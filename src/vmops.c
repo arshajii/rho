@@ -21,7 +21,7 @@ Value op_hash(Value *v)
 	IntUnOp hash = resolve_hash(class);
 
 	if (!hash) {
-		return makeerr(type_error_unsupported_1("hash", class));
+		return type_exc_unsupported_1("hash", class);
 	}
 
 	return makeint(hash(v));
@@ -124,7 +124,7 @@ Value op_##op(Value *a, Value *b) \
 	return result; \
 \
 	type_error: \
-	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
+	return type_exc_unsupported_2(#tok, class, getclass(b)); \
 \
 	div_by_zero_error: \
 	return makeerr(div_by_zero_error()); \
@@ -137,7 +137,7 @@ Value op_##op(Value *a) \
 	const UnOp unop = resolve_##op(class); \
 \
 	if (!unop) { \
-		return makeerr(type_error_unsupported_1(#tok, class)); \
+		return type_exc_unsupported_1(#tok, class); \
 	} \
 \
 	return unop(a); \
@@ -219,7 +219,7 @@ Value op_##op(Value *a, Value *b) \
 	return makeint(intvalue(&v) tok 0); \
 \
 	error: \
-	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
+	return type_exc_unsupported_2(#tok, class, getclass(b)); \
 }
 
 Value op_eq(Value *a, Value *b)
@@ -228,7 +228,7 @@ Value op_eq(Value *a, Value *b)
 	const BoolBinOp eq = resolve_eq(class);
 
 	if (!eq) {
-		return makeerr(type_error_unsupported_2("==", class, getclass(b)));
+		return type_exc_unsupported_2("==", class, getclass(b));
 	}
 
 	return makeint(eq(a, b));
@@ -240,7 +240,7 @@ Value op_neq(Value *a, Value *b)
 	const BoolBinOp eq = resolve_eq(class);
 
 	if (!eq) {
-		return makeerr(type_error_unsupported_2("!=", class, getclass(b)));
+		return type_exc_unsupported_2("!=", class, getclass(b));
 	}
 
 	return makeint(!eq(a, b));
@@ -359,7 +359,7 @@ Value op_i##op(Value *a, Value *b) \
 	return result; \
 \
 	type_error: \
-	return makeerr(type_error_unsupported_2(#tok, class, getclass(b))); \
+	return type_exc_unsupported_2(#tok, class, getclass(b)); \
 \
 	div_by_zero_error: \
 	return makeerr(div_by_zero_error()); \
@@ -383,7 +383,7 @@ Value op_get(Value *v, Value *idx)
 	BinOp get = resolve_get(class);
 
 	if (!get) {
-		return makeerr(type_error_cannot_index(class));
+		return type_exc_cannot_index(class);
 	}
 
 	return get(v, idx);
@@ -395,7 +395,7 @@ Value op_set(Value *v, Value *idx, Value *e)
 	SeqSetFunc set = resolve_set(class);
 
 	if (!set) {
-		return makeerr(type_error_cannot_index(class));
+		return type_exc_cannot_index(class);
 	}
 
 	return set(v, idx, e);
@@ -515,7 +515,7 @@ Value op_get_attr(Value *v, const char *attr)
 	return res;
 
 	get_attr_error_not_found:
-	return makeerr(attr_error_not_found(class, attr));
+	return attr_exc_not_found(class, attr);
 }
 
 Value op_set_attr(Value *v, const char *attr, Value *new)
@@ -733,11 +733,11 @@ Value op_set_attr(Value *v, const char *attr, Value *new)
 	return makeint(0);
 
 	set_attr_error_not_found:
-	return makeerr(attr_error_not_found(v_class, attr));
+	return attr_exc_not_found(v_class, attr);
 
 	set_attr_error_readonly:
-	return makeerr(attr_error_readonly(v_class, attr));
+	return attr_exc_readonly(v_class, attr);
 
 	set_attr_error_mismatch:
-	return makeerr(attr_error_mismatch(v_class, attr, new_class));
+	return attr_exc_mismatch(v_class, attr, new_class);
 }

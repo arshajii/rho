@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "attr.h"
-#include "err.h"
+#include "exc.h"
 #include "str.h"
 #include "object.h"
 #include "strobject.h"

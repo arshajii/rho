@@ -446,7 +446,7 @@ static void compile_block(Compiler *compiler, AST *ast)
 	AST_TYPE_ASSERT(ast, NODE_BLOCK);
 
 	for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
-		compile_node(compiler, node->ast, false);
+		compile_node(compiler, node->ast, true);
 	}
 }
 
@@ -503,12 +503,12 @@ static void compile_if(Compiler *compiler, AST *ast)
 		switch (type) {
 		case NODE_IF:
 		case NODE_ELIF: {
-			compile_node(compiler, node->left, false);
+			compile_node(compiler, node->left, true);
 			write_ins(compiler, INS_JMP_IF_FALSE, lineno);
 			const size_t jmp_to_next_index = compiler->code.size;
 			write_uint16(compiler, 0);
 
-			compile_node(compiler, node->right, false);
+			compile_node(compiler, node->right, true);
 			write_ins(compiler, INS_JMP, lineno);
 			const size_t jmp_out_index = compiler->code.size;
 			write_uint16(compiler, 0);
@@ -518,7 +518,7 @@ static void compile_if(Compiler *compiler, AST *ast)
 			break;
 		}
 		case NODE_ELSE: {
-			compile_node(compiler, node->left, false);
+			compile_node(compiler, node->left, true);
 			break;
 		}
 		default:
@@ -549,7 +549,7 @@ static void compile_while(Compiler *compiler, AST *ast)
 	write_uint16(compiler, 0);
 
 	compiler_push_loop(compiler, loop_start_index);
-	compile_node(compiler, ast->right, false);  // body
+	compile_node(compiler, ast->right, true);  // body
 
 	write_ins(compiler, INS_JMP_BACK, 0);
 	write_uint16(compiler, compiler->code.size - loop_start_index + 2);
@@ -657,7 +657,7 @@ static void compile_try_catch(Compiler *compiler, AST *ast)
 		compiler->try_catch_depth_max = compiler->try_catch_depth;
 	}
 
-	compile_node(compiler, ast->left, false);  /* try block */
+	compile_node(compiler, ast->left, true);  /* try block */
 	compiler->try_catch_depth -= exc_count;
 
 	write_ins(compiler, INS_TRY_END, catch_lineno);
@@ -671,13 +671,13 @@ static void compile_try_catch(Compiler *compiler, AST *ast)
 
 	/* === Handler === */
 	write_ins(compiler, INS_DUP, catch_lineno);
-	compile_node(compiler, ast->v.excs->ast, catch_lineno);
+	compile_node(compiler, ast->v.excs->ast, false);
 	write_ins(compiler, INS_JMP_IF_EXC_MISMATCH, catch_lineno);
 	const size_t exc_mismatch_jmp_index = compiler->code.size;
 	write_uint16(compiler, 0);  /* placeholder for jump offset */
 
 	write_ins(compiler, INS_POP, catch_lineno);
-	compile_node(compiler, ast->right, false);  /* catch */
+	compile_node(compiler, ast->right, true);  /* catch */
 
 	/* jump over re-throw */
 	write_ins(compiler, INS_JMP, catch_lineno);

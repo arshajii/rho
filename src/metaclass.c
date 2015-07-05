@@ -3,7 +3,7 @@
 #include <assert.h>
 #include "object.h"
 #include "util.h"
-#include "err.h"
+#include "exc.h"
 #include "object.h"
 #include "metaclass.h"
 
@@ -36,7 +36,7 @@ static Value meta_class_call(Value *this, Value *args, size_t nargs)
 	InitFunc init = resolve_init(class);
 
 	if (!init) {
-		return makeerr(type_error_cannot_instantiate(class));
+		return type_exc_cannot_instantiate(class);
 	}
 
 	Value instance = makeobj(obj_alloc(class));

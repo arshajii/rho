@@ -1,11 +1,16 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include "err.h"
+#include "exc.h"
 #include "strbuf.h"
 #include "vmops.h"
 #include "object.h"
 #include "listobject.h"
+
+#define INDEX_CHECK(index, count) \
+	if ((index) < 0 || ((size_t)(index)) >= (count)) { \
+		return INDEX_EXC("list index out of range (index = %li, len = %lu)", (index), (count)); \
+	}
 
 static void list_ensure_capacity(ListObject *list, const size_t min_capacity);
 
@@ -91,20 +96,14 @@ static size_t list_len(Value *this)
 static Value list_get(Value *this, Value *idx)
 {
 	if (!isint(idx)) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "list indices must be integers, not %s instances",
-		                         getclass(idx)));
+		return TYPE_EXC("list indices must be integers, not %s instances", getclass(idx));
 	}
 
 	ListObject *list = objvalue(this);
-	long idx_raw = intvalue(idx);
+	const size_t count = list->count;
+	const long idx_raw = intvalue(idx);
 
-	if (idx_raw < 0 || (size_t)idx_raw >= list->count) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "list index out of range (index = %li, len = %lu)",
-		                         idx_raw,
-		                         list->count));
-	}
+	INDEX_CHECK(idx_raw, count);
 
 	retain(&list->elements[idx_raw]);
 	return list->elements[idx_raw];
@@ -113,21 +112,14 @@ static Value list_get(Value *this, Value *idx)
 static Value list_set(Value *this, Value *idx, Value *v)
 {
 	if (!isint(idx)) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "list indices must be integers, not %s instances",
-		                         getclass(idx)));
+		return TYPE_EXC("list indices must be integers, not %s instances", getclass(idx));
 	}
 
 	ListObject *list = objvalue(this);
 	const size_t count = list->count;
 	const long idx_raw = intvalue(idx);
 
-	if (idx_raw < 0 || (size_t)idx_raw >= count) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                        "list index out of range (index = %li, len = %lu)",
-		                        idx_raw,
-		                        count));
-	}
+	INDEX_CHECK(idx_raw, count);
 
 	Value old = list->elements[idx_raw];
 	retain(v);
@@ -138,9 +130,7 @@ static Value list_set(Value *this, Value *idx, Value *v)
 static Value list_append(Value *this, Value *args, size_t nargs)
 {
 	if (nargs != 1) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "append() takes exactly 1 argument (got %lu)",
-		                         nargs));
+		return TYPE_EXC("append() takes exactly 1 argument (got %lu)", nargs);
 	}
 
 	ListObject *list = objvalue(this);
@@ -156,9 +146,7 @@ static Value list_append(Value *this, Value *args, size_t nargs)
 static Value list_pop(Value *this, Value *args, size_t nargs)
 {
 	if (nargs >= 2) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "pop() takes at most 1 argument (got %lu)",
-		                         nargs));
+		return TYPE_EXC("pop() takes at most 1 argument (got %lu)", nargs);
 	}
 
 	ListObject *list = objvalue(this);
@@ -169,19 +157,14 @@ static Value list_pop(Value *this, Value *args, size_t nargs)
 		if (count > 0) {
 			return elements[--list->count];
 		} else {
-			return makeerr(error_new(ERR_TYPE_TYPE, "cannot invoke pop() on an empty list"));
+			return INDEX_EXC("cannot invoke pop() on an empty list");
 		}
 	} else {
 		Value *idx = &args[0];
 		if (isint(idx)) {
 			const long idx_raw = intvalue(idx);
 
-			if (idx_raw < 0 || (size_t)idx_raw >= count) {
-				return makeerr(error_new(ERR_TYPE_TYPE,
-				                         "list index out of range (index = %li, len = %lu)",
-				                         idx_raw,
-				                         count));
-			}
+			INDEX_CHECK(idx_raw, count);
 
 			Value ret = elements[idx_raw];
 			memmove(&elements[idx_raw],
@@ -190,9 +173,7 @@ static Value list_pop(Value *this, Value *args, size_t nargs)
 			--list->count;
 			return ret;
 		} else {
-			return makeerr(error_new(ERR_TYPE_TYPE,
-			                         "pop() requires an integer argument (got a %s)",
-			                         getclass(idx)->name));
+			return TYPE_EXC("pop() requires an integer argument (got a %s)", getclass(idx)->name);
 		}
 	}
 }
@@ -200,9 +181,7 @@ static Value list_pop(Value *this, Value *args, size_t nargs)
 static Value list_insert(Value *this, Value *args, size_t nargs)
 {
 	if (nargs != 2) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "insert() takes exactly 2 arguments (got %lu)",
-		                         nargs));
+		return TYPE_EXC("insert() takes exactly 1 argument (got %lu)", nargs);
 	}
 
 	ListObject *list = objvalue(this);
@@ -213,19 +192,12 @@ static Value list_insert(Value *this, Value *args, size_t nargs)
 	Value *e = &args[1];
 
 	if (!isint(idx)) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "insert() requires an integer as its first argument (got a %s)",
-		                         getclass(idx)->name));
+		return TYPE_EXC("insert() requires an integer as its first argument (got a %s)", getclass(idx)->name);
 	}
 
 	const long idx_raw = intvalue(idx);
 
-	if (idx_raw < 0 || (size_t)idx_raw >= count) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "list index out of range (index = %li, len = %lu)",
-		                         idx_raw,
-		                         count));
-	}
+	INDEX_CHECK(idx_raw, count);
 
 	list_ensure_capacity(list, count + 1);
 

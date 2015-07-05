@@ -35,7 +35,12 @@ static Class *classes[] = {
 		&method_class,
 		&native_func_class,
 		&meta_class,
+
+		/* exception classes */
 		&exception_class,
+		&index_exception_class,
+		&type_exception_class,
+		&attr_exception_class,
 		NULL
 };
 
@@ -894,7 +899,8 @@ static void eval_frame(VM *vm)
 				CodeObject *co = objvalue(v1);
 
 				if (co->argcount != argcount) {
-					res = makeerr(call_error_args(co->name, co->argcount, argcount));
+					release(v1);
+					res = call_exc_args(co->name, co->argcount, argcount);
 					goto error;
 				}
 
@@ -918,11 +924,14 @@ static void eval_frame(VM *vm)
 				CallFunc call = resolve_call(class);
 
 				if (!call) {
-					res = makeerr(type_error_not_callable(class));
+					release(v1);
+					res = type_exc_not_callable(class);
 					goto error;
 				}
 
 				res = call(v1, stack - argcount, argcount);
+
+				release(v1);
 
 				if (iserror(&res)) {
 					goto error;
@@ -932,7 +941,6 @@ static void eval_frame(VM *vm)
 					release(STACK_POP());
 				}
 
-				release(v1);
 				STACK_PUSH(res);
 			}
 			break;

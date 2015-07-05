@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 #include "attr.h"
+#include "exc.h"
 #include "err.h"
 #include "util.h"
 #include "intobject.h"
 #include "floatobject.h"
-#include "err.h"
+#include "exc.h"
 #include "object.h"
 
 static Value obj_init(Value *this, Value *args, size_t nargs)
@@ -14,9 +15,7 @@ static Value obj_init(Value *this, Value *args, size_t nargs)
 	UNUSED(args);
 
 	if (nargs > 0) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "Object constructor takes no arguments (got %lu)",
-		                         nargs));
+		return TYPE_EXC("Object constructor takes no arguments (got %lu)", nargs);
 	}
 
 	return *this;
@@ -177,7 +176,7 @@ Class *getclass(Value *v)
  */
 bool is_a(Value *v, Class *class)
 {
-	return class != NULL && ((getclass(v) == class) || is_a(v, class->super));
+	return is_subclass(getclass(v), class);
 }
 
 bool is_subclass(Class *child, Class *parent)
@@ -327,7 +326,7 @@ Value instantiate(Class *class, Value *args, size_t nargs)
 		InitFunc init = resolve_init(class);
 
 		if (!init) {
-			return makeerr(type_error_cannot_instantiate(class));
+			return type_exc_cannot_instantiate(class);
 		}
 
 		Value instance = makeobj(obj_alloc(class));

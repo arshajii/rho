@@ -7,7 +7,6 @@
 #include "object.h"
 #include "str.h"
 #include "util.h"
-#include "err.h"
 #include "intobject.h"
 
 #define TYPE_ERR_STR(op) "invalid operator types for operator " #op "."

@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 #include "object.h"
 #include "util.h"
-#include "err.h"
 #include "floatobject.h"
 
 #define TYPE_ERR_STR(op) "invalid operator types for operator " #op "."

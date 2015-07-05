@@ -3,7 +3,7 @@
 #include "object.h"
 #include "strobject.h"
 #include "vmops.h"
-#include "err.h"
+#include "exc.h"
 #include "builtins.h"
 
 #define OBJ_INIT_STATIC(class) (Object){class, -1}
@@ -25,7 +25,7 @@ const struct builtin builtins[] = {
 		{NULL,   makeempty()},
 };
 
-#define ARG_ERR(count, expected) return makeerr(call_error_args(__FUNCTION__, count, expected))
+#define ARG_ERR(count, expected) return call_exc_args(__FUNCTION__, count, expected)
 #define ARG_CHECK(count, expected) if (count != expected) ARG_ERR(count, expected)
 
 #define TYPE_ERROR(class) return makeerr(type_error_unsupported_1(__FUNCTION__, class))
