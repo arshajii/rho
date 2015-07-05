@@ -1,7 +1,8 @@
 #include <stdlib.h>
-#include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include "util.h"
+#include "err.h"
 #include "attr.h"
 
 static void attr_dict_put(AttrDict *d, const char *key, unsigned int attr_index, bool is_method);
@@ -9,7 +10,7 @@ static int hash(const char *key);
 
 void attr_dict_init(AttrDict *d, const size_t max_size)
 {
-	const size_t capacity = max_size * 8/5;
+	const size_t capacity = (max_size * 8)/5;
 	d->table = malloc(capacity * sizeof(AttrDictEntry *));
 	for (size_t i = 0; i < capacity; i++) {
 		d->table[i] = NULL;
@@ -20,8 +21,14 @@ void attr_dict_init(AttrDict *d, const size_t max_size)
 
 unsigned int attr_dict_get(AttrDict *d, const char *key)
 {
+	const size_t table_capacity = d->table_capacity;
+
+	if (table_capacity == 0) {
+		return 0;
+	}
+
 	const int h = hash(key);
-	const size_t index = h & (d->table_capacity - 1);
+	const size_t index = h & (table_capacity - 1);
 
 	for (AttrDictEntry *e = d->table[index]; e != NULL; e = e->next) {
 		if (h == e->hash && strcmp(key, e->key) == 0) {
@@ -34,13 +41,19 @@ unsigned int attr_dict_get(AttrDict *d, const char *key)
 
 static void attr_dict_put(AttrDict *d, const char *key, unsigned int attr_index, bool is_method)
 {
+	const size_t table_capacity = d->table_capacity;
+
+	if (table_capacity == 0) {
+		INTERNAL_ERROR();
+	}
+
 	unsigned int value = (attr_index << 2) | ATTR_DICT_FLAG_FOUND;
 	if (is_method) {
 		value |= ATTR_DICT_FLAG_METHOD;
 	}
 
 	const int h = hash(key);
-	const size_t index = h & (d->table_capacity - 1);
+	const size_t index = h & (table_capacity - 1);
 
 	AttrDictEntry *e = malloc(sizeof(AttrDictEntry));
 	e->key = key;
