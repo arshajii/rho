@@ -107,6 +107,12 @@ static Value strobj_cat(Value *this, Value *other)
 	return strobj_make(STR_INIT(cat, len_cat, 1));
 }
 
+static size_t strobj_len(Value *this)
+{
+	StrObject *s = objvalue(this);
+	return s->str.len;
+}
+
 struct num_methods str_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
@@ -159,15 +165,10 @@ struct num_methods str_num_methods = {
 };
 
 struct seq_methods str_seq_methods = {
-	NULL,    /* len */
+	strobj_len,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
-};
-
-struct attr_member str_members[] = {
-		{"len", ATTR_T_SIZE_T, offsetof(StrObject, str) + offsetof(Str, len), ATTR_FLAG_READONLY},
-		{NULL, 0, 0, 0}
 };
 
 Class str_class = {
@@ -194,6 +195,6 @@ Class str_class = {
 	.iter = NULL,
 	.iternext = NULL,
 
-	.members = str_members,
+	.members = NULL,
 	.methods = NULL
 };

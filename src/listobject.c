@@ -285,11 +285,6 @@ struct seq_methods list_seq_methods = {
 	NULL,    /* contains */
 };
 
-struct attr_member list_members[] = {
-		{"len", ATTR_T_SIZE_T, offsetof(ListObject, count), ATTR_FLAG_READONLY},
-		{NULL, 0, 0, 0}
-};
-
 struct attr_method list_methods[] = {
 		{"append", list_append},
 		{"pop", list_pop},
@@ -321,6 +316,6 @@ Class list_class = {
 	.num_methods = &list_num_methods,
 	.seq_methods  = &list_seq_methods,
 
-	.members = list_members,
+	.members = NULL,
 	.methods = list_methods
 };
