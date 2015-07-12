@@ -6,7 +6,7 @@ Rho Programming Language
 So far...
 ---------
 
-The language is still in its very early stages of development. So far, the following have been implemented and tested:
+The language is still in its early stages of development. So far, the following have been implemented and tested:
 
 - Parser and compiler
 - ~~Rudimentary~~ object system
@@ -19,44 +19,54 @@ Examples
 
 #### "hello world"
 
-    # simple "hello world" program
-    print 'hello world'
+<pre>
+<i># simple "hello world" program</i>
+<b>print</b> 'hello world'
+</pre>
 
 #### Arithmetic
 
-    print ((50 - 5*6)/4)**2  # prints 25
+<pre>
+<b>print</b> ((50 - 5*6)/4)**2  <i># prints 25</i>
+</pre>
 
 #### `if` statements
 
-    b = 1
-    if b {
-        print "b is non-zero!"  # strings can be delimited by either " or '
-    } else {
-	    print "b is zero!"
-    }
-	
+<pre>
+b = 1
+<b>if</b> b {
+    <b>print</b> "b is non-zero!"  <i># strings can be delimited by either " or '</i>
+} <b>else</b> {
+    <b>print</b> "b is zero!"
+}
+</pre>
+
 #### `while` statements
 
-    # print integers from 1 to 10:
-    a = 1
-    while a <= 10 {
-	    print a
-	    a += 1
-    }
-    
+<pre>
+<i># print integers from 1 to 10:</i>
+a = 1
+<b>while</b> a <= 10 {
+    <b>print</b> a
+    a += 1
+}
+</pre>
+
 #### Functions
 
-    # factorial function
-    def fact(n) {
-        if n < 2 { return 1 } else { return n * fact(n - 1) }
+<pre>
+<i># factorial function</i>
+<b>def</b> fact(n) {
+    <b>if</b> n < 2 { <b>return</b> 1 } <b>else</b> { <b>return</b> n * fact(n - 1) }
+}
+
+<i># hypotenuse function</i>
+<b>def</b> hypot(a, b) {
+    <i># functions can be nested:</i>
+    <b>def</b> square(x) {
+        <b>return</b> x**2
     }
 
-    # hypotenuse function
-    def hypot(a, b) {
-        # functions can be nested:
-        def square(x) {
-            return x**2
-        }
-        
-        return (square(a) + square(b)) ** 0.5
-    }
+    <b>return</b> (square(a) + square(b)) ** 0.5
+}
+</pre>
