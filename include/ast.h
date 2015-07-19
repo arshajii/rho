@@ -67,6 +67,7 @@ typedef enum {
 
 	NODE_BLOCK,
 	NODE_LIST,
+	NODE_TUPLE,
 
 	NODE_CALL,
 	NODE_INDEX

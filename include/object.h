@@ -243,6 +243,8 @@ SeqSetFunc resolve_set(Class *class);
 BoolBinOp resolve_contains (Class *class);
 
 void *obj_alloc(Class *class);
+void *obj_alloc_var(Class *class, size_t extra);
+
 Value instantiate(Class *class, Value *args, size_t nargs);
 
 void retaino(Object *o);

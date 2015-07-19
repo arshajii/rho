@@ -60,7 +60,7 @@ static const size_t ops_size = (sizeof(ops) / sizeof(Op));
 static AST *parse_stmt(Lexer *lex);
 
 static AST *parse_expr(Lexer *lex);
-static AST *parse_subexpr(Lexer *lex);
+static AST *parse_parens(Lexer *lex);
 static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec);
 static AST *parse_atom(Lexer *lex);
 static AST *parse_unop(Lexer *lex);
@@ -307,7 +307,7 @@ static AST *parse_atom(Lexer *lex)
 
 	switch (tok->type) {
 	case TOK_PAREN_OPEN:
-		ast = parse_subexpr(lex);
+		ast = parse_parens(lex);
 		break;
 	case TOK_INT:
 		ast = parse_int(lex);
@@ -388,10 +388,65 @@ static AST *parse_atom(Lexer *lex)
 /*
  * Parses parenthesized expression.
  */
-static AST *parse_subexpr(Lexer *lex)
+static AST *parse_parens(Lexer *lex)
 {
-	expect(lex, TOK_PAREN_OPEN);
+	Token *paren_open = expect(lex, TOK_PAREN_OPEN);
+	const unsigned int lineno = paren_open->lineno;
+
+	Token *peek = lex_peek_token(lex);
+
+	if (peek->type == TOK_PAREN_CLOSE) {
+		/* we have an empty tuple */
+
+		expect(lex, TOK_PAREN_CLOSE);
+		AST *ast = ast_new(NODE_TUPLE, NULL, NULL, lineno);
+		ast->v.list = NULL;
+		return ast;
+	}
+
+	/* Now we either have a regular parenthesized expression
+	 * OR
+	 * we have a non-empty tuple.
+	 */
+
 	AST *ast = parse_expr(lex);
+
+	if (peek->type == TOK_COMMA) {
+		/* we have a non-empty tuple */
+
+		expect(lex, TOK_COMMA);
+		struct ast_list *list_head = ast_list_new();
+		list_head->ast = ast;
+		struct ast_list *list = list_head;
+
+		do {
+			Token *next = lex_peek_token(lex);
+
+			if (next->type == TOK_EOF) {
+				parse_err_unclosed(lex, paren_open);
+			}
+
+			if (next->type == TOK_PAREN_CLOSE) {
+				break;
+			}
+
+			list->next = ast_list_new();
+			list = list->next;
+			list->ast = parse_expr(lex);
+
+			next = lex_peek_token(lex);
+
+			if (next->type == TOK_COMMA) {
+				expect(lex, TOK_COMMA);
+			} else if (next->type != TOK_PAREN_CLOSE) {
+				parse_err_unexpected_token(lex, next);
+			}
+		} while (true);
+
+		ast = ast_new(NODE_TUPLE, NULL, NULL, lineno);
+		ast->v.list = list_head;
+	}
+
 	expect(lex, TOK_PAREN_CLOSE);
 
 	return ast;

@@ -199,6 +199,9 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_LIST:
 		printf("[]");
 		break;
+	case NODE_TUPLE:
+		printf("()");
+		break;
 	case NODE_CALL:
 		printf("()");
 		break;
@@ -251,6 +254,7 @@ void ast_free(AST *ast)
 		ast_list_free(ast->v.block);
 		break;
 	case NODE_LIST:
+	case NODE_TUPLE:
 		ast_list_free(ast->v.list);
 		break;
 	case NODE_TRY_CATCH:

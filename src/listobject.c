@@ -29,7 +29,7 @@ Value list_make(Value *elements, const size_t count)
 	return makeobj(list);
 }
 
-void list_str(Value *this, Str *dest)
+static void list_str(Value *this, Str *dest)
 {
 	static Str empty_list_str = STR_INIT("[]", 2, 0);
 
@@ -84,7 +84,7 @@ static void list_free(Value *this)
 	}
 
 	free(elements);
-	list->base.class->super->del(this);
+	obj_class.del(this);
 }
 
 static size_t list_len(Value *this)

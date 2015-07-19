@@ -310,7 +310,12 @@ MAKE_METHOD_RESOLVER(contains, seq_methods, BoolBinOp)
 
 void *obj_alloc(Class *class)
 {
-	Object *o = malloc(class->instance_size);
+	return obj_alloc_var(class, 0);
+}
+
+void *obj_alloc_var(Class *class, size_t extra)
+{
+	Object *o = malloc(class->instance_size + extra);
 	o->class = class;
 	o->refcnt = 1;
 	return o;

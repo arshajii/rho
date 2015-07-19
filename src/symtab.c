@@ -155,6 +155,7 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 		}
 		break;
 	case NODE_LIST:
+	case NODE_TUPLE:
 		for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
 			populate_symtable_from_node(st, node->ast);
 		}

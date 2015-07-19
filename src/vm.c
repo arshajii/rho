@@ -11,6 +11,7 @@
 #include "floatobject.h"
 #include "strobject.h"
 #include "listobject.h"
+#include "tupleobject.h"
 #include "codeobject.h"
 #include "method.h"
 #include "nativefunc.h"
@@ -31,6 +32,7 @@ static Class *classes[] = {
 		&float_class,
 		&str_class,
 		&list_class,
+		&tuple_class,
 		&co_class,
 		&method_class,
 		&native_func_class,
@@ -1012,6 +1014,20 @@ static void eval_frame(VM *vm)
 
 			STACK_POPN(len);
 			STACK_PUSH(list);
+			break;
+		}
+		case INS_MAKE_TUPLE: {
+			const unsigned int len = GET_UINT16();
+			Value tup;
+
+			if (len > 0) {
+				tup = tuple_make(stack - len, len);
+			} else {
+				tup = tuple_make(NULL, 0);
+			}
+
+			STACK_POPN(len);
+			STACK_PUSH(tup);
 			break;
 		}
 		case INS_POP: {

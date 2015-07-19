@@ -199,6 +199,7 @@ static void compile_call(Compiler *compiler, AST *ast);
 
 static void compile_block(Compiler *compiler, AST *ast);
 static void compile_list(Compiler *compiler, AST *ast);
+static void compile_tuple(Compiler *compiler, AST *ast);
 static void compile_index(Compiler *compiler, AST *ast);
 
 static void compile_if(Compiler *compiler, AST *ast);
@@ -461,6 +462,20 @@ static void compile_list(Compiler *compiler, AST *ast)
 	}
 
 	write_ins(compiler, INS_MAKE_LIST, ast->lineno);
+	write_uint16(compiler, len);
+}
+
+static void compile_tuple(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_TUPLE);
+
+	size_t len = 0;
+	for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+		compile_node(compiler, node->ast, false);
+		++len;
+	}
+
+	write_ins(compiler, INS_MAKE_TUPLE, ast->lineno);
 	write_uint16(compiler, len);
 }
 
@@ -885,6 +900,9 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_LIST:
 		compile_list(compiler, ast);
 		break;
+	case NODE_TUPLE:
+		compile_tuple(compiler, ast);
+		break;
 	case NODE_CALL:
 		compile_call(compiler, ast);
 		if (toplevel) {
@@ -1114,6 +1132,7 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		}
 		goto end;
 	case NODE_LIST:
+	case NODE_TUPLE:
 		for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
@@ -1323,6 +1342,7 @@ int arg_size(Opcode opcode)
 	case INS_JMP_IF_EXC_MISMATCH:
 		return 2;
 	case INS_MAKE_LIST:
+	case INS_MAKE_TUPLE:
 		return 2;
 	case INS_POP:
 	case INS_DUP:
@@ -1460,6 +1480,7 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_JMP_IF_EXC_MISMATCH:
 		return -2;
 	case INS_MAKE_LIST:
+	case INS_MAKE_TUPLE:
 		return -arg + 1;
 	case INS_POP:
 		return -1;
