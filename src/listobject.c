@@ -185,7 +185,6 @@ static Value list_insert(Value *this, Value *args, size_t nargs)
 	}
 
 	ListObject *list = objvalue(this);
-	Value *elements = list->elements;
 	const size_t count = list->count;
 
 	Value *idx = &args[0];
@@ -200,6 +199,7 @@ static Value list_insert(Value *this, Value *args, size_t nargs)
 	INDEX_CHECK(idx_raw, count);
 
 	list_ensure_capacity(list, count + 1);
+	Value *elements = list->elements;
 
 	memmove(&elements[idx_raw + 1],
 	        &elements[idx_raw],
