@@ -410,6 +410,7 @@ static AST *parse_parens(Lexer *lex)
 	 */
 
 	AST *ast = parse_expr(lex);
+	peek = lex_peek_token(lex);
 
 	if (peek->type == TOK_COMMA) {
 		/* we have a non-empty tuple */
