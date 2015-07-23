@@ -6,6 +6,7 @@
 #include "opcodes.h"
 #include "object.h"
 #include "strobject.h"
+#include "util.h"
 #include "codeobject.h"
 
 /*
@@ -134,7 +135,7 @@ static void read_sym_table(CodeObject *co, Code *code)
 	off += 2;
 
 	struct str_array names;
-	names.array = malloc(sizeof(*names.array) * n_locals);
+	names.array = rho_malloc(sizeof(*names.array) * n_locals);
 	names.length = n_locals;
 
 	for (size_t i = 0; i < n_locals; i++) {
@@ -155,7 +156,7 @@ static void read_sym_table(CodeObject *co, Code *code)
 	off += 2;
 
 	struct str_array attrs;
-	attrs.array = malloc(sizeof(*attrs.array) * n_attrs);
+	attrs.array = rho_malloc(sizeof(*attrs.array) * n_attrs);
 	attrs.length = n_attrs;
 
 	for (size_t i = 0; i < n_attrs; i++) {
@@ -176,7 +177,7 @@ static void read_sym_table(CodeObject *co, Code *code)
 	off += 2;
 
 	struct str_array frees;
-	frees.array = malloc(sizeof(*frees.array) * n_frees);
+	frees.array = rho_malloc(sizeof(*frees.array) * n_frees);
 	frees.length = n_frees;
 
 	for (size_t i = 0; i < n_frees; i++) {
@@ -206,7 +207,7 @@ static void read_const_table(CodeObject *co, Code *code)
 	}
 
 	const size_t ct_size = code_read_uint16(code);
-	Value *constants = malloc(ct_size * sizeof(Value));
+	Value *constants = rho_malloc(ct_size * sizeof(Value));
 
 	for (size_t i = 0; i < ct_size; i++) {
 		const byte p = code_read_byte(code);
@@ -236,7 +237,7 @@ static void read_const_table(CodeObject *co, Code *code)
 				++str_len;
 			}
 
-			char *str = malloc(str_len + 1);
+			char *str = rho_malloc(str_len + 1);
 			for (size_t j = 0; j < str_len; j++) {
 				str[j] = code_read_byte(code);
 			}

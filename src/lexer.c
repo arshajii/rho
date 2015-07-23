@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include "util.h"
 #include "err.h"
 #include "lexer.h"
 
@@ -596,7 +597,7 @@ static void add_token(Lexer *lex, Token *tok)
 	if (size == capacity) {
 		const size_t new_capacity = (capacity * 3) / 2 + 1;
 		lex->tok_capacity = new_capacity;
-		lex->tokens = realloc(lex->tokens, new_capacity * sizeof(Token));
+		lex->tokens = rho_realloc(lex->tokens, new_capacity * sizeof(Token));
 	}
 
 	lex->tokens[lex->tok_count++] = *tok;
@@ -678,12 +679,12 @@ static void tokenize(Lexer *lex)
 
 Lexer *lex_new(char *str, const size_t length, const char *name)
 {
-	Lexer *lex = malloc(sizeof(Lexer));
+	Lexer *lex = rho_malloc(sizeof(Lexer));
 	lex->code = str;
 	lex->end = &str[length - 1];
 	lex->pos = &str[0];
 	lex->mark = 0;
-	lex->tokens = malloc(INITIAL_TOKEN_ARRAY_CAPACITY * sizeof(Token));
+	lex->tokens = rho_malloc(INITIAL_TOKEN_ARRAY_CAPACITY * sizeof(Token));
 	lex->tok_count = 0;
 	lex->tok_capacity = INITIAL_TOKEN_ARRAY_CAPACITY;
 	lex->tok_pos = 0;

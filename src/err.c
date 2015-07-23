@@ -6,6 +6,7 @@
 #include "floatobject.h"
 #include "object.h"
 #include "metaclass.h"
+#include "util.h"
 #include "exc.h"
 #include "err.h"
 
@@ -17,7 +18,7 @@ const char *err_type_headers[] = {
 
 Error *error_new(ErrorType type, const char *msg_format, ...)
 {
-	Error *error = malloc(sizeof(Error));
+	Error *error = rho_malloc(sizeof(Error));
 	error->type = type;
 
 	va_list args;

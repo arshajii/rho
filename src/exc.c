@@ -26,7 +26,7 @@ Value exc_make(Class *exc_class, bool active, const char *msg_format, ...)
 	if (size >= EXC_MSG_BUF_SIZE)
 		size = EXC_MSG_BUF_SIZE;
 
-	char *msg = malloc(size + 1);
+	char *msg = rho_malloc(size + 1);
 	strcpy(msg, msg_static);
 	exc->msg = msg;
 
@@ -57,7 +57,7 @@ static Value exc_init(Value *this, Value *args, size_t nargs)
 		}
 
 		StrObject *str = objvalue(&args[0]);
-		char *str_copy = malloc(str->str.len + 1);
+		char *str_copy = rho_malloc(str->str.len + 1);
 		strcpy(str_copy, str->str.value);
 		e->msg = str_copy;
 	}

@@ -2,8 +2,8 @@
 #include <string.h>
 #include <assert.h>
 #include "str.h"
+#include "util.h"
 #include "strbuf.h"
-#include <stdio.h>
 
 #define STRBUF_DEFAULT_INIT_CAPACITY 16
 
@@ -12,7 +12,7 @@ static void strbuf_grow(StrBuf *sb, const size_t min_cap);
 void strbuf_init(StrBuf *sb, const size_t cap)
 {
 	assert(cap > 0);
-	sb->buf = malloc(cap);
+	sb->buf = rho_malloc(cap);
 	sb->len = 0;
 	sb->cap = cap;
 	sb->buf[0] = '\0';
@@ -51,6 +51,6 @@ static void strbuf_grow(StrBuf *sb, const size_t min_cap)
 		new_cap = min_cap;
 	}
 
-	sb->buf = realloc(sb->buf, new_cap);
+	sb->buf = rho_realloc(sb->buf, new_cap);
 	sb->cap = new_cap;
 }

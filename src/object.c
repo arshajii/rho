@@ -40,7 +40,7 @@ static void obj_str(Value *this, Str *dest)
 		len = STR_MAX_LEN;
 	}
 
-	char *copy = malloc(len + 1);
+	char *copy = rho_malloc(len + 1);
 	strcpy(copy, buf);
 	*dest = STR_INIT(copy, len, 1);
 #undef STR_MAX_LEN
@@ -315,7 +315,7 @@ void *obj_alloc(Class *class)
 
 void *obj_alloc_var(Class *class, size_t extra)
 {
-	Object *o = malloc(class->instance_size + extra);
+	Object *o = rho_malloc(class->instance_size + extra);
 	o->class = class;
 	o->refcnt = 1;
 	return o;

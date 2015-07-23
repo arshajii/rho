@@ -6,7 +6,7 @@
 
 void code_init(Code *code, size_t capacity)
 {
-	code->bc = malloc(capacity);
+	code->bc = rho_malloc(capacity);
 	code->size = 0;
 	code->capacity = capacity;
 }
@@ -25,7 +25,7 @@ void code_ensure_capacity(Code *code, size_t min_capacity)
 		}
 
 		code->capacity = capacity;
-		code->bc = realloc(code->bc, capacity);
+		code->bc = rho_realloc(code->bc, capacity);
 	}
 }
 
@@ -146,7 +146,7 @@ const char *code_read_str(Code *code)
 
 void code_cpy(Code *dst, Code *src)
 {
-	dst->bc = malloc(src->capacity);
+	dst->bc = rho_malloc(src->capacity);
 	memcpy(dst->bc, src->bc, src->size);
 	dst->size = src->size;
 	dst->capacity = src->capacity;

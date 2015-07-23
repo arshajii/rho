@@ -11,7 +11,7 @@ static int hash(const char *key);
 void attr_dict_init(AttrDict *d, const size_t max_size)
 {
 	const size_t capacity = (max_size * 8)/5;
-	d->table = malloc(capacity * sizeof(AttrDictEntry *));
+	d->table = rho_malloc(capacity * sizeof(AttrDictEntry *));
 	for (size_t i = 0; i < capacity; i++) {
 		d->table[i] = NULL;
 	}
@@ -55,7 +55,7 @@ static void attr_dict_put(AttrDict *d, const char *key, unsigned int attr_index,
 	const int h = hash(key);
 	const size_t index = h & (table_capacity - 1);
 
-	AttrDictEntry *e = malloc(sizeof(AttrDictEntry));
+	AttrDictEntry *e = rho_malloc(sizeof(AttrDictEntry));
 	e->key = key;
 	e->value = value;
 	e->hash = h;

@@ -70,8 +70,8 @@ static ConstTable *ct_new_specific(const size_t capacity, const float load_facto
 		}
 	}
 
-	ConstTable *ct = malloc(sizeof(ConstTable));
-	ct->table = malloc(capacity_real * sizeof(CTEntry *));
+	ConstTable *ct = rho_malloc(sizeof(ConstTable));
+	ct->table = rho_malloc(capacity_real * sizeof(CTEntry *));
 	for (size_t i = 0; i < capacity_real; i++) {
 		ct->table[i] = NULL;
 	}
@@ -90,7 +90,7 @@ static ConstTable *ct_new_specific(const size_t capacity, const float load_facto
 unsigned int ct_id_for_const(ConstTable *ct, CTConst key)
 {
 	if (key.type == CT_CODEOBJ) {
-		CTEntry *new = malloc(sizeof(CTEntry));
+		CTEntry *new = rho_malloc(sizeof(CTEntry));
 		new->key = key;
 		new->value = ct->next_id++;
 		new->hash = 0;
@@ -121,7 +121,7 @@ unsigned int ct_id_for_const(ConstTable *ct, CTConst key)
 		}
 	}
 
-	CTEntry *new = malloc(sizeof(CTEntry));
+	CTEntry *new = rho_malloc(sizeof(CTEntry));
 	new->key = key;
 	new->value = ct->next_id++;
 	new->hash = hash;
@@ -172,7 +172,7 @@ void ct_grow(ConstTable *ct, const size_t new_capacity)
 		}
 	}
 
-	CTEntry **new_table = malloc(capacity_real * sizeof(CTEntry *));
+	CTEntry **new_table = rho_malloc(capacity_real * sizeof(CTEntry *));
 	for (size_t i = 0; i < capacity_real; i++) {
 		new_table[i] = NULL;
 	}

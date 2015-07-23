@@ -24,7 +24,7 @@ void strdict_init(StrDict *dict)
 
 static Entry *make_entry(Str *key, const int hash, Value *value)
 {
-	Entry *entry = malloc(sizeof(Entry));
+	Entry *entry = rho_malloc(sizeof(Entry));
 	entry->key = *key;
 	entry->hash = hash;
 	entry->value = *value;
@@ -95,7 +95,7 @@ void strdict_dealloc(StrDict *dict)
 
 static Entry **make_empty_table(const size_t capacity)
 {
-	Entry **table = malloc(capacity * sizeof(Entry *));
+	Entry **table = rho_malloc(capacity * sizeof(Entry *));
 	for (size_t i = 0; i < capacity; i++) {
 		table[i] = NULL;
 	}

@@ -59,7 +59,7 @@ VM *vm_new(void)
 		init = true;
 	}
 
-	VM *vm = malloc(sizeof(VM));
+	VM *vm = rho_malloc(sizeof(VM));
 	vm->module = NULL;
 	vm->callstack = NULL;
 	strdict_init(&vm->imports);
@@ -86,24 +86,24 @@ static void vm_traceback(VM *vm);
 
 static void vm_pushframe(VM *vm, CodeObject *co)
 {
-	Frame *frame = malloc(sizeof(Frame));
+	Frame *frame = rho_malloc(sizeof(Frame));
 	frame->co = co;
 
 	const size_t n_locals = co->names.length;
 	const size_t stack_depth = co->stack_depth;
 	const size_t try_catch_depth = co->try_catch_depth;
 
-	frame->locals = calloc(n_locals + stack_depth, sizeof(Value));
+	frame->locals = rho_calloc(n_locals + stack_depth, sizeof(Value));
 	frame->valuestack = frame->valuestack_base = frame->locals + n_locals;
 
 	const size_t frees_len = co->frees.length;
-	Str *frees = malloc(frees_len * sizeof(Str));
+	Str *frees = rho_malloc(frees_len * sizeof(Str));
 	for (size_t i = 0; i < frees_len; i++) {
 		frees[i] = STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
 	}
 	frame->frees = frees;
 
-	frame->exc_stack_base = frame->exc_stack = malloc(try_catch_depth * sizeof(struct exc_stack_element));
+	frame->exc_stack_base = frame->exc_stack = rho_malloc(try_catch_depth * sizeof(struct exc_stack_element));
 
 	frame->pos = 0;
 	frame->prev = vm->callstack;

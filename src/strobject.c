@@ -7,6 +7,7 @@
 #include "exc.h"
 #include "str.h"
 #include "object.h"
+#include "util.h"
 #include "strobject.h"
 
 Value strobj_make(Str value)
@@ -21,7 +22,7 @@ Value strobj_make(Str value)
 Value strobj_make_direct(const char *value, const size_t len)
 {
 	StrObject *s = obj_alloc(&str_class);
-	char *copy = malloc(len + 1);
+	char *copy = rho_malloc(len + 1);
 	memcpy(copy, value, len);
 	copy[len] = '\0';
 	s->str = STR_INIT(copy, len, 0);
@@ -92,7 +93,7 @@ static Value strobj_cat(Value *this, Value *other)
 	const size_t len2 = s2->len;
 	const size_t len_cat = len1 + len2;
 
-	char *cat = malloc(len_cat + 1);
+	char *cat = rho_malloc(len_cat + 1);
 
 	for (size_t i = 0; i < len1; i++) {
 		cat[i] = s1->value[i];

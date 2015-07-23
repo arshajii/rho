@@ -1,11 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "err.h"
+#include "util.h"
 #include "ast.h"
 
 AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno)
 {
-	AST *ast = malloc(sizeof(AST));
+	AST *ast = rho_malloc(sizeof(AST));
 	ast->type = type;
 	ast->lineno = lineno;
 	ast->left = left;
@@ -15,7 +16,7 @@ AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno)
 
 struct ast_list *ast_list_new(void)
 {
-	struct ast_list *list = malloc(sizeof(struct ast_list));
+	struct ast_list *list = rho_malloc(sizeof(struct ast_list));
 	list->ast = NULL;
 	list->next = NULL;
 	return list;

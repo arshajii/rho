@@ -8,6 +8,7 @@
 #include "attr.h"
 #include "exc.h"
 #include "err.h"
+#include "util.h"
 #include "vmops.h"
 
 /*
@@ -430,7 +431,7 @@ Value op_get_attr(Value *v, const char *attr)
 
 		switch (member->type) {
 		case ATTR_T_CHAR: {
-			char *c = malloc(1);
+			char *c = rho_malloc(1);
 			*c = getmember(o, offset, char);
 			res = strobj_make(STR_INIT(c, 1, 1));
 			break;
@@ -498,7 +499,7 @@ Value op_get_attr(Value *v, const char *attr)
 		case ATTR_T_STRING: {
 			char *str = getmember(o, offset, char *);
 			const size_t len = strlen(str);
-			char *copy = malloc(len);
+			char *copy = rho_malloc(len);
 			memcpy(copy, str, len);
 			res = strobj_make(STR_INIT(copy, len, 1));
 			break;

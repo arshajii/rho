@@ -5,6 +5,7 @@
 #include "strbuf.h"
 #include "vmops.h"
 #include "object.h"
+#include "util.h"
 #include "listobject.h"
 
 #define INDEX_CHECK(index, count) \
@@ -20,7 +21,7 @@ Value list_make(Value *elements, const size_t count)
 	ListObject *list = obj_alloc(&list_class);
 
 	const size_t size = count * sizeof(Value);
-	list->elements = malloc(size);
+	list->elements = rho_malloc(size);
 	memcpy(list->elements, elements, size);
 
 	list->count = count;
@@ -222,7 +223,7 @@ static void list_ensure_capacity(ListObject *list, const size_t min_capacity)
 			new_capacity = min_capacity;
 		}
 
-		list->elements = realloc(list->elements, new_capacity * sizeof(Value));
+		list->elements = rho_realloc(list->elements, new_capacity * sizeof(Value));
 		list->capacity = new_capacity;
 	}
 }

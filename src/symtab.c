@@ -40,7 +40,7 @@ static void ste_free(STEntry *ste);
 
 SymTable *st_new(const char *filename)
 {
-	SymTable *st = malloc(sizeof(SymTable));
+	SymTable *st = rho_malloc(sizeof(SymTable));
 	st->filename = filename;
 
 	STEntry *ste_module = ste_new("<module>", MODULE);
@@ -60,10 +60,10 @@ static STEntry *ste_new(const char *name, STEContext context)
 	// the capacity should always be a power of 2
 	assert((STE_INIT_CAPACITY & (STE_INIT_CAPACITY - 1)) == 0);
 
-	STEntry *ste = malloc(sizeof(STEntry));
+	STEntry *ste = rho_malloc(sizeof(STEntry));
 	ste->name = name;
 	ste->context = context;
-	ste->table = malloc(STE_INIT_CAPACITY * sizeof(STSymbol *));
+	ste->table = rho_malloc(STE_INIT_CAPACITY * sizeof(STSymbol *));
 	for (size_t i = 0; i < STE_INIT_CAPACITY; i++) {
 		ste->table[i] = NULL;
 	}
@@ -72,7 +72,7 @@ static STEntry *ste_new(const char *name, STEContext context)
 	ste->table_threshold = (size_t)(STE_INIT_CAPACITY * STE_LOADFACTOR);
 	ste->next_local_id = 0;
 	ste->n_locals = 0;
-	ste->attributes = malloc(STE_INIT_CAPACITY * sizeof(STSymbol *));
+	ste->attributes = rho_malloc(STE_INIT_CAPACITY * sizeof(STSymbol *));
 	for (size_t i = 0; i < STE_INIT_CAPACITY; i++) {
 		ste->attributes[i] = NULL;
 	}
@@ -82,7 +82,7 @@ static STEntry *ste_new(const char *name, STEContext context)
 	ste->next_attr_id = 0;
 	ste->next_free_var_id = 0;
 	ste->parent = NULL;
-	ste->children = malloc(STE_INIT_CHILDVEC_CAPACITY * sizeof(STEntry));
+	ste->children = rho_malloc(STE_INIT_CHILDVEC_CAPACITY * sizeof(STEntry));
 	ste->n_children = 0;
 	ste->children_capacity = STE_INIT_CHILDVEC_CAPACITY;
 	ste->child_pos = 0;
@@ -319,7 +319,7 @@ static bool ste_register_ident(STEntry *ste, Str *ident, int flags)
 		const int hash = HASH(ident);
 		const size_t index = hash & (ste->table_capacity - 1);
 
-		symbol = calloc(1, sizeof(STSymbol));
+		symbol = rho_calloc(1, sizeof(STSymbol));
 		symbol->key = ident;
 
 		if (flags & FLAG_BOUND_HERE) {
@@ -397,7 +397,7 @@ static bool ste_register_attr(STEntry *ste, Str *attr)
 		const int hash = HASH(attr);
 		const size_t index = hash & (ste->attr_capacity - 1);
 
-		symbol = calloc(1, sizeof(STSymbol));
+		symbol = rho_calloc(1, sizeof(STSymbol));
 		symbol->key = attr;
 		symbol->attribute = 1;
 		symbol->id = ste->next_attr_id++;
@@ -432,7 +432,7 @@ static void ste_grow(STEntry *ste, const size_t new_capacity)
 		}
 	}
 
-	STSymbol **new_table = malloc(capacity_real * sizeof(STSymbol *));
+	STSymbol **new_table = rho_malloc(capacity_real * sizeof(STSymbol *));
 	for (size_t i = 0; i < capacity_real; i++) {
 		new_table[i] = NULL;
 	}
@@ -476,7 +476,7 @@ static void ste_grow_attr(STEntry *ste, const size_t new_capacity)
 		}
 	}
 
-	STSymbol **new_attributes = malloc(capacity_real * sizeof(STSymbol *));
+	STSymbol **new_attributes = rho_malloc(capacity_real * sizeof(STSymbol *));
 	for (size_t i = 0; i < capacity_real; i++) {
 		new_attributes[i] = NULL;
 	}
@@ -507,7 +507,7 @@ static void ste_add_child(STEntry *ste, STEntry *child)
 
 	if (ste->n_children == ste->children_capacity) {
 		ste->children_capacity = (ste->children_capacity * 3)/2 + 1;
-		ste->children = realloc(ste->children, ste->children_capacity);
+		ste->children = rho_realloc(ste->children, ste->children_capacity);
 	}
 
 	ste->children[ste->n_children++] = child;

@@ -7,7 +7,7 @@
 
 Str *str_new(const char *value, const size_t len)
 {
-	Str *str = malloc(sizeof(Str));
+	Str *str = rho_malloc(sizeof(Str));
 	str->value = value;
 	str->len = len;
 	str->hash = 0;
@@ -18,8 +18,8 @@ Str *str_new(const char *value, const size_t len)
 
 Str *str_new_copy(const char *value, const size_t len)
 {
-	Str *str = malloc(sizeof(Str));
-	char *copy = malloc(len + 1);
+	Str *str = rho_malloc(sizeof(Str));
+	char *copy = rho_malloc(len + 1);
 	memcpy(copy, value, len);
 	copy[len] = '\0';
 	str->value = copy;
@@ -61,7 +61,7 @@ Str *str_cat(Str *s1, Str *s2)
 	const size_t len1 = s1->len, len2 = s2->len;
 	const size_t len_cat = len1 + len2;
 
-	char *cat = malloc(len_cat + 1);
+	char *cat = rho_malloc(len_cat + 1);
 
 	for (size_t i = 0; i < len1; i++) {
 		cat[i] = s1->value[i];

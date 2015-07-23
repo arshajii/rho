@@ -30,8 +30,6 @@ unsigned int read_uint16_from_stream(unsigned char *stream);
 void write_double_to_stream(unsigned char *stream, const double d);
 double read_double_from_stream(unsigned char *stream);
 
-void *safe_malloc(const size_t size);
-
 struct str_array {
 	/* bare-bones string array */
 	struct {
@@ -41,5 +39,9 @@ struct str_array {
 
 	size_t length;
 };
+
+void *rho_malloc(size_t n);
+void *rho_calloc(size_t num, size_t size);
+void *rho_realloc(void *p, size_t n);
 
 #endif /* UTIL_H */

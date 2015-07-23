@@ -104,7 +104,7 @@ static Opcode to_opcode(NodeType type);
 
 static Compiler *compiler_new(const char *filename, unsigned int first_lineno, SymTable *st)
 {
-	Compiler *compiler = malloc(sizeof(Compiler));
+	Compiler *compiler = rho_malloc(sizeof(Compiler));
 	compiler->filename = filename;
 	code_init(&compiler->code, DEFAULT_BC_CAPACITY);
 	compiler->lbi = NULL;
@@ -139,9 +139,9 @@ static void compiler_free(Compiler *compiler, bool free_st)
 static struct loop_block_info *lbi_new(size_t start_index,
                                        struct loop_block_info *prev)
 {
-	struct loop_block_info *lbi = malloc(sizeof(*lbi));
+	struct loop_block_info *lbi = rho_malloc(sizeof(*lbi));
 	lbi->start_index = start_index;
-	lbi->break_indices = malloc(LBI_INIT_CAPACITY * sizeof(size_t));
+	lbi->break_indices = rho_malloc(LBI_INIT_CAPACITY * sizeof(size_t));
 	lbi->break_indices_size = 0;
 	lbi->break_indices_capacity = LBI_INIT_CAPACITY;
 	lbi->prev = prev;
@@ -155,7 +155,7 @@ static void lbi_add_break_index(struct loop_block_info *lbi, size_t break_index)
 
 	if (bi_size == bi_capacity) {
 		bi_capacity = (bi_capacity * 3)/2 + 1;
-		lbi->break_indices = realloc(lbi->break_indices, bi_capacity * sizeof(size_t));
+		lbi->break_indices = rho_realloc(lbi->break_indices, bi_capacity * sizeof(size_t));
 		lbi->break_indices_capacity = bi_capacity;
 	}
 
@@ -508,7 +508,7 @@ static void compile_if(Compiler *compiler, AST *ast)
 	/*
 	 * Placeholder indices for jump offsets following the ELSE/ELIF bodies.
 	 */
-	size_t *jmp_placeholder_indices = malloc((1 + n_elifs) * sizeof(size_t));
+	size_t *jmp_placeholder_indices = rho_malloc((1 + n_elifs) * sizeof(size_t));
 	size_t node_index = 0;
 
 	for (AST *node = ast; node != NULL; node = node->v.middle) {
@@ -936,8 +936,8 @@ static void write_sym_table(Compiler *compiler)
 	const size_t n_attrs = ste->next_attr_id;
 	const size_t n_free = ste->next_free_var_id;
 
-	Str **locals_sorted = malloc(n_locals * sizeof(Str *));
-	Str **frees_sorted = malloc(n_free * sizeof(Str *));
+	Str **locals_sorted = rho_malloc(n_locals * sizeof(Str *));
+	Str **frees_sorted = rho_malloc(n_free * sizeof(Str *));
 
 	const size_t table_capacity = ste->table_capacity;
 
@@ -951,7 +951,7 @@ static void write_sym_table(Compiler *compiler)
 		}
 	}
 
-	Str **attrs_sorted = malloc(n_attrs * sizeof(Str *));
+	Str **attrs_sorted = rho_malloc(n_attrs * sizeof(Str *));
 
 	const size_t attr_capacity = ste->attr_capacity;
 
@@ -993,7 +993,7 @@ static void write_const_table(Compiler *compiler)
 	write_byte(compiler, CT_ENTRY_BEGIN);
 	write_uint16(compiler, size);
 
-	CTConst *sorted = malloc(size * sizeof(CTConst));
+	CTConst *sorted = rho_malloc(size * sizeof(CTConst));
 
 	const size_t capacity = ct->capacity;
 	for (size_t i = 0; i < capacity; i++) {
@@ -1103,7 +1103,7 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		const unsigned int max_vstack_depth = metadata.max_vstack_depth;
 		const unsigned int max_try_catch_depth = metadata.max_try_catch_depth;
 
-		Code *fncode = malloc(sizeof(Code));
+		Code *fncode = rho_malloc(sizeof(Code));
 
 		const size_t name_len = ast->left->v.ident->len;
 
@@ -1502,7 +1502,7 @@ void compile(FILE *src, FILE *out, const char *name)
 	fseek(src, 0L, SEEK_END);
 	size_t code_size = ftell(src);
 	fseek(src, 0L, SEEK_SET);
-	char *code = malloc(code_size + 1);
+	char *code = rho_malloc(code_size + 1);
 	code[code_size] = '\0';
 
 	if (code == NULL) {

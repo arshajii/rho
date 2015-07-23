@@ -255,7 +255,7 @@ static void int_str(Value *this, Str *dest)
 	const long n = intvalue(this);
 	const size_t len = sprintf(buf, "%ld", n);
 	assert(len > 0);
-	char *copy = malloc(len + 1);
+	char *copy = rho_malloc(len + 1);
 	strcpy(copy, buf);
 	*dest = STR_INIT(copy, len, 1);
 }

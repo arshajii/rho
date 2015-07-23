@@ -24,7 +24,7 @@ static void meta_class_str(Value *this, Str *dest)
 		len = STR_MAX_LEN;
 	}
 
-	char *copy = malloc(len + 1);
+	char *copy = rho_malloc(len + 1);
 	strcpy(copy, buf);
 	*dest = STR_INIT(copy, len, 1);
 #undef STR_MAX_LEN

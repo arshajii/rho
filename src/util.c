@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include "err.h"
 #include "util.h"
 
 /*
@@ -126,15 +127,37 @@ double read_double_from_stream(unsigned char *stream)
  * Memory allocation functions
  */
 
-void *safe_malloc(const size_t size)
+void *rho_malloc(size_t n)
 {
-	void *mem = malloc(size);
+	void *p = malloc(n);
 
-	if (mem == NULL) {
-		abort();
+	if (p == NULL && n > 0) {
+		OUT_OF_MEM_ERROR();
 	}
 
-	return mem;
+	return p;
+}
+
+void *rho_calloc(size_t num, size_t size)
+{
+	void *p = calloc(num, size);
+
+	if (p == NULL && num > 0 && size > 0) {
+		OUT_OF_MEM_ERROR();
+	}
+
+	return p;
+}
+
+void *rho_realloc(void *p, size_t n)
+{
+	void *new_p = realloc(p, n);
+
+	if (new_p == NULL && n > 0) {
+		OUT_OF_MEM_ERROR();
+	}
+
+	return new_p;
 }
 
 /*
