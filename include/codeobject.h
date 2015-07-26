@@ -5,6 +5,8 @@
 #include "object.h"
 #include "util.h"
 
+struct rho_vm;
+
 extern Class co_class;
 
 typedef struct {
@@ -45,12 +47,16 @@ typedef struct {
 
 	/* first line number */
 	unsigned int first_lineno;
+
+	/* virtual machine associated with this code object */
+	struct rho_vm *vm;
 } CodeObject;
 
 CodeObject *codeobj_make(Code *code,
                          const char *name,
                          unsigned int argcount,
                          int stack_depth,
-                         int try_catch_depth);
+                         int try_catch_depth,
+                         struct rho_vm *vm);
 
 #endif /* CODEOBJECT_H */

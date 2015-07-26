@@ -1,12 +1,14 @@
 #include <stdlib.h>
 #include <assert.h>
-#include "err.h"
 #include "code.h"
 #include "compiler.h"
 #include "opcodes.h"
 #include "object.h"
 #include "strobject.h"
+#include "vm.h"
 #include "util.h"
+#include "exc.h"
+#include "err.h"
 #include "codeobject.h"
 
 /*
@@ -47,7 +49,8 @@ CodeObject *codeobj_make(Code *code,
                          const char *name,
                          unsigned int argcount,
                          int stack_depth,
-                         int try_catch_depth)
+                         int try_catch_depth,
+                         VM *vm)
 {
 	CodeObject *co = obj_alloc(&co_class);
 	co->name = name;
@@ -61,6 +64,7 @@ CodeObject *codeobj_make(Code *code,
 		INTERNAL_ERROR();
 	}
 
+	co->vm = vm;
 	read_lno_table(co, code);
 	read_sym_table(co, code);
 	read_const_table(co, code);
@@ -89,7 +93,7 @@ void codeobj_free(Value *this)
 
 	free(consts_array);
 
-	co->base.class->super->del(this);
+	obj_class.del(this);
 }
 
 static void read_lno_table(CodeObject *co, Code *code)
@@ -261,7 +265,12 @@ static void read_const_table(CodeObject *co, Code *code)
 				code_write_byte(&sub, b);
 			}
 
-			constants[i].data.o = codeobj_make(&sub, name, argcount, stack_depth, try_catch_depth);
+			constants[i].data.o = codeobj_make(&sub,
+			                                   name,
+			                                   argcount,
+			                                   stack_depth,
+			                                   try_catch_depth,
+			                                   co->vm);
 			break;
 		}
 		case CT_ENTRY_END:
@@ -275,6 +284,31 @@ static void read_const_table(CodeObject *co, Code *code)
 	code_read_byte(code);
 
 	co->consts = (struct value_array){.array = constants, .length = ct_size};
+}
+
+static Value codeobj_call(Value *this, Value *args, size_t nargs)
+{
+	CodeObject *co = objvalue(this);
+	VM *vm = co->vm;
+
+	if (co->argcount != nargs) {
+		return call_exc_args(co->name, co->argcount, nargs);
+	}
+
+	retain(this);
+	vm_pushframe(vm, co);
+
+	Frame *top = vm->callstack;
+	for (unsigned int i = 0; i < nargs; i++) {
+		Value v = args[i];
+		retain(&v);
+		top->locals[i] = v;
+	}
+
+	vm_eval_frame(vm);
+	Value res = top->return_value;
+	vm_popframe(vm);
+	return res;
 }
 
 struct num_methods co_num_methods = {
@@ -349,7 +383,7 @@ Class co_class = {
 	.hash = NULL,
 	.cmp = NULL,
 	.str = NULL,
-	.call = NULL,
+	.call = codeobj_call,
 
 	.print = NULL,
 

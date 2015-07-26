@@ -75,16 +75,12 @@ void vm_free(VM *vm)
 	free(vm);
 }
 
-static void vm_pushframe(VM *vm, CodeObject *co);
-
 /* pushes top-level frame */
 static void vm_push_module_frame(VM *vm, Code *code);
 
-static void vm_popframe(VM *vm);
-
 static void vm_traceback(VM *vm);
 
-static void vm_pushframe(VM *vm, CodeObject *co)
+void vm_pushframe(VM *vm, CodeObject *co)
 {
 	Frame *frame = rho_malloc(sizeof(Frame));
 	frame->co = co;
@@ -111,7 +107,7 @@ static void vm_pushframe(VM *vm, CodeObject *co)
 	vm->callstack = frame;
 }
 
-static void vm_popframe(VM *vm)
+void vm_popframe(VM *vm)
 {
 	Frame *frame = vm->callstack;
 	vm->callstack = frame->prev;
@@ -137,8 +133,6 @@ static void vm_popframe(VM *vm)
 	 */
 }
 
-static void eval_frame(VM *vm);
-
 // TODO: move this out of vm.c
 void execute(FILE *compiled)
 {
@@ -162,7 +156,7 @@ void execute(FILE *compiled)
 	code.size = code_size;
 
 	vm_push_module_frame(vm, &code);
-	eval_frame(vm);
+	vm_eval_frame(vm);
 
 	Value *ret = &vm->callstack->return_value;
 	if (isexc(ret)) {
@@ -188,12 +182,12 @@ void execute(FILE *compiled)
 static void vm_push_module_frame(VM *vm, Code *code)
 {
 	assert(vm->module == NULL);
-	CodeObject *co = codeobj_make(code, "<module>", 0, -1, -1);
+	CodeObject *co = codeobj_make(code, "<module>", 0, -1, -1, vm);
 	vm_pushframe(vm, co);
 	vm->module = vm->callstack;
 }
 
-static void eval_frame(VM *vm)
+void vm_eval_frame(VM *vm)
 {
 #define GET_BYTE()    (bc[pos++])
 #define GET_UINT16()  (pos += 2, ((bc[pos - 1] << 8) | bc[pos - 2]))
@@ -895,56 +889,18 @@ static void eval_frame(VM *vm)
 		case INS_CALL: {
 			const unsigned int argcount = GET_UINT16();
 			v1 = STACK_POP();
-			Class *class = getclass(v1);
+			res = op_call(v1, stack - argcount, argcount);
+			release(v1);
 
-			if (class == &co_class) {
-				CodeObject *co = objvalue(v1);
-
-				if (co->argcount != argcount) {
-					release(v1);
-					res = call_exc_args(co->name, co->argcount, argcount);
-					goto error;
-				}
-
-				vm_pushframe(vm, co);
-
-				Frame *top = vm->callstack;
-				for (unsigned int i = 0; i < argcount; i++) {
-					top->locals[argcount - i - 1] = *STACK_POP();
-				}
-
-				eval_frame(vm);
-				res = top->return_value;
-				vm_popframe(vm);
-
-				if (iserror(&res)) {
-					goto error;
-				}
-
-				STACK_PUSH(res);
-			} else {
-				CallFunc call = resolve_call(class);
-
-				if (!call) {
-					release(v1);
-					res = type_exc_not_callable(class);
-					goto error;
-				}
-
-				res = call(v1, stack - argcount, argcount);
-
-				release(v1);
-
-				if (iserror(&res)) {
-					goto error;
-				}
-
-				for (unsigned int i = 0; i < argcount; i++) {
-					release(STACK_POP());
-				}
-
-				STACK_PUSH(res);
+			if (iserror(&res)) {
+				goto error;
 			}
+
+			for (unsigned int i = 0; i < argcount; i++) {
+				release(STACK_POP());
+			}
+
+			STACK_PUSH(res);
 			break;
 		}
 		case INS_RETURN: {

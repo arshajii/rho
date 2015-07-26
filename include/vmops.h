@@ -86,4 +86,6 @@ Value op_get_attr(Value *v, const char *attr);
 
 Value op_set_attr(Value *v, const char *attr, Value *new);
 
+Value op_call(Value *v, Value *args, const size_t nargs);
+
 #endif /* VMOPS_H */

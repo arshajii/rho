@@ -31,7 +31,7 @@ typedef struct frame {
 	struct frame *prev;
 } Frame;
 
-typedef struct {
+typedef struct rho_vm {
 	Frame *module;
 	Frame *callstack;
 	StrDict imports;
@@ -39,7 +39,11 @@ typedef struct {
 } VM;
 
 VM *vm_new(void);
+void vm_pushframe(VM *vm, CodeObject *co);
+void vm_eval_frame(VM *vm);
+void vm_popframe(VM *vm);
 void vm_free(VM *vm);
+
 void execute(FILE *compiled);
 
 #endif /* VM_H */

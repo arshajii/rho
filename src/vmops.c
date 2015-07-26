@@ -742,3 +742,15 @@ Value op_set_attr(Value *v, const char *attr, Value *new)
 	set_attr_error_mismatch:
 	return attr_exc_mismatch(v_class, attr, new_class);
 }
+
+Value op_call(Value *v, Value *args, const size_t nargs)
+{
+	Class *class = getclass(v);
+	const CallFunc call = resolve_call(class);
+
+	if (!call) {
+		return type_exc_not_callable(class);
+	}
+
+	return call(v, args, nargs);
+}
