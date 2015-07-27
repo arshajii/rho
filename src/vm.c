@@ -260,17 +260,29 @@ void vm_eval_frame(VM *vm)
 			STACK_PUSH(makeint(0));
 			break;
 		}
+		/*
+		 * Q: Why is the error check sandwiched between releasing v2 and
+		 *    releasing v1?
+		 *
+		 * A: We want to use TOP/SET_TOP instead of POP/PUSH when we can,
+		 *    and doing so in the case of binary operators means v1 will
+		 *    still be on the stack while v2 will have been popped as we
+		 *    perform the operation (e.g. op_add). Since the error section
+		 *    purges the stack (which entails releasing everything on it),
+		 *    releasing v1 before the error check would lead to an invalid
+		 *    double-release of v1 in the case of an error/exception.
+		 */
 		case INS_ADD: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
 			res = op_add(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -279,12 +291,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_sub(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -293,12 +305,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_mul(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -307,12 +319,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_div(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -321,12 +333,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_mod(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -335,12 +347,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_pow(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -349,12 +361,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_bitand(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -363,12 +375,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_bitor(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -377,12 +389,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_xor(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -403,12 +415,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_shiftl(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -417,12 +429,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_shiftr(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -431,12 +443,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_and(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -445,12 +457,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_or(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -458,11 +470,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_not(v1);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -471,12 +484,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_eq(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -485,12 +498,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_neq(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -499,12 +512,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_lt(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -513,12 +526,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_gt(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -527,12 +540,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_le(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -541,12 +554,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_ge(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -579,11 +592,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_iadd(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -592,11 +605,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_isub(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -605,11 +618,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_imul(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -618,11 +631,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_idiv(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -631,11 +644,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_imod(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -644,11 +657,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_ipow(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -657,11 +670,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_ibitand(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -670,11 +683,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_ibitor(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -683,11 +696,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_ixor(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -696,11 +709,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_ishiftl(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -709,11 +722,11 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_ishiftr(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v2);
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -778,6 +791,7 @@ void vm_eval_frame(VM *vm)
 
 			release(v1);
 			release(v2);
+
 			break;
 		}
 		case INS_LOAD_INDEX: {
@@ -785,12 +799,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_get(v1, v2);
 
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
 			release(v1);
-			release(v2);
+
 			STACK_SET_TOP(res);
 			break;
 		}
@@ -801,11 +815,12 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_POP();  /* Y */
 			res = op_set(v2, v3, v1);
 
+			release(&res);
+
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(&res);
 			release(v1);
 			release(v2);
 			release(v3);
@@ -890,8 +905,8 @@ void vm_eval_frame(VM *vm)
 			const unsigned int argcount = GET_UINT16();
 			v1 = STACK_POP();
 			res = op_call(v1, stack - argcount, argcount);
-			release(v1);
 
+			release(v1);
 			if (iserror(&res)) {
 				goto error;
 			}
