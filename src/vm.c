@@ -785,12 +785,11 @@ void vm_eval_frame(VM *vm)
 			const char *attr = attrs.array[id].str;
 			res = op_set_attr(v1, attr, v2);
 
+			release(v1);
+			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}
-
-			release(v1);
-			release(v2);
 
 			break;
 		}
