@@ -34,6 +34,9 @@ typedef int (*PrintFunc)(Value *this, FILE *out);
 typedef size_t (*LenFunc)(Value *this);
 typedef Value (*SeqSetFunc)(Value *this, Value *idx, Value *v);
 
+typedef Value (*AttrGetFunc)(Value *this, const char *attr);
+typedef Value (*AttrSetFunc)(Value *this, const char *attr, Value *v);
+
 struct num_methods {
 	UnOp plus;
 	UnOp minus;
@@ -120,6 +123,9 @@ struct class {
 	struct attr_member *members;
 	struct attr_method *methods;
 	AttrDict attr_dict;
+
+	AttrGetFunc attr_get;
+	AttrSetFunc attr_set;
 };
 
 extern struct num_methods obj_num_methods;
@@ -195,6 +201,8 @@ CallFunc resolve_call(Class *class);
 PrintFunc resolve_print(Class *class);
 UnOp resolve_iter(Class *class);
 UnOp resolve_iternext(Class *class);
+AttrGetFunc resolve_attr_get(Class *class);
+AttrSetFunc resolve_attr_set(Class *class);
 
 UnOp resolve_plus(Class *class);
 UnOp resolve_minus(Class *class);

@@ -394,5 +394,8 @@ Class co_class = {
 	.seq_methods = &co_seq_methods,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };

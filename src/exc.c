@@ -97,7 +97,10 @@ Class exception_class = {
 	.seq_methods  = NULL,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };
 
 /* IndexException */
@@ -137,7 +140,10 @@ Class index_exception_class = {
 	.seq_methods  = NULL,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };
 
 /* TypeException */
@@ -177,7 +183,10 @@ Class type_exception_class = {
 	.seq_methods  = NULL,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };
 
 /* AttributeException */
@@ -217,7 +226,10 @@ Class attr_exception_class = {
 	.seq_methods  = NULL,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };
 
 /* Common Exceptions */

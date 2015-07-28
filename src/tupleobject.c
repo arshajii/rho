@@ -184,5 +184,8 @@ Class tuple_class = {
 	.seq_methods  = &tuple_seq_methods,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };

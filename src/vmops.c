@@ -405,6 +405,18 @@ Value op_set(Value *v, Value *idx, Value *e)
 Value op_get_attr(Value *v, const char *attr)
 {
 	Class *class = getclass(v);
+	AttrGetFunc attr_get = resolve_attr_get(class);
+
+	if (attr_get) {
+		return attr_get(v, attr);
+	} else {
+		return op_get_attr_default(v, attr);
+	}
+}
+
+Value op_get_attr_default(Value *v, const char *attr)
+{
+	Class *class = getclass(v);
 
 	if (!isobject(v)) {
 		goto get_attr_error_not_found;
@@ -520,6 +532,18 @@ Value op_get_attr(Value *v, const char *attr)
 }
 
 Value op_set_attr(Value *v, const char *attr, Value *new)
+{
+	Class *class = getclass(v);
+	AttrSetFunc attr_set = resolve_attr_set(class);
+
+	if (attr_set) {
+		return attr_set(v, attr, new);
+	} else {
+		return op_set_attr_default(v, attr, new);
+	}
+}
+
+Value op_set_attr_default(Value *v, const char *attr, Value *new)
 {
 	Class *v_class = getclass(v);
 	Class *new_class = getclass(new);

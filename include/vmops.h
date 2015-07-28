@@ -84,7 +84,11 @@ Value op_set(Value *v, Value *idx, Value *e);
 
 Value op_get_attr(Value *v, const char *attr);
 
+Value op_get_attr_default(Value *v, const char *attr);
+
 Value op_set_attr(Value *v, const char *attr, Value *new);
+
+Value op_set_attr_default(Value *v, const char *attr, Value *new);
 
 Value op_call(Value *v, Value *args, const size_t nargs);
 

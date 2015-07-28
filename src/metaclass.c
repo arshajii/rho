@@ -78,5 +78,8 @@ Class meta_class = {
 	.seq_methods = NULL,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };

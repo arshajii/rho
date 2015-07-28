@@ -197,5 +197,8 @@ Class str_class = {
 	.iternext = NULL,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };

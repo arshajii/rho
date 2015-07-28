@@ -107,5 +107,8 @@ Class method_class = {
 	.seq_methods  = &meth_seq_methods,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };

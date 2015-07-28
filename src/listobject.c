@@ -318,5 +318,8 @@ Class list_class = {
 	.seq_methods  = &list_seq_methods,
 
 	.members = NULL,
-	.methods = list_methods
+	.methods = list_methods,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };

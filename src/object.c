@@ -140,7 +140,10 @@ Class obj_class = {
 	.seq_methods = &obj_seq_methods,
 
 	.members = NULL,
-	.methods = NULL
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
 };
 
 Class *getclass(Value *v)
@@ -258,6 +261,8 @@ MAKE_METHOD_RESOLVER_DIRECT(call, CallFunc)
 MAKE_METHOD_RESOLVER_DIRECT(print, PrintFunc)
 MAKE_METHOD_RESOLVER_DIRECT(iter, UnOp)
 MAKE_METHOD_RESOLVER_DIRECT(iternext, UnOp)
+MAKE_METHOD_RESOLVER_DIRECT(attr_get, AttrGetFunc)
+MAKE_METHOD_RESOLVER_DIRECT(attr_set, AttrSetFunc)
 
 MAKE_METHOD_RESOLVER(plus, num_methods, UnOp)
 MAKE_METHOD_RESOLVER(minus, num_methods, UnOp)
