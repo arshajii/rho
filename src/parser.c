@@ -347,24 +347,19 @@ static AST *parse_atom(Lexer *lex)
 	tok = lex_peek_token(lex);
 
 	/*
-	 * Dots have high priority, so
-	 * we deal with them specially.
+	 * Deal with cases like `foo[7].bar(42)`...
 	 */
-	while (tok->type == TOK_DOT) {
-		Token *dot_tok = expect(lex, TOK_DOT);
+	while (tok->type == TOK_DOT || tok->type == TOK_PAREN_OPEN || tok->type == TOK_BRACK_OPEN) {
+		switch (tok->type) {
+		case TOK_DOT: {
+			Token *dot_tok = expect(lex, TOK_DOT);
 
-		AST *ident = parse_ident(lex);
-		AST *dot = ast_new(NODE_DOT, ast, ident, dot_tok->lineno);
-		ast = dot;
-
-		tok = lex_peek_token(lex);
-	}
-
-	/*
-	 * Deal with function calls and index expressions...
-	 */
-	while (tok->type == TOK_PAREN_OPEN || tok->type == TOK_BRACK_OPEN) {
-		if (tok->type == TOK_PAREN_OPEN) {
+			AST *ident = parse_ident(lex);
+			AST *dot = ast_new(NODE_DOT, ast, ident, dot_tok->lineno);
+			ast = dot;
+			break;
+		}
+		case TOK_PAREN_OPEN: {
 			ParamList *params = parse_comma_separated_list(lex,
 														   TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
 														   parse_expr,
@@ -372,14 +367,19 @@ static AST *parse_atom(Lexer *lex)
 			AST *call = ast_new(NODE_CALL, ast, NULL, tok->lineno);
 			call->v.params = params;
 			ast = call;
-		} else if (tok->type == TOK_BRACK_OPEN) {
+			break;
+		}
+		case TOK_BRACK_OPEN: {
 			expect(lex, TOK_BRACK_OPEN);
 			AST *index = parse_expr(lex);
 			expect(lex, TOK_BRACK_CLOSE);
 			AST *index_expr = ast_new(NODE_INDEX, ast, index, tok->lineno);
 			ast = index_expr;
-		} else {
+			break;
+		}
+		default: {
 			INTERNAL_ERROR();
+		}
 		}
 
 		tok = lex_peek_token(lex);
