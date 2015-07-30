@@ -34,8 +34,8 @@ typedef struct frame {
 typedef struct rho_vm {
 	Frame *module;
 	Frame *callstack;
-	StrDict imports;
 	StrDict builtins;
+	StrDict exports;
 } VM;
 
 VM *vm_new(void);

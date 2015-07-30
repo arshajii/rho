@@ -194,6 +194,9 @@ static void ast_print_at(AST *ast, unsigned int level)
 	case NODE_TRY_CATCH:
 		printf("try ... catch");
 		break;
+	case NODE_EXPORT:
+		printf("export");
+		break;
 	case NODE_BLOCK:
 		printf("{}");
 		break;

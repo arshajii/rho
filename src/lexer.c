@@ -462,7 +462,8 @@ static Token next_word(Lexer *lex)
 		{"return",   TOK_RETURN},
 		{"throw",    TOK_THROW},
 		{"try",      TOK_TRY},
-		{"catch",    TOK_CATCH}
+		{"catch",    TOK_CATCH},
+		{"export",   TOK_EXPORT}
 	};
 
 	assert(is_word_char(currc(lex)));
@@ -896,6 +897,8 @@ const char *type_to_str(TokType type)
 		return "try";
 	case TOK_CATCH:
 		return "catch";
+	case TOK_EXPORT:
+		return "export";
 	case TOK_COMMA:
 		return ",";
 	case TOK_COLON:

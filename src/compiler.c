@@ -210,6 +210,7 @@ static void compile_continue(Compiler *compiler, AST *ast);
 static void compile_return(Compiler *compiler, AST *ast);
 static void compile_throw(Compiler *compiler, AST *ast);
 static void compile_try_catch(Compiler *compiler, AST *ast);
+static void compile_export(Compiler *compiler, AST *ast);
 
 static void compile_get_attr(Compiler *compiler, AST *ast);
 
@@ -705,6 +706,31 @@ static void compile_try_catch(Compiler *compiler, AST *ast)
 	write_uint16_at(compiler, compiler->code.size - jmp_over_handlers_index - 2, jmp_over_handlers_index);
 }
 
+static void compile_export(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_EXPORT);
+
+	compile_load(compiler, ast->left);
+
+	ast = ast->left;
+
+	const unsigned int lineno = ast->lineno;
+	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->v.ident);
+
+	if (sym->bound_here) {
+		write_ins(compiler, INS_EXPORT, lineno);
+	} else if (sym->global_var) {
+		write_ins(compiler, INS_EXPORT_GLOBAL, lineno);
+	} else {
+		fprintf(stderr,
+		        "%s:%d: cannot export free variable '%s'\n",
+		        compiler->filename, lineno, sym->key->value);
+		exit(EXIT_FAILURE);
+	}
+
+	write_uint16(compiler, sym->id);
+}
+
 static void compile_get_attr(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_DOT);
@@ -893,6 +919,9 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 		break;
 	case NODE_TRY_CATCH:
 		compile_try_catch(compiler, ast);
+		break;
+	case NODE_EXPORT:
+		compile_export(compiler, ast);
 		break;
 	case NODE_BLOCK:
 		compile_block(compiler, ast);
@@ -1344,6 +1373,9 @@ int arg_size(Opcode opcode)
 	case INS_MAKE_LIST:
 	case INS_MAKE_TUPLE:
 		return 2;
+	case INS_EXPORT:
+	case INS_EXPORT_GLOBAL:
+		return 2;
 	case INS_POP:
 	case INS_DUP:
 	case INS_DUP_TWO:
@@ -1482,6 +1514,9 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_MAKE_LIST:
 	case INS_MAKE_TUPLE:
 		return -arg + 1;
+	case INS_EXPORT:
+	case INS_EXPORT_GLOBAL:
+		return -1;
 	case INS_POP:
 		return -1;
 	case INS_DUP:

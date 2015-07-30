@@ -62,15 +62,15 @@ VM *vm_new(void)
 	VM *vm = rho_malloc(sizeof(VM));
 	vm->module = NULL;
 	vm->callstack = NULL;
-	strdict_init(&vm->imports);
 	strdict_init(&vm->builtins);
+	strdict_init(&vm->exports);
 	load_builtins(vm);
 	return vm;
 }
 
 void vm_free(VM *vm)
 {
-	strdict_dealloc(&vm->imports);
+	strdict_dealloc(&vm->exports);
 	strdict_dealloc(&vm->builtins);
 	free(vm);
 }
@@ -828,14 +828,6 @@ void vm_eval_frame(VM *vm)
 		case INS_LOAD_NAME: {
 			const unsigned int id = GET_UINT16();
 			Str *key = &frees[id];
-			res = strdict_get(&vm->imports, key);
-
-			if (!isempty(&res)) {
-				retain(&res);
-				STACK_PUSH(res);
-				break;
-			}
-
 			res = strdict_get(&vm->builtins, key);
 
 			if (!isempty(&res)) {
@@ -1000,6 +992,34 @@ void vm_eval_frame(VM *vm)
 			STACK_PUSH(tup);
 			break;
 		}
+		case INS_EXPORT: {
+			const unsigned int id = GET_UINT16();
+
+			v1 = STACK_POP();
+
+			/* no need to do a bounds check on `id`, since
+			 * the preceding INS_LOAD should do all such
+			 * checks
+			 */
+			char *key = rho_malloc(symbols.array[id].length + 1);
+			strcpy(key, symbols.array[id].str);
+			strdict_put(&vm->exports, key, v1, true);
+			break;
+		}
+		case INS_EXPORT_GLOBAL: {
+			const unsigned int id = GET_UINT16();
+
+			v1 = STACK_POP();
+
+			/* no need to do a bounds check on `id`, since
+			 * the preceding INS_LOAD_GLOBAL should do all
+			 * such checks
+			 */
+			char *key = rho_malloc(global_symbols.array[id].length + 1);
+			strcpy(key, global_symbols.array[id].str);
+			strdict_put(&vm->exports, key, v1, true);
+			break;
+		}
 		case INS_POP: {
 			release(STACK_POP());
 			break;
@@ -1079,12 +1099,12 @@ static void load_builtins(VM *vm)
 	StrDict *builtins_dict = &vm->builtins;
 
 	for (size_t i = 0; builtins[i].name != NULL; i++) {
-		strdict_put(builtins_dict, builtins[i].name, (Value *)&builtins[i].value);
+		strdict_put(builtins_dict, builtins[i].name, (Value *)&builtins[i].value, false);
 	}
 
 	for (Class **class = &classes[0]; *class != NULL; class++) {
 		Value v = makeobj(*class);
-		strdict_put(builtins_dict, (*class)->name, &v);
+		strdict_put(builtins_dict, (*class)->name, &v, false);
 	}
 }
 

@@ -47,9 +47,9 @@ Value strdict_get(StrDict *dict, Str *key)
 	return makeempty();
 }
 
-void strdict_put(StrDict *dict, const char *key, Value *value)
+void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable)
 {
-	Str key_str = STR_INIT(key, strlen(key), 0);
+	Str key_str = STR_INIT(key, strlen(key), (key_freeable ? 1 : 0));
 	Entry **table = dict->table;
 	const size_t capacity = dict->capacity;
 	const int hash = HASH(&key_str);
@@ -86,6 +86,10 @@ void strdict_dealloc(StrDict *dict)
 		while (entry != NULL) {
 			Entry *temp = entry;
 			entry = entry->next;
+			release(&temp->value);
+			if (temp->key.freeable) {
+				str_dealloc(&temp->key);
+			}
 			free(temp);
 		}
 	}

@@ -21,7 +21,7 @@ typedef struct {
 
 void strdict_init(StrDict *dict);
 Value strdict_get(StrDict *dict, Str *key);
-void strdict_put(StrDict *dict, const char *key, Value *value);
+void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable);
 void strdict_dealloc(StrDict *dict);
 
 #endif /* STRDICT_H */
