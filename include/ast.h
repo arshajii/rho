@@ -116,7 +116,6 @@ struct ast_list {
 AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno);
 struct ast_list *ast_list_new(void);
 void ast_list_free(struct ast_list *block);
-void ast_print(AST *ast);
 void ast_free(AST *ast);
 
 #define IS_ASSIGNMENT(type) (NODE_ASSIGNMENTS_START < (type) && (type) < NODE_ASSIGNMENTS_END)
