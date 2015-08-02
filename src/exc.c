@@ -232,6 +232,49 @@ Class attr_exception_class = {
 	.attr_set = NULL
 };
 
+/* ImportException */
+
+static Value import_exc_init(Value *this, Value *args, size_t nargs)
+{
+	return exc_init(this, args, nargs);
+}
+
+static void import_exc_free(Value *this)
+{
+	exception_class.del(this);
+}
+
+Class import_exception_class = {
+	.base = CLASS_BASE_INIT(),
+	.name = "ImportException",
+	.super = &exception_class,
+
+	.instance_size = sizeof(ImportException),
+
+	.init = import_exc_init,
+	.del = import_exc_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
+
+	.num_methods = NULL,
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
+
 /* Common Exceptions */
 
 Value type_exc_unsupported_1(const char *op, const Class *c1)
@@ -290,4 +333,9 @@ Value attr_exc_mismatch(const Class *type, const char *attr, const Class *assign
 	                assign_type->name,
 	                attr,
 	                type->name);
+}
+
+Value import_exc_not_found(const char *name)
+{
+	return IMPORT_EXC("cannot find module '%s'", name);
 }

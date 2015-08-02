@@ -224,6 +224,14 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 			register_bindings_from_node(st, ast->right);
 		}
 		break;
+	case NODE_IMPORT: {
+		int flag = FLAG_BOUND_HERE;
+		if (global) {
+			flag |= FLAG_GLOBAL_VAR;
+		}
+		ste_register_ident(st->ste_current, ast->left->v.ident, flag);
+		break;
+	}
 	case NODE_IF:
 	case NODE_ELIF:
 		register_bindings_from_node(st, ast->left);

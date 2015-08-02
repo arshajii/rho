@@ -79,6 +79,7 @@ static AST *parse_continue(Lexer *lex);
 static AST *parse_return(Lexer *lex);
 static AST *parse_throw(Lexer *lex);
 static AST *parse_try_catch(Lexer *lex);
+static AST *parse_import(Lexer *lex);
 static AST *parse_export(Lexer *lex);
 
 static AST *parse_block(Lexer *lex);
@@ -171,6 +172,9 @@ static AST *parse_stmt(Lexer *lex)
 		break;
 	case TOK_TRY:
 		stmt = parse_try_catch(lex);
+		break;
+	case TOK_IMPORT:
+		stmt = parse_import(lex);
 		break;
 	case TOK_EXPORT:
 		stmt = parse_export(lex);
@@ -679,6 +683,14 @@ static AST *parse_try_catch(Lexer *lex)
 	AST *catch_body = parse_block(lex);
 	AST *ast = ast_new(NODE_TRY_CATCH, try_body, catch_body, tok->lineno);
 	ast->v.excs = exc_list;
+	return ast;
+}
+
+static AST *parse_import(Lexer *lex)
+{
+	Token *tok = expect(lex, TOK_IMPORT);
+	AST *ident = parse_ident(lex);
+	AST *ast = ast_new(NODE_IMPORT, ident, NULL, tok->lineno);
 	return ast;
 }
 

@@ -36,14 +36,14 @@ typedef struct rho_vm {
 	Frame *callstack;
 	StrDict builtins;
 	StrDict exports;
+	StrDict import_cache;
 } VM;
 
 VM *vm_new(void);
+int vm_exec_code(VM *vm, Code *code);
 void vm_pushframe(VM *vm, CodeObject *co);
 void vm_eval_frame(VM *vm);
 void vm_popframe(VM *vm);
-void vm_free(VM *vm);
-
-void execute(FILE *compiled);
+void vm_free(VM *vm, bool dealloc_exports);
 
 #endif /* VM_H */

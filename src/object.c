@@ -369,7 +369,6 @@ void retain(Value *v)
 	if (v == NULL || !(isobject(v) || isexc(v))) {
 		return;
 	}
-
 	retaino(objvalue(v));
 }
 
@@ -387,7 +386,6 @@ void destroy(Value *v)
 	if (v == NULL || v->type != VAL_TYPE_OBJECT) {
 		return;
 	}
-
 	Object *o = objvalue(v);
 	o->class->del(v);
 }

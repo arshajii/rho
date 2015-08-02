@@ -65,6 +65,7 @@ CodeObject *codeobj_make(Code *code,
 	}
 
 	co->vm = vm;
+	co->imported = false;
 	read_lno_table(co, code);
 	read_sym_table(co, code);
 	read_const_table(co, code);

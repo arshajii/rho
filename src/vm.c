@@ -15,6 +15,7 @@
 #include "codeobject.h"
 #include "method.h"
 #include "nativefunc.h"
+#include "module.h"
 #include "metaclass.h"
 #include "attr.h"
 #include "exc.h"
@@ -22,6 +23,7 @@
 #include "code.h"
 #include "compiler.h"
 #include "builtins.h"
+#include "loader.h"
 #include "util.h"
 #include "vmops.h"
 #include "vm.h"
@@ -36,6 +38,7 @@ static Class *classes[] = {
 		&co_class,
 		&method_class,
 		&native_func_class,
+		&module_class,
 		&meta_class,
 
 		/* exception classes */
@@ -43,10 +46,14 @@ static Class *classes[] = {
 		&index_exception_class,
 		&type_exception_class,
 		&attr_exception_class,
+		&import_exception_class,
 		NULL
 };
 
-static void load_builtins(VM *vm);
+static void vm_push_module_frame(VM *vm, Code *code);
+static void vm_load_builtins(VM *vm);
+static Value vm_import(VM *vm, const char *name);
+static void vm_traceback(VM *vm);
 
 VM *vm_new(void)
 {
@@ -64,21 +71,44 @@ VM *vm_new(void)
 	vm->callstack = NULL;
 	strdict_init(&vm->builtins);
 	strdict_init(&vm->exports);
-	load_builtins(vm);
+	strdict_init(&vm->import_cache);
+	vm_load_builtins(vm);
 	return vm;
 }
 
-void vm_free(VM *vm)
+void vm_free(VM *vm, bool dealloc_exports)
 {
-	strdict_dealloc(&vm->exports);
 	strdict_dealloc(&vm->builtins);
+	if (dealloc_exports) {
+		strdict_dealloc(&vm->exports);
+	}
+	strdict_dealloc(&vm->import_cache);
 	free(vm);
 }
 
-/* pushes top-level frame */
-static void vm_push_module_frame(VM *vm, Code *code);
+int vm_exec_code(VM *vm, Code *code)
+{
+	vm_push_module_frame(vm, code);
+	vm_eval_frame(vm);
 
-static void vm_traceback(VM *vm);
+	Value *ret = &vm->callstack->return_value;
+
+	int status = 0;
+	if (isexc(ret)) {
+		status = 1;
+		Exception *e = (Exception *)objvalue(ret);
+		vm_traceback(vm);
+		if (e->msg != NULL) {
+			fprintf(stderr, "%s: %s\n", e->base.class->name, e->msg);
+		} else {
+			fprintf(stderr, "%s\n", e->base.class->name);
+		}
+		release(ret);
+	}
+
+	vm_popframe(vm);
+	return status;
+}
 
 void vm_pushframe(VM *vm, CodeObject *co)
 {
@@ -133,48 +163,6 @@ void vm_popframe(VM *vm)
 	 */
 }
 
-// TODO: move this out of vm.c
-void execute(FILE *compiled)
-{
-	fseek(compiled, 0L, SEEK_END);
-	const size_t code_size = ftell(compiled) - magic_size;
-	fseek(compiled, 0L, SEEK_SET);
-
-	/* verify magic code */
-	for (size_t i = 0; i < magic_size; i++) {
-		const byte c = fgetc(compiled);
-		if (c != magic[i]) {
-			fatal_error("verification error");
-		}
-	}
-
-	VM *vm = vm_new();
-
-	Code code;
-	code_init(&code, code_size);
-	fread(code.bc, 1, code_size, compiled);
-	code.size = code_size;
-
-	vm_push_module_frame(vm, &code);
-	vm_eval_frame(vm);
-
-	Value *ret = &vm->callstack->return_value;
-	if (isexc(ret)) {
-		Exception *e = (Exception *)objvalue(ret);
-		vm_traceback(vm);
-		if (e->msg != NULL) {
-			fprintf(stderr, "%s: %s\n", e->base.class->name, e->msg);
-		} else {
-			fprintf(stderr, "%s\n", e->base.class->name);
-		}
-		release(ret);
-	}
-
-	vm_popframe(vm);
-
-	vm_free(vm);
-}
-
 /*
  * Assumes the symbol table and constant table
  * have not yet been read.
@@ -221,6 +209,7 @@ void vm_eval_frame(VM *vm)
 	struct str_array symbols = co->names;
 	struct str_array attrs = co->attrs;
 	struct str_array global_symbols = module->co->names;
+	const bool imported = co->imported;
 
 	Value *constants = co->consts.array;
 	byte *bc = co->bc;
@@ -753,6 +742,12 @@ void vm_eval_frame(VM *vm)
 		}
 		case INS_LOAD_GLOBAL: {
 			const unsigned int id = GET_UINT16();
+
+			if (imported) {
+				res = makeerr(bad_load_global_error(co->name));
+				goto error;
+			}
+
 			v1 = &globals[id];
 
 			if (isempty(v1)) {
@@ -992,6 +987,17 @@ void vm_eval_frame(VM *vm)
 			STACK_PUSH(tup);
 			break;
 		}
+		case INS_IMPORT: {
+			const unsigned int id = GET_UINT16();
+			res = vm_import(vm, symbols.array[id].str);
+
+			if (iserror(&res)) {
+				goto error;
+			}
+
+			STACK_PUSH(res);
+			break;
+		}
 		case INS_EXPORT: {
 			const unsigned int id = GET_UINT16();
 
@@ -1001,9 +1007,10 @@ void vm_eval_frame(VM *vm)
 			 * the preceding INS_LOAD should do all such
 			 * checks
 			 */
-			char *key = rho_malloc(symbols.array[id].length + 1);
-			strcpy(key, symbols.array[id].str);
-			strdict_put(&vm->exports, key, v1, true);
+			strdict_put_copy(&vm->exports,
+			                 symbols.array[id].str,
+			                 symbols.array[id].length,
+			                 v1);
 			break;
 		}
 		case INS_EXPORT_GLOBAL: {
@@ -1094,7 +1101,7 @@ void vm_eval_frame(VM *vm)
 #undef STACK_PUSH
 }
 
-static void load_builtins(VM *vm)
+static void vm_load_builtins(VM *vm)
 {
 	StrDict *builtins_dict = &vm->builtins;
 
@@ -1106,6 +1113,45 @@ static void load_builtins(VM *vm)
 		Value v = makeobj(*class);
 		strdict_put(builtins_dict, (*class)->name, &v, false);
 	}
+}
+
+/* helper for vm_import */
+static void convert_codeobj_vm(Value *v, void *args)
+{
+	if (is_a(v, &co_class)) {
+		VM *vm = (VM *)args;
+		CodeObject *co = objvalue(v);
+		co->vm = vm;
+		co->imported = true;
+	}
+}
+
+static Value vm_import(VM *vm, const char *name)
+{
+	Value cached = strdict_get_cstr(&vm->import_cache, name);
+
+	if (!isempty(&cached)) {
+		retain(&cached);
+		return cached;
+	}
+
+	Code code;
+	int error = load_from_file(name, &code);
+
+	if (error) {
+		return import_exc_not_found(name);
+	}
+
+	VM *vm2 = vm_new();
+	vm_exec_code(vm2, &code);
+	StrDict *exports = &vm2->exports;
+	strdict_apply_to_all(exports, convert_codeobj_vm, vm);
+	Value mod = module_make(name, exports);
+	strdict_put(&vm->import_cache, name, &mod, false);
+	vm_free(vm2, false);
+
+	retain(&mod);
+	return mod;
 }
 
 static unsigned int get_lineno(Frame *frame)

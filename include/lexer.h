@@ -75,6 +75,7 @@ typedef enum {
 	TOK_THROW,
 	TOK_TRY,
 	TOK_CATCH,
+	TOK_IMPORT,
 	TOK_EXPORT,
 
 	/* miscellaneous tokens */

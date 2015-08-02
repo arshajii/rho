@@ -30,6 +30,7 @@ typedef struct error {
 Error *error_new(ErrorType type, const char *msg_format, ...);
 
 Error *unbound_error(const char *var);
+Error *bad_load_global_error(const char *fn);
 Error *type_error_invalid_cmp(const Class *c1);
 Error *type_error_invalid_catch(const Class *c1);
 Error *type_error_invalid_throw(const Class *c1);

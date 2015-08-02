@@ -1,6 +1,7 @@
 #ifndef CODEOBJECT_H
 #define CODEOBJECT_H
 
+#include <stdbool.h>
 #include "code.h"
 #include "object.h"
 #include "util.h"
@@ -50,6 +51,8 @@ typedef struct {
 
 	/* virtual machine associated with this code object */
 	struct rho_vm *vm;
+
+	bool imported;
 } CodeObject;
 
 CodeObject *codeobj_make(Code *code,

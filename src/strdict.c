@@ -7,7 +7,7 @@
 #define STRDICT_INIT_TABLE_SIZE  32
 #define STRDICT_LOAD_FACTOR      0.75f
 
-#define HASH(ident) (secondary_hash(str_hash((ident))))
+#define HASH(key)  (secondary_hash(str_hash((key))))
 
 typedef StrDictEntry Entry;
 
@@ -47,6 +47,12 @@ Value strdict_get(StrDict *dict, Str *key)
 	return makeempty();
 }
 
+Value strdict_get_cstr(StrDict *dict, const char *key)
+{
+	Str key_str = STR_INIT(key, strlen(key), 0);
+	return strdict_get(dict, &key_str);
+}
+
 void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable)
 {
 	Str key_str = STR_INIT(key, strlen(key), (key_freeable ? 1 : 0));
@@ -73,6 +79,27 @@ void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable
 		const size_t new_capacity = 2 * capacity;
 		strdict_resize(dict, new_capacity);
 		dict->threshold = (size_t)(new_capacity * STRDICT_LOAD_FACTOR);
+	}
+}
+
+void strdict_put_copy(StrDict *dict, const char *key, size_t len, Value *value)
+{
+	if (len == 0) {
+		len = strlen(key);
+	}
+	char *key_copy = rho_malloc(len + 1);
+	strcpy(key_copy, key);
+	strdict_put(dict, key_copy, value, true);
+}
+
+void strdict_apply_to_all(StrDict *dict, void (*fn)(Value *v, void *args), void *args)
+{
+	Entry **tab = dict->table;
+	const size_t cap = dict->capacity;
+	for (size_t i = 0; i < cap; i++) {
+		for (Entry *e = tab[i]; e != NULL; e = e->next) {
+			fn(&e->value, args);
+		}
 	}
 }
 
