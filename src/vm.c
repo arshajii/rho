@@ -50,8 +50,30 @@ static Class *classes[] = {
 		NULL
 };
 
+static StrDict builtins_dict;
+static StrDict builtin_modules_dict;
+
+static void builtins_dict_dealloc(void)
+{
+	strdict_dealloc(&builtins_dict);
+}
+
+static void builtin_modules_dict_dealloc(void)
+{
+	strdict_dealloc(&builtin_modules_dict);
+}
+
+static void builtin_modules_dealloc(void)
+{
+	for (size_t i = 0; builtin_modules[i] != NULL; i++) {
+		strdict_dealloc((StrDict *)&builtin_modules[i]->contents);
+	}
+}
+
+
 static void vm_push_module_frame(VM *vm, Code *code);
-static void vm_load_builtins(VM *vm);
+static void vm_load_builtins(StrDict *builtins_dict);
+static void vm_load_builtin_modules(StrDict *builtin_modules_dict);
 static Value vm_import(VM *vm, const char *name);
 static void vm_traceback(VM *vm);
 
@@ -63,22 +85,32 @@ VM *vm_new(void)
 		for (Class **class = &classes[0]; *class != NULL; class++) {
 			class_init(*class);
 		}
+
+		strdict_init(&builtins_dict);
+		strdict_init(&builtin_modules_dict);
+
+		vm_load_builtins(&builtins_dict);
+		vm_load_builtin_modules(&builtin_modules_dict);
+
+		atexit(builtins_dict_dealloc);
+		atexit(builtin_modules_dict_dealloc);
+		atexit(builtin_modules_dealloc);
+
 		init = true;
 	}
 
 	VM *vm = rho_malloc(sizeof(VM));
 	vm->module = NULL;
 	vm->callstack = NULL;
-	strdict_init(&vm->builtins);
+	vm->builtins = builtins_dict;
+	vm->builtin_modules = builtin_modules_dict;
 	strdict_init(&vm->exports);
 	strdict_init(&vm->import_cache);
-	vm_load_builtins(vm);
 	return vm;
 }
 
 void vm_free(VM *vm, bool dealloc_exports)
 {
-	strdict_dealloc(&vm->builtins);
 	if (dealloc_exports) {
 		strdict_dealloc(&vm->exports);
 	}
@@ -1101,10 +1133,8 @@ void vm_eval_frame(VM *vm)
 #undef STACK_PUSH
 }
 
-static void vm_load_builtins(VM *vm)
+static void vm_load_builtins(StrDict *builtins_dict)
 {
-	StrDict *builtins_dict = &vm->builtins;
-
 	for (size_t i = 0; builtins[i].name != NULL; i++) {
 		strdict_put(builtins_dict, builtins[i].name, (Value *)&builtins[i].value, false);
 	}
@@ -1112,6 +1142,17 @@ static void vm_load_builtins(VM *vm)
 	for (Class **class = &classes[0]; *class != NULL; class++) {
 		Value v = makeobj(*class);
 		strdict_put(builtins_dict, (*class)->name, &v, false);
+	}
+}
+
+static void vm_load_builtin_modules(StrDict *builtin_modules_dict)
+{
+	for (size_t i = 0; builtin_modules[i] != NULL; i++) {
+		Value mod = makeobj((void *)builtin_modules[i]);
+		strdict_put(builtin_modules_dict,
+		            builtin_modules[i]->name,
+		            &mod,
+		            false);
 	}
 }
 
@@ -1139,7 +1180,13 @@ static Value vm_import(VM *vm, const char *name)
 	int error = load_from_file(name, &code);
 
 	if (error) {
-		return import_exc_not_found(name);
+		Value builtin_module = strdict_get_cstr(&vm->builtin_modules, name);
+
+		if (isempty(&builtin_module)) {
+			return import_exc_not_found(name);
+		}
+
+		return builtin_module;
 	}
 
 	VM *vm2 = vm_new();

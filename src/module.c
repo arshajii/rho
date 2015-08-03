@@ -131,3 +131,110 @@ Class module_class = {
 	.attr_get = module_attr_get,
 	.attr_set = module_attr_set
 };
+
+static Value builtin_module_attr_get(Value *this, const char *attr)
+{
+	BuiltInModule *mod = objvalue(this);
+
+	if (!mod->initialized) {
+		strdict_init(&mod->base.contents);
+		mod->init_func(mod);
+		mod->initialized = true;
+	}
+
+	return module_class.attr_get(this, attr);
+}
+
+static void builtin_module_free(Value *this)
+{
+	module_class.del(this);
+}
+
+struct num_methods builtin_module_num_methods = {
+	NULL,    /* plus */
+	NULL,    /* minus */
+	NULL,    /* abs */
+
+	NULL,    /* add */
+	NULL,    /* sub */
+	NULL,    /* mul */
+	NULL,    /* div */
+	NULL,    /* mod */
+	NULL,    /* pow */
+
+	NULL,    /* bitnot */
+	NULL,    /* bitand */
+	NULL,    /* bitor */
+	NULL,    /* xor */
+	NULL,    /* shiftl */
+	NULL,    /* shiftr */
+
+	NULL,    /* iadd */
+	NULL,    /* isub */
+	NULL,    /* imul */
+	NULL,    /* idiv */
+	NULL,    /* imod */
+	NULL,    /* ipow */
+
+	NULL,    /* ibitand */
+	NULL,    /* ibitor */
+	NULL,    /* ixor */
+	NULL,    /* ishiftl */
+	NULL,    /* ishiftr */
+
+	NULL,    /* radd */
+	NULL,    /* rsub */
+	NULL,    /* rmul */
+	NULL,    /* rdiv */
+	NULL,    /* rmod */
+	NULL,    /* rpow */
+
+	NULL,    /* rbitand */
+	NULL,    /* rbitor */
+	NULL,    /* rxor */
+	NULL,    /* rshiftl */
+	NULL,    /* rshiftr */
+
+	NULL,    /* nonzero */
+
+	NULL,    /* to_int */
+	NULL,    /* to_float */
+};
+
+struct seq_methods builtin_module_seq_methods = {
+	NULL,    /* len */
+	NULL,    /* get */
+	NULL,    /* set */
+	NULL,    /* contains */
+};
+
+Class builtin_module_class = {
+	.base = CLASS_BASE_INIT(),
+	.name = "BuiltInModule",
+	.super = &obj_class,
+
+	.instance_size = sizeof(BuiltInModule),
+
+	.init = NULL,
+	.del = builtin_module_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
+
+	.num_methods = &builtin_module_num_methods,
+	.seq_methods  = &builtin_module_seq_methods,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = builtin_module_attr_get,
+	.attr_set = NULL   /* inherit from Module */
+};

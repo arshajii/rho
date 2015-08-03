@@ -14,4 +14,15 @@ typedef struct {
 
 Value module_make(const char *name, StrDict *contents);
 
+extern Class builtin_module_class;
+
+typedef struct built_in_module {
+	Module base;
+	void (*init_func)(struct built_in_module *mod);
+	bool initialized;
+} BuiltInModule;
+
+#define BUILTIN_MODULE_INIT_STATIC(name_, init_func) \
+	((BuiltInModule){(Module){.base = OBJ_INIT_STATIC(&builtin_module_class), .name = (name_)}, (init_func), false})
+
 #endif /* MODULE_H */

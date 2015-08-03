@@ -3,10 +3,10 @@
 #include "object.h"
 #include "strobject.h"
 #include "vmops.h"
+#include "strdict.h"
 #include "exc.h"
+#include "module.h"
 #include "builtins.h"
-
-#define OBJ_INIT_STATIC(class) (Object){class, -1}
 
 #define NFUNC_INIT(func) (NativeFuncObject){OBJ_INIT_STATIC(&native_func_class), func}
 
@@ -66,3 +66,57 @@ static Value type(Value *args, size_t nargs)
 	ARG_CHECK(nargs, 1);
 	return makeobj(getclass(&args[0]));
 }
+
+/* Built-in Modules */
+
+/* math */
+#include <math.h>
+
+static Value rho_cos(Value *args, size_t nargs)
+{
+	ARG_CHECK(nargs, 1);
+	if (!(isint(args) || isfloat(args))) {
+		return type_exc_unsupported_1("cos", getclass(args));
+	}
+	const double d = isint(args) ? (double)intvalue(args) : floatvalue(args);
+	return makefloat(cos(d));
+}
+
+static Value rho_sin(Value *args, size_t nargs)
+{
+	ARG_CHECK(nargs, 1);
+	if (!(isint(args) || isfloat(args))) {
+		return type_exc_unsupported_1("sin", getclass(args));
+	}
+	const double d = isint(args) ? (double)intvalue(args) : floatvalue(args);
+	return makefloat(sin(d));
+}
+
+static NativeFuncObject cos_nfo = NFUNC_INIT(rho_cos);
+static NativeFuncObject sin_nfo = NFUNC_INIT(rho_sin);
+
+#define PI 3.14159265358979323846
+#define E  2.14159265358979323846
+
+const struct builtin math_builtins[] = {
+		{"pi",  makefloat(PI)},
+		{"e",   makefloat(E)},
+		{"cos", makeobj(&cos_nfo)},
+		{"sin", makeobj(&sin_nfo)},
+		{NULL,  makeempty()},
+};
+
+static void init_math_module(BuiltInModule *mod)
+{
+	StrDict *dict = &mod->base.contents;
+	for (size_t i = 0; math_builtins[i].name != NULL; i++) {
+		strdict_put(dict, math_builtins[i].name, (Value *)&math_builtins[i].value, false);
+	}
+}
+
+BuiltInModule rho_math_module = BUILTIN_MODULE_INIT_STATIC("math", init_math_module);
+
+const Module *builtin_modules[] = {
+		(Module *)&rho_math_module,
+		NULL
+};

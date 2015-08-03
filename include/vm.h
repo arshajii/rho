@@ -35,6 +35,7 @@ typedef struct rho_vm {
 	Frame *module;
 	Frame *callstack;
 	StrDict builtins;
+	StrDict builtin_modules;
 	StrDict exports;
 	StrDict import_cache;
 } VM;

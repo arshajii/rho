@@ -132,7 +132,8 @@ extern struct num_methods obj_num_methods;
 extern struct seq_methods obj_seq_methods;
 extern Class obj_class;
 
-#define CLASS_BASE_INIT() ((Object){&meta_class, -1})
+#define OBJ_INIT_STATIC(class) ((Object){class, -1})
+#define CLASS_BASE_INIT()      OBJ_INIT_STATIC(&meta_class)
 
 struct error;
 

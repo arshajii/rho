@@ -2,6 +2,7 @@
 #define BUILTINS_H
 
 #include "object.h"
+#include "module.h"
 
 struct builtin {
 	const char *name;
@@ -10,5 +11,8 @@ struct builtin {
 
 /* builtins[last].name == NULL */
 extern const struct builtin builtins[];
+
+/* builtin_modules[last] == NULL */
+extern const Module *builtin_modules[];
 
 #endif /* BUILTINS_H */
