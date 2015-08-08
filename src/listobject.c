@@ -315,7 +315,7 @@ Class list_class = {
 	.iternext = NULL,
 
 	.num_methods = &list_num_methods,
-	.seq_methods  = &list_seq_methods,
+	.seq_methods = &list_seq_methods,
 
 	.members = NULL,
 	.methods = list_methods,

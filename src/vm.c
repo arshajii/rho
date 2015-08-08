@@ -70,7 +70,6 @@ static void builtin_modules_dealloc(void)
 	}
 }
 
-
 static void vm_push_module_frame(VM *vm, Code *code);
 static void vm_load_builtins(StrDict *builtins_dict);
 static void vm_load_builtin_modules(StrDict *builtin_modules_dict);
