@@ -97,7 +97,8 @@ static size_t list_len(Value *this)
 static Value list_get(Value *this, Value *idx)
 {
 	if (!isint(idx)) {
-		return TYPE_EXC("list indices must be integers, not %s instances", getclass(idx));
+		Class *class = getclass(idx);
+		return TYPE_EXC("list indices must be integers, not %s instances", class->name);
 	}
 
 	ListObject *list = objvalue(this);
@@ -113,7 +114,8 @@ static Value list_get(Value *this, Value *idx)
 static Value list_set(Value *this, Value *idx, Value *v)
 {
 	if (!isint(idx)) {
-		return TYPE_EXC("list indices must be integers, not %s instances", getclass(idx));
+		Class *class = getclass(idx);
+		return TYPE_EXC("list indices must be integers, not %s instances", class->name);
 	}
 
 	ListObject *list = objvalue(this);
@@ -174,7 +176,8 @@ static Value list_pop(Value *this, Value *args, size_t nargs)
 			--list->count;
 			return ret;
 		} else {
-			return TYPE_EXC("pop() requires an integer argument (got a %s)", getclass(idx)->name);
+			Class *class = getclass(idx);
+			return TYPE_EXC("pop() requires an integer argument (got a %s)", class->name);
 		}
 	}
 }
@@ -192,7 +195,8 @@ static Value list_insert(Value *this, Value *args, size_t nargs)
 	Value *e = &args[1];
 
 	if (!isint(idx)) {
-		return TYPE_EXC("insert() requires an integer as its first argument (got a %s)", getclass(idx)->name);
+		Class *class = getclass(idx);
+		return TYPE_EXC("insert() requires an integer as its first argument (got a %s)", class->name);
 	}
 
 	const long idx_raw = intvalue(idx);
