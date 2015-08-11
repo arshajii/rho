@@ -13,17 +13,23 @@
 static Value hash(Value *args, size_t nargs);
 static Value str(Value *args, size_t nargs);
 static Value len(Value *args, size_t nargs);
+static Value iter(Value *args, size_t nargs);
+static Value next(Value *args, size_t nargs);
 static Value type(Value *args, size_t nargs);
 
 static NativeFuncObject hash_nfo = NFUNC_INIT(hash);
 static NativeFuncObject str_nfo  = NFUNC_INIT(str);
 static NativeFuncObject len_nfo  = NFUNC_INIT(len);
+static NativeFuncObject iter_nfo = NFUNC_INIT(iter);
+static NativeFuncObject next_nfo = NFUNC_INIT(next);
 static NativeFuncObject type_nfo = NFUNC_INIT(type);
 
 const struct builtin builtins[] = {
 		{"hash", makeobj(&hash_nfo)},
 		{"str",  makeobj(&str_nfo)},
 		{"len",  makeobj(&len_nfo)},
+		{"iter", makeobj(&iter_nfo)},
+		{"next", makeobj(&next_nfo)},
 		{"type", makeobj(&type_nfo)},
 		{NULL,   makeempty()},
 };
@@ -59,6 +65,18 @@ static Value len(Value *args, size_t nargs)
 	}
 
 	return makeint(len(&args[0]));
+}
+
+static Value iter(Value *args, size_t nargs)
+{
+	ARG_CHECK(nargs, 1);
+	return op_iter(args);
+}
+
+static Value next(Value *args, size_t nargs)
+{
+	ARG_CHECK(nargs, 1);
+	return op_iternext(args);
 }
 
 static Value type(Value *args, size_t nargs)
