@@ -114,7 +114,7 @@ static NativeFuncObject cos_nfo = NFUNC_INIT(rho_cos);
 static NativeFuncObject sin_nfo = NFUNC_INIT(rho_sin);
 
 #define PI 3.14159265358979323846
-#define E  2.14159265358979323846
+#define E  2.71828182845904523536
 
 const struct builtin math_builtins[] = {
 		{"pi",  makefloat(PI)},
