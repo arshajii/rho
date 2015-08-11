@@ -73,6 +73,7 @@ static AST *parse_ident(Lexer *lex);
 static AST *parse_print(Lexer *lex);
 static AST *parse_if(Lexer *lex);
 static AST *parse_while(Lexer *lex);
+static AST *parse_for(Lexer *lex);
 static AST *parse_def(Lexer *lex);
 static AST *parse_break(Lexer *lex);
 static AST *parse_continue(Lexer *lex);
@@ -154,6 +155,9 @@ static AST *parse_stmt(Lexer *lex)
 		break;
 	case TOK_WHILE:
 		stmt = parse_while(lex);
+		break;
+	case TOK_FOR:
+		stmt = parse_for(lex);
 		break;
 	case TOK_DEF:
 		stmt = parse_def(lex);
@@ -590,6 +594,26 @@ static AST *parse_while(Lexer *lex)
 	lex->in_loop = old_in_loop;
 
 	AST *ast = ast_new(NODE_WHILE, condition, body, tok->lineno);
+	return ast;
+}
+
+static AST *parse_for(Lexer *lex)
+{
+	Token *tok = expect(lex, TOK_FOR);
+
+	AST *lcv = parse_ident(lex);  // loop-control variable
+
+	expect(lex, TOK_IN);
+
+	AST *iter = parse_expr(lex);
+
+	unsigned old_in_loop = lex->in_loop;
+	lex->in_loop = 1;
+	AST *body = parse_block(lex);
+	lex->in_loop = old_in_loop;
+
+	AST *ast = ast_new(NODE_FOR, lcv, iter, tok->lineno);
+	ast->v.middle = body;
 	return ast;
 }
 

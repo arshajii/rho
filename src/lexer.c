@@ -456,6 +456,8 @@ static Token next_word(Lexer *lex)
 		{"elif",     TOK_ELIF},
 		{"else",     TOK_ELSE},
 		{"while",    TOK_WHILE},
+		{"for",      TOK_FOR},
+		{"in",       TOK_IN},
 		{"def",      TOK_DEF},
 		{"break",    TOK_BREAK},
 		{"continue", TOK_CONTINUE},

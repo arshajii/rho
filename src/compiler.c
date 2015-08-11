@@ -204,6 +204,7 @@ static void compile_index(Compiler *compiler, AST *ast);
 
 static void compile_if(Compiler *compiler, AST *ast);
 static void compile_while(Compiler *compiler, AST *ast);
+static void compile_for(Compiler *compiler, AST *ast);
 static void compile_def(Compiler *compiler, AST *ast);
 static void compile_break(Compiler *compiler, AST *ast);
 static void compile_continue(Compiler *compiler, AST *ast);
@@ -521,12 +522,12 @@ static void compile_if(Compiler *compiler, AST *ast)
 		switch (type) {
 		case NODE_IF:
 		case NODE_ELIF: {
-			compile_node(compiler, node->left, true);
+			compile_node(compiler, node->left, false);  // condition
 			write_ins(compiler, INS_JMP_IF_FALSE, lineno);
 			const size_t jmp_to_next_index = compiler->code.size;
 			write_uint16(compiler, 0);
 
-			compile_node(compiler, node->right, true);
+			compile_node(compiler, node->right, true);  // body
 			write_ins(compiler, INS_JMP, lineno);
 			const size_t jmp_out_index = compiler->code.size;
 			write_uint16(compiler, 0);
@@ -536,7 +537,7 @@ static void compile_if(Compiler *compiler, AST *ast)
 			break;
 		}
 		case NODE_ELSE: {
-			compile_node(compiler, node->left, true);
+			compile_node(compiler, node->left, true);  // body
 			break;
 		}
 		default:
@@ -576,6 +577,48 @@ static void compile_while(Compiler *compiler, AST *ast)
 	write_uint16_at(compiler, compiler->code.size - jump_index - 2, jump_index);
 
 	compiler_pop_loop(compiler);
+}
+
+static void compile_for(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_FOR);
+	const unsigned int lineno = ast->lineno;
+
+	AST *lcv = ast->left;  // loop control variable
+	AST *iter = ast->right;
+	AST *body = ast->v.middle;
+
+	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, lcv->v.ident);
+
+	if (sym == NULL) {
+		INTERNAL_ERROR();
+	}
+
+	compile_node(compiler, iter, true);
+	write_ins(compiler, INS_GET_ITER, lineno);
+
+	const size_t loop_start_index = compiler->code.size;
+	compiler_push_loop(compiler, loop_start_index);
+	write_ins(compiler, INS_LOOP_ITER, iter->lineno);
+
+	// jump placeholder:
+	const size_t jump_index = compiler->code.size;
+	write_uint16(compiler, 0);
+
+	write_ins(compiler, INS_STORE, lineno);
+	write_uint16(compiler, sym->id);
+
+	compile_node(compiler, body, true);
+
+	write_ins(compiler, INS_JMP_BACK, 0);
+	write_uint16(compiler, compiler->code.size - loop_start_index + 2);
+
+	// fill in placeholder:
+	write_uint16_at(compiler, compiler->code.size - jump_index - 2, jump_index);
+
+	compiler_pop_loop(compiler);
+
+	write_ins(compiler, INS_POP, 0);  // pop the iterator left behind by GET_ITER
 }
 
 static void compile_def(Compiler *compiler, AST *ast)
@@ -925,6 +968,9 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_WHILE:
 		compile_while(compiler, ast);
 		break;
+	case NODE_FOR:
+		compile_for(compiler, ast);
+		break;
 	case NODE_DEF:
 		compile_def(compiler, ast);
 		break;
@@ -1181,6 +1227,9 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 			fill_ct_from_ast(compiler, node);
 		}
 		return;
+	case NODE_FOR:
+		fill_ct_from_ast(compiler, ast->v.middle);
+		goto end;
 	case NODE_BLOCK:
 		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
@@ -1403,6 +1452,10 @@ int arg_size(Opcode opcode)
 	case INS_EXPORT:
 	case INS_EXPORT_GLOBAL:
 		return 2;
+	case INS_GET_ITER:
+		return 0;
+	case INS_LOOP_ITER:
+		return 2;
 	case INS_POP:
 	case INS_DUP:
 	case INS_DUP_TWO:
@@ -1546,6 +1599,10 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_EXPORT:
 	case INS_EXPORT_GLOBAL:
 		return -1;
+	case INS_GET_ITER:
+		return 0;
+	case INS_LOOP_ITER:
+		return 1;
 	case INS_POP:
 		return -1;
 	case INS_DUP:

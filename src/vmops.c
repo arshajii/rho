@@ -778,3 +778,27 @@ Value op_call(Value *v, Value *args, const size_t nargs)
 
 	return call(v, args, nargs);
 }
+
+Value op_iter(Value *v)
+{
+	Class *class = getclass(v);
+	const UnOp iter = resolve_iter(class);
+
+	if (!iter) {
+		return type_exc_not_iterable(class);
+	}
+
+	return iter(v);
+}
+
+Value op_iternext(Value *v)
+{
+	Class *class = getclass(v);
+	const UnOp iternext = resolve_iternext(class);
+
+	if (!iternext) {
+		return type_exc_not_iterator(class);
+	}
+
+	return iternext(v);
+}

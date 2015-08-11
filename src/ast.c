@@ -46,6 +46,7 @@ void ast_free(AST *ast)
 		break;
 	case NODE_IF:
 	case NODE_ELIF:
+	case NODE_FOR:
 		ast_free(ast->v.middle);
 		break;
 	case NODE_DEF:

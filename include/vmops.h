@@ -92,4 +92,8 @@ Value op_set_attr_default(Value *v, const char *attr, Value *new);
 
 Value op_call(Value *v, Value *args, const size_t nargs);
 
+Value op_iter(Value *v);
+
+Value op_iternext(Value *v);
+
 #endif /* VMOPS_H */

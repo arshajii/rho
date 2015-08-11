@@ -305,6 +305,16 @@ Value type_exc_not_callable(const Class *c1)
 	return TYPE_EXC("object of type '%s' is not callable", c1->name);
 }
 
+Value type_exc_not_iterable(const Class *c1)
+{
+	return TYPE_EXC("object of type '%s' is not iterable", c1->name);
+}
+
+Value type_exc_not_iterator(const Class *c1)
+{
+	return TYPE_EXC("object of type '%s' is not an iterator", c1->name);
+}
+
 Value call_exc_args(const char *fn, unsigned int expected, unsigned int got)
 {
 	return TYPE_EXC("function %s(): expected %u arguments, got %u",

@@ -939,6 +939,7 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_POP();
 			retain(v1);
 			frame->return_value = *v1;
+			STACK_PURGE();
 			return;
 		}
 		case INS_THROW: {
@@ -1056,6 +1057,36 @@ void vm_eval_frame(VM *vm)
 			char *key = rho_malloc(global_symbols.array[id].length + 1);
 			strcpy(key, global_symbols.array[id].str);
 			strdict_put(&vm->exports, key, v1, true);
+			break;
+		}
+		case INS_GET_ITER: {
+			v1 = STACK_TOP();
+			res = op_iter(v1);
+
+			if (iserror(&res)) {
+				goto error;
+			}
+
+			release(v1);
+			STACK_SET_TOP(res);
+			break;
+		}
+		case INS_LOOP_ITER: {
+			v1 = STACK_TOP();
+			const unsigned int jmp = GET_UINT16();
+
+			res = op_iternext(v1);
+
+			if (iserror(&res)) {
+				goto error;
+			}
+
+			if (is_iter_stop(&res)) {
+				pos += jmp;
+			} else {
+				STACK_PUSH(res);
+			}
+
 			break;
 		}
 		case INS_POP: {

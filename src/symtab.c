@@ -143,6 +143,11 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 			populate_symtable_from_node(st, node);
 		}
 		break;
+	case NODE_FOR:
+		populate_symtable_from_node(st, ast->left);
+		populate_symtable_from_node(st, ast->right);
+		populate_symtable_from_node(st, ast->v.middle);
+		break;
 	case NODE_ASSIGN:
 		if (ast->left->type != NODE_IDENT) {
 			populate_symtable_from_node(st, ast->left);
@@ -223,6 +228,11 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 			ste_register_ident(st->ste_current, ast->left->v.ident, flag);
 			register_bindings_from_node(st, ast->right);
 		}
+		break;
+	case NODE_FOR:
+		ste_register_ident(st->ste_current, ast->left->v.ident, FLAG_BOUND_HERE);
+		register_bindings_from_node(st, ast->right);
+		register_bindings_from_node(st, ast->v.middle);
 		break;
 	case NODE_IMPORT: {
 		int flag = FLAG_BOUND_HERE;

@@ -44,6 +44,8 @@ Value type_exc_unsupported_2(const char *op, const Class *c1, const Class *c2);
 Value type_exc_cannot_index(const Class *c1);
 Value type_exc_cannot_instantiate(const Class *c1);
 Value type_exc_not_callable(const Class *c1);
+Value type_exc_not_iterable(const Class *c1);
+Value type_exc_not_iterator(const Class *c1);
 Value call_exc_args(const char *fn, unsigned int expected, unsigned int got);
 Value attr_exc_not_found(const Class *type, const char *attr);
 Value attr_exc_readonly(const Class *type, const char *attr);

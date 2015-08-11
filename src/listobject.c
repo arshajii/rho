@@ -8,6 +8,8 @@
 #include "util.h"
 #include "listobject.h"
 
+static Value iter_make(ListObject *list);
+
 #define INDEX_CHECK(index, count) \
 	if ((index) < 0 || ((size_t)(index)) >= (count)) { \
 		return INDEX_EXC("list index out of range (index = %li, len = %lu)", (index), (count)); \
@@ -216,6 +218,12 @@ static Value list_insert(Value *this, Value *args, size_t nargs)
 	return makeint(0);
 }
 
+static Value list_iter(Value *this)
+{
+	ListObject *list = objvalue(this);
+	return iter_make(list);
+}
+
 static void list_ensure_capacity(ListObject *list, const size_t min_capacity)
 {
 	const size_t capacity = list->capacity;
@@ -315,7 +323,7 @@ Class list_class = {
 
 	.print = NULL,
 
-	.iter = NULL,
+	.iter = list_iter,
 	.iternext = NULL,
 
 	.num_methods = &list_num_methods,
@@ -323,6 +331,68 @@ Class list_class = {
 
 	.members = NULL,
 	.methods = list_methods,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
+
+
+/* list iterator */
+
+static Value iter_make(ListObject *list)
+{
+	ListIter *iter = obj_alloc(&list_iter_class);
+	retaino((Object *)list);
+	iter->source = list;
+	iter->index = 0;
+	return makeobj(iter);
+}
+
+static Value iter_next(Value *this)
+{
+	ListIter *iter = objvalue(this);
+	if (iter->index == iter->source->count) {
+		return get_iter_stop();
+	} else {
+		Value v = iter->source->elements[iter->index++];
+		retain(&v);
+		return v;
+	}
+}
+
+static void iter_free(Value *this)
+{
+	ListIter *iter = objvalue(this);
+	releaseo((Object *)iter->source);
+	iter_class.del(this);
+}
+
+Class list_iter_class = {
+	.base = CLASS_BASE_INIT(),
+	.name = "ListIter",
+	.super = &iter_class,
+
+	.instance_size = sizeof(ListIter),
+
+	.init = NULL,
+	.del = iter_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = iter_next,
+
+	.num_methods = NULL,
+	.seq_methods = NULL,
+
+	.members = NULL,
+	.methods = NULL,
 
 	.attr_get = NULL,
 	.attr_set = NULL

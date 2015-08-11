@@ -68,6 +68,8 @@ typedef enum {
 	TOK_ELIF,
 	TOK_ELSE,
 	TOK_WHILE,
+	TOK_FOR,
+	TOK_IN,
 	TOK_DEF,
 	TOK_BREAK,
 	TOK_CONTINUE,
