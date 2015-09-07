@@ -89,10 +89,10 @@ void unexpected_byte(const char *fn, const byte p)
 
 /* compilation errors */
 
-void err_on_char(const char *culprit,
-                 const char *code,
-                 const char *end,
-                 unsigned int target_line)
+const char *err_on_char(const char *culprit,
+                        const char *code,
+                        const char *end,
+                        unsigned int target_line)
 {
 #define MAX_LEN 1024
 
@@ -136,10 +136,7 @@ void err_on_char(const char *culprit,
 		}
 	}
 
-	fprintf(stderr,
-			"%s\n%s\n",
-	        line_str,
-	        mark_str);
+	return str_format("%s\n%s\n", line_str, mark_str);
 
 #undef MAX_LEN
 }

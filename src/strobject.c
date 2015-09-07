@@ -68,7 +68,7 @@ static void strobj_free(Value *this)
 {
 	StrObject *s = objvalue(this);
 	if (s->freeable) {
-		free((char *)s->str.value);
+		FREE(s->str.value);
 	}
 
 	s->base.class->super->del(this);

@@ -41,7 +41,7 @@ typedef struct {
 	unsigned int last_lineno;
 } Compiler;
 
-void compile(FILE *src, FILE *out, const char *name);
+void compile(const char *name, Program *prog, FILE *out);
 
 int arg_size(Opcode opcode);
 

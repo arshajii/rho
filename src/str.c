@@ -78,7 +78,7 @@ Str *str_cat(Str *s1, Str *s2)
 
 void str_dealloc(Str *str)
 {
-	free((char *)str->value);
+	FREE(str->value);
 }
 
 void str_free(Str *str)

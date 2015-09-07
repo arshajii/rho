@@ -1618,27 +1618,11 @@ static int stack_delta(Opcode opcode, int arg)
 	return 0;
 }
 
-void compile(FILE *src, FILE *out, const char *name)
+void compile(const char *name, Program *prog, FILE *out)
 {
-	fseek(src, 0L, SEEK_END);
-	size_t code_size = ftell(src);
-	fseek(src, 0L, SEEK_SET);
-	char *code = rho_malloc(code_size + 1);
-	code[code_size] = '\0';
-
-	if (code == NULL) {
-		abort();
-	}
-
-	fread(code, sizeof(char), code_size, src);
-
-	Lexer *lex = lex_new(code, code_size, name);
-	Program *program = parse(lex);
 	Compiler *compiler = compiler_new(name, 1, st_new(name));
 
-	struct metadata metadata = compile_program(compiler, program);
-
-	ast_list_free(program);
+	struct metadata metadata = compile_program(compiler, prog);
 
 	/*
 	 * Every rhoc file should start with the
@@ -1672,6 +1656,4 @@ void compile(FILE *src, FILE *out, const char *name)
 	fwrite(compiler->code.bc, 1, compiler->code.size, out);
 
 	compiler_free(compiler, true);
-	lex_free(lex);
-	free(code);
 }

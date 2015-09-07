@@ -53,9 +53,9 @@ void unexpected_byte(const char *fn, const byte p);
 
 void def_error_dup_params(const char *fn, const char *param_name);
 
-void err_on_char(const char *culprit,
-                 const char *code,
-                 const char *end,
-                 unsigned int target_line);
+const char *err_on_char(const char *culprit,
+                        const char *code,
+                        const char *end,
+                        unsigned int target_line);
 
 #endif /* ERR_H */

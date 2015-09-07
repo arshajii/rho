@@ -4,13 +4,18 @@
 #include <assert.h>
 #include "util.h"
 #include "err.h"
+#include "parser.h"
 #include "lexer.h"
 
 /*
+ * (Lexer data is stored within the Parser structure. The comments in
+ * this source file use the term "lexer" to refer to the subset of the
+ * Parser structure pertaining to lexical analysis.)
+ *
  * The lexical analysis stage consists of splitting the input source
  * into tokens. The source is fully tokenized upon the creation of a
- * Lexer instance, which can then be queried to retrieve the tokens in
- * succession. A Lexer can, therefore, be thought of as a simple queue
+ * Parser instance, which can then be queried to retrieve the tokens in
+ * succession. A "Lexer" can, therefore, be thought of as a simple queue
  * of tokens.
  *
  * Specifically, the following operations are supported:
@@ -23,7 +28,7 @@
  * - peek_token :  retreive the next token from the given Lexer but
  *                 do not advance the Lexer on to the next token
  *
- * The Lexer structure has a `pos` field and a `mark` field. When a
+ * The Parser structure has a `pos` field and a `mark` field. When a
  * token is encountered, its first character is pointed to by `pos`,
  * and `mark` increases gradually from zero to "consume" the token.
  * Once the token has been read, `pos` is set to the start of the next
@@ -34,11 +39,7 @@
  * consumed as part of the token.
  */
 
-#define INITIAL_TOKEN_ARRAY_CAPACITY 5
-
-static void tokenize(Lexer *lex);
-
-static void lex_err_unknown_char(Lexer *lex, const char *c);
+static void lex_err_unexpected_char(Parser *p, const char *c);
 
 static bool is_op_char(const char c)
 {
@@ -271,15 +272,6 @@ static bool is_id_char(const char c)
 	return (c == '_' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9'));
 }
 
-/* debugging */
-void print_token(Token *tok)
-{
-	for (size_t i = 0; i < tok->length; i++) {
-		printf("%c", tok->value[i]);
-	}
-	printf("\n");
-}
-
 /*
  * The next few functions have comments that use
  * terminology from the extended comment at the
@@ -290,23 +282,23 @@ void print_token(Token *tok)
  * Forwards the lexer to its current mark then
  * resets the mark.
  */
-static inline void fix(Lexer *lex)
+static inline void fix(Parser *p)
 {
-	lex->pos += lex->mark + 1;
-	lex->mark = 0;
+	p->pos += p->mark + 1;
+	p->mark = 0;
 }
 
 /*
  * Returns the lexer's current token based on
  * its position and mark.
  */
-static Token get(Lexer *lex, TokType type)
+static Token get(Parser *p, TokType type)
 {
 	Token tok;
-	tok.value = lex->pos;
-	tok.length = lex->mark + 1;
+	tok.value = p->pos;
+	tok.length = p->mark + 1;
 	tok.type = type;
-	tok.lineno = lex->lineno;
+	tok.lineno = p->lineno;
 
 	return tok;
 }
@@ -314,41 +306,41 @@ static Token get(Lexer *lex, TokType type)
 /*
  * Returns the lexer's current character.
  */
-static inline char currc(Lexer *lex)
+static inline char currc(Parser *p)
 {
-	return lex->pos[lex->mark];
+	return p->pos[p->mark];
 }
 
 /*
  * Returns the lexer's next character.
  */
-static inline char nextc(Lexer *lex)
+static inline char nextc(Parser *p)
 {
-	return lex->pos[lex->mark + 1];
+	return p->pos[p->mark + 1];
 }
 
 /*
  * Advances the lexer mark.
  */
-static inline void adv(Lexer *lex)
+static inline void adv(Parser *p)
 {
-	++lex->mark;
+	++p->mark;
 }
 
 /*
  * Forwards the lexer position.
  */
-static inline void fwd(Lexer *lex)
+static inline void fwd(Parser *p)
 {
-	++lex->pos;
+	++p->pos;
 }
 
 /*
  * Rewinds the lexer mark.
  */
-static inline void rew(Lexer *lex)
+static inline void rew(Parser *p)
 {
-	--lex->mark;
+	--p->mark;
 }
 
 static inline bool isspace_except_newline(int c)
@@ -356,48 +348,48 @@ static inline bool isspace_except_newline(int c)
 	return isspace(c) && c != '\n';
 }
 
-static void skip_spaces(Lexer *lex)
+static void skip_spaces(Parser *p)
 {
-	while (isspace_except_newline(lex->pos[0])) {
-		fwd(lex);
+	while (isspace_except_newline(p->pos[0])) {
+		fwd(p);
 	}
 }
 
-static void read_digits(Lexer *lex)
+static void read_digits(Parser *p)
 {
-	while (isdigit(nextc(lex))) {
-		adv(lex);
+	while (isdigit(nextc(p))) {
+		adv(p);
 	}
 }
 
-static Token next_number(Lexer *lex)
+static Token next_number(Parser *p)
 {
-	assert(isdigit(currc(lex)));
+	assert(isdigit(currc(p)));
 
 	TokType type = TOK_INT;
-	read_digits(lex);
+	read_digits(p);
 
-	if (nextc(lex) == '.') {
-		adv(lex);
-		read_digits(lex);
+	if (nextc(p) == '.') {
+		adv(p);
+		read_digits(p);
 		type = TOK_FLOAT;
 	}
 
-	Token tok = get(lex, type);
-	fix(lex);
+	Token tok = get(p, type);
+	fix(p);
 	return tok;
 }
 
-static Token next_string(Lexer *lex, const char delim)
+static Token next_string(Parser *p, const char delim)
 {
 	assert(delim == '"' || delim == '\'');
-	assert(currc(lex) == delim);
-	adv(lex);  // skip the first quotation character
+	assert(currc(p) == delim);
+	adv(p);  // skip the first quotation character
 
 	unsigned int escape_count = 0;
 
 	do {
-		const char c = currc(lex);
+		const char c = currc(p);
 
 		if (c == '\\') {
 			++escape_count;
@@ -409,25 +401,25 @@ static Token next_string(Lexer *lex, const char delim)
 			escape_count = 0;
 		}
 
-		adv(lex);
+		adv(p);
 	} while (true);
 
-	Token tok = get(lex, TOK_STR);
+	Token tok = get(p, TOK_STR);
 
-	fix(lex);
+	fix(p);
 	return tok;
 }
 
-static Token next_op(Lexer *lex)
+static Token next_op(Parser *p)
 {
-	assert(is_op_char(currc(lex)));
+	assert(is_op_char(currc(p)));
 
 	/*
 	 * Consume all tokens that constitute simple operators,
 	 * e.g. '+', '-', '*' etc.
 	 */
-	while (is_op_char(nextc(lex))) {
-		adv(lex);
+	while (is_op_char(nextc(p))) {
+		adv(p);
 	}
 
 	/*
@@ -436,16 +428,16 @@ static Token next_op(Lexer *lex)
 	 */
 	TokType optype;
 
-	while ((optype = str_to_op_toktype(lex->pos, lex->mark + 1)) == TOK_NONE) {
-		rew(lex);
+	while ((optype = str_to_op_toktype(p->pos, p->mark + 1)) == TOK_NONE) {
+		rew(p);
 	}
 
-	Token tok = get(lex, optype);
-	fix(lex);
+	Token tok = get(p, optype);
+	fix(p);
 	return tok;
 }
 
-static Token next_word(Lexer *lex)
+static Token next_word(Parser *p)
 {
 	static const struct {
 		const char *keyword;
@@ -469,14 +461,14 @@ static Token next_word(Lexer *lex)
 		{"export",   TOK_EXPORT}
 	};
 
-	assert(is_word_char(currc(lex)));
+	assert(is_word_char(currc(p)));
 
-	while (is_id_char(nextc(lex))) {
-		adv(lex);
+	while (is_id_char(nextc(p))) {
+		adv(p);
 	}
 
-	Token tok = get(lex, TOK_IDENT);
-	fix(lex);
+	Token tok = get(p, TOK_IDENT);
+	fix(p);
 
 	const size_t keywords_size = sizeof(keywords)/sizeof(keywords[0]);
 	const char *word = tok.value;
@@ -494,84 +486,84 @@ static Token next_word(Lexer *lex)
 	return tok;
 }
 
-static Token next_paren_open(Lexer *lex)
+static Token next_paren_open(Parser *p)
 {
-	assert(currc(lex) == '(');
-	Token tok = get(lex, TOK_PAREN_OPEN);
-	fwd(lex);
+	assert(currc(p) == '(');
+	Token tok = get(p, TOK_PAREN_OPEN);
+	fwd(p);
 	return tok;
 }
 
-static Token next_paren_close(Lexer *lex)
+static Token next_paren_close(Parser *p)
 {
-	assert(currc(lex) == ')');
-	Token tok = get(lex, TOK_PAREN_CLOSE);
-	fwd(lex);
+	assert(currc(p) == ')');
+	Token tok = get(p, TOK_PAREN_CLOSE);
+	fwd(p);
 	return tok;
 }
 
-static Token next_brace_open(Lexer *lex)
+static Token next_brace_open(Parser *p)
 {
-	assert(currc(lex) == '{');
-	Token tok = get(lex, TOK_BRACE_OPEN);
-	fwd(lex);
+	assert(currc(p) == '{');
+	Token tok = get(p, TOK_BRACE_OPEN);
+	fwd(p);
 	return tok;
 }
 
-static Token next_brace_close(Lexer *lex)
+static Token next_brace_close(Parser *p)
 {
-	assert(currc(lex) == '}');
-	Token tok = get(lex, TOK_BRACE_CLOSE);
-	fwd(lex);
+	assert(currc(p) == '}');
+	Token tok = get(p, TOK_BRACE_CLOSE);
+	fwd(p);
 	return tok;
 }
 
-static Token next_bracket_open(Lexer *lex)
+static Token next_bracket_open(Parser *p)
 {
-	assert(currc(lex) == '[');
-	Token tok = get(lex, TOK_BRACK_OPEN);
-	fwd(lex);
+	assert(currc(p) == '[');
+	Token tok = get(p, TOK_BRACK_OPEN);
+	fwd(p);
 	return tok;
 }
 
-static Token next_bracket_close(Lexer *lex)
+static Token next_bracket_close(Parser *p)
 {
-	assert(currc(lex) == ']');
-	Token tok = get(lex, TOK_BRACK_CLOSE);
-	fwd(lex);
+	assert(currc(p) == ']');
+	Token tok = get(p, TOK_BRACK_CLOSE);
+	fwd(p);
 	return tok;
 }
 
-static Token next_comma(Lexer *lex)
+static Token next_comma(Parser *p)
 {
-	assert(currc(lex) == ',');
-	Token tok = get(lex, TOK_COMMA);
-	fwd(lex);
+	assert(currc(p) == ',');
+	Token tok = get(p, TOK_COMMA);
+	fwd(p);
 	return tok;
 }
 
-static Token next_colon(Lexer *lex)
+static Token next_colon(Parser *p)
 {
-	assert(currc(lex) == ':');
-	Token tok = get(lex, TOK_COLON);
-	fwd(lex);
+	assert(currc(p) == ':');
+	Token tok = get(p, TOK_COLON);
+	fwd(p);
 	return tok;
 }
 
-static Token next_semicolon(Lexer *lex)
+static Token next_semicolon(Parser *p)
 {
-	assert(currc(lex) == ';');
-	Token tok = get(lex, TOK_SEMICOLON);
-	fwd(lex);
+	assert(currc(p) == ';');
+	Token tok = get(p, TOK_SEMICOLON);
+	fwd(p);
 	return tok;
 }
 
-static Token next_newline(Lexer *lex)
+static Token next_newline(Parser *p)
 {
-	assert(currc(lex) == '\n');
-	Token tok = get(lex, TOK_NEWLINE);
-	fwd(lex);
-	++lex->lineno;
+	assert(currc(p) == '\n');
+	Token tok = get(p, TOK_NEWLINE);
+	fwd(p);
+	++p->lineno;
 	return tok;
 }
 
@@ -585,165 +577,147 @@ static Token eof_token(void)
 	return tok;
 }
 
-static void pass_comment(Lexer *lex)
+static void pass_comment(Parser *p)
 {
-	assert(currc(lex) == '#');
-	while (currc(lex) != '\n' && nextc(lex) != EOF) {
-		fwd(lex);
+	assert(currc(p) == '#');
+	while (currc(p) != '\n' && nextc(p) != EOF) {
+		fwd(p);
 	}
 }
 
-static void add_token(Lexer *lex, Token *tok)
+static void add_token(Parser *p, Token *tok)
 {
-	const size_t size = lex->tok_count;
-	const size_t capacity = lex->tok_capacity;
+	const size_t size = p->tok_count;
+	const size_t capacity = p->tok_capacity;
 
 	if (size == capacity) {
 		const size_t new_capacity = (capacity * 3) / 2 + 1;
-		lex->tok_capacity = new_capacity;
-		lex->tokens = rho_realloc(lex->tokens, new_capacity * sizeof(Token));
+		p->tok_capacity = new_capacity;
+		p->tokens = rho_realloc(p->tokens, new_capacity * sizeof(Token));
 	}
 
-	lex->tokens[lex->tok_count++] = *tok;
+	p->tokens[p->tok_count++] = *tok;
 }
 
-static void tokenize(Lexer *lex)
+void parser_tokenize(Parser *p)
 {
 	while (true) {
-		skip_spaces(lex);
+		skip_spaces(p);
 		Token tok;
-		const char c = lex->pos[0];
+		const char c = p->pos[0];
 
 		if (c == '\0') {
 			break;
 		}
 
 		if (isdigit(c)) {
-			tok = next_number(lex);
+			tok = next_number(p);
 		}
 		else if (is_op_char(c)) {
-			tok = next_op(lex);
+			tok = next_op(p);
 		}
 		else if (is_word_char(c)) {
-			tok = next_word(lex);
+			tok = next_word(p);
 		}
 		else {
 			switch (c) {
 			case '(':
-				tok = next_paren_open(lex);
+				tok = next_paren_open(p);
 				break;
 			case ')':
-				tok = next_paren_close(lex);
+				tok = next_paren_close(p);
 				break;
 			case '{':
-				tok = next_brace_open(lex);
+				tok = next_brace_open(p);
 				break;
 			case '}':
-				tok = next_brace_close(lex);
+				tok = next_brace_close(p);
 				break;
 			case '[':
-				tok = next_bracket_open(lex);
+				tok = next_bracket_open(p);
 				break;
 			case ']':
-				tok = next_bracket_close(lex);
+				tok = next_bracket_close(p);
 				break;
 			case ',':
-				tok = next_comma(lex);
+				tok = next_comma(p);
 				break;
 			case '"':
 			case '\'':
-				tok = next_string(lex, c);
+				tok = next_string(p, c);
 				break;
 			case ':':
-				tok = next_colon(lex);
+				tok = next_colon(p);
 				break;
 			case ';':
-				tok = next_semicolon(lex);
+				tok = next_semicolon(p);
 				break;
 			case '\n':
-				tok = next_newline(lex);
+				tok = next_newline(p);
 				break;
 			case '#':
-				pass_comment(lex);
+				pass_comment(p);
 				continue;
 			default: {
-				lex_err_unknown_char(lex, lex->pos);
+				lex_err_unexpected_char(p, p->pos);
+				free(p->tokens);
+				p->tokens = NULL;
+				p->tok_count = 0;
+				p->tok_capacity = 0;
 				return;
 			}
 			}
 		}
 
-		add_token(lex, &tok);
+		add_token(p, &tok);
 	}
 
 	Token eof = eof_token();
-	eof.lineno = lex->lineno;
-	add_token(lex, &eof);
-}
-
-Lexer *lex_new(char *str, const size_t length, const char *name)
-{
-	Lexer *lex = rho_malloc(sizeof(Lexer));
-	lex->code = str;
-	lex->end = &str[length - 1];
-	lex->pos = &str[0];
-	lex->mark = 0;
-	lex->tokens = rho_malloc(INITIAL_TOKEN_ARRAY_CAPACITY * sizeof(Token));
-	lex->tok_count = 0;
-	lex->tok_capacity = INITIAL_TOKEN_ARRAY_CAPACITY;
-	lex->tok_pos = 0;
-	lex->lineno = 1;
-	lex->peek = NULL;
-	lex->name = name;
-	lex->in_function = 0;
-	lex->in_loop = 0;
-
-	tokenize(lex);
-
-	return lex;
+	eof.lineno = p->lineno;
+	add_token(p, &eof);
 }
 
 /*
  * We don't care about certain tokens (e.g. newlines and
  * semicolons) except when they are required as statement
- * terminators. `lex_next_token` skips over these tokens,
- * but they can be accessed via `lex_next_token_direct`.
+ * terminators. `parser_next_token` skips over these tokens,
+ * but they can be accessed via `parser_next_token_direct`.
  *
- * `lex_peek_token` is analogous.
+ * `parser_peek_token` is analogous.
  */
 
-Token *lex_next_token(Lexer *lex)
+Token *parser_next_token(Parser *p)
 {
 	Token *tok;
 	do {
-		tok = lex_next_token_direct(lex);
+		tok = parser_next_token_direct(p);
 	} while (tok->type == TOK_NEWLINE);
 	return tok;
 }
 
-Token *lex_next_token_direct(Lexer *lex)
+Token *parser_next_token_direct(Parser *p)
 {
-	lex->peek = NULL;
+	p->peek = NULL;
 
-	Token *next = &lex->tokens[lex->tok_pos];
+	Token *next = &p->tokens[p->tok_pos];
 
 	if (next->type != TOK_EOF) {
-		++lex->tok_pos;
+		++p->tok_pos;
 	}
 
 	return next;
 }
 
-Token *lex_peek_token(Lexer *lex)
+Token *parser_peek_token(Parser *p)
 {
-	if (lex->peek != NULL) {
-		return lex->peek;
+	if (p->peek != NULL) {
+		return p->peek;
 	}
 
-	Token *tokens = lex->tokens;
+	Token *tokens = p->tokens;
 
-	const size_t tok_count = lex->tok_count;
-	const size_t tok_pos = lex->tok_pos;
+	const size_t tok_count = p->tok_count;
+	const size_t tok_pos = p->tok_pos;
 	size_t offset = 0;
 
 	while (tok_pos + offset < tok_count &&
@@ -756,34 +730,25 @@ Token *lex_peek_token(Lexer *lex)
 		--offset;
 	}
 
-	return lex->peek = &tokens[tok_pos + offset];
+	return p->peek = &tokens[tok_pos + offset];
 }
 
-Token *lex_peek_token_direct(Lexer *lex)
+Token *parser_peek_token_direct(Parser *p)
 {
-	return &lex->tokens[lex->tok_pos];
+	return &p->tokens[p->tok_pos];
 }
 
-bool lex_has_next(Lexer *lex)
+bool parser_has_next_token(Parser *p)
 {
-	return lex->tokens[lex->tok_pos].type != TOK_EOF;
+	return p->tokens[p->tok_pos].type != TOK_EOF;
 }
 
-void lex_free(Lexer *lex)
+static void lex_err_unexpected_char(Parser *p, const char *c)
 {
-	free(lex->tokens);
-	free(lex);
-}
-
-static void lex_err_unknown_char(Lexer *lex, const char *c)
-{
-	fprintf(stderr,
-	        SYNTAX_ERROR " unrecognized character: %c\n\n",
-	        lex->name,
-	        lex->lineno,
-	        *c);
-
-	err_on_char(c, lex->code, lex->end, lex->lineno);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_char(c, p->code, p->end, p->lineno);
+	PARSER_SET_ERROR_MSG(p,
+	              str_format(SYNTAX_ERROR " unrecognized character: %c\n\n%s",
+	            		     p->name, p->lineno, *c, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNEXPECTED_CHAR);
 }

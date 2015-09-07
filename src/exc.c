@@ -68,7 +68,7 @@ static Value exc_init(Value *this, Value *args, size_t nargs)
 static void exc_free(Value *this)
 {
 	Exception *exc = objvalue(this);
-	free((char *)exc->msg);
+	FREE(exc->msg);
 	obj_class.del(this);
 }
 

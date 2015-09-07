@@ -5,7 +5,49 @@
 #include "str.h"
 #include "err.h"
 #include "util.h"
+#include "lexer.h"
 #include "parser.h"
+
+#define ERROR_CHECK(p) do { if (PARSER_ERROR(p)) return NULL; } while (0)
+
+#define ERROR_CHECK_AST(p, should_be_null, free_me) \
+	do { \
+		if (PARSER_ERROR(p)) { \
+			assert((should_be_null) == NULL); \
+			ast_free(free_me); \
+			return NULL; \
+		} \
+	} while (0)
+
+#define ERROR_CHECK_AST2(p, should_be_null, free_me1, free_me2) \
+	do { \
+		if (PARSER_ERROR(p)) { \
+			assert((should_be_null) == NULL); \
+			ast_free(free_me1); \
+			ast_free(free_me2); \
+			return NULL; \
+		} \
+	} while (0)
+
+#define ERROR_CHECK_AST3(p, should_be_null, free_me1, free_me2, free_me3) \
+	do { \
+		if (PARSER_ERROR(p)) { \
+			assert((should_be_null) == NULL); \
+			ast_free(free_me1); \
+			ast_free(free_me2); \
+			ast_free(free_me3); \
+			return NULL; \
+		} \
+	} while (0)
+
+#define ERROR_CHECK_LIST(p, should_be_null, free_me) \
+	do { \
+		if (PARSER_ERROR(p)) { \
+			assert((should_be_null) == NULL); \
+			ast_list_free(free_me); \
+			return NULL; \
+		} \
+	} while (0)
 
 typedef struct {
 	TokType type;
@@ -16,7 +58,7 @@ typedef struct {
 static Op op_from_tok_type(TokType type);
 static NodeType nodetype_from_op(Op op);
 
-const Op ops[] = {
+static const Op ops[] = {
 	/*
 	OP,                 PREC,        ASSOC */
 	{TOK_PLUS,          70,          true},
@@ -57,61 +99,95 @@ static const size_t ops_size = (sizeof(ops) / sizeof(Op));
 
 #define FUNCTION_MAX_PARAMS 128
 
-static AST *parse_stmt(Lexer *lex);
+static AST *parse_stmt(Parser *p);
 
-static AST *parse_expr(Lexer *lex);
-static AST *parse_parens(Lexer *lex);
-static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec);
-static AST *parse_atom(Lexer *lex);
-static AST *parse_unop(Lexer *lex);
+static AST *parse_expr(Parser *p);
+static AST *parse_parens(Parser *p);
+static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec);
+static AST *parse_atom(Parser *p);
+static AST *parse_unop(Parser *p);
 
-static AST *parse_int(Lexer *lex);
-static AST *parse_float(Lexer *lex);
-static AST *parse_str(Lexer *lex);
-static AST *parse_ident(Lexer *lex);
+static AST *parse_int(Parser *p);
+static AST *parse_float(Parser *p);
+static AST *parse_str(Parser *p);
+static AST *parse_ident(Parser *p);
 
-static AST *parse_print(Lexer *lex);
-static AST *parse_if(Lexer *lex);
-static AST *parse_while(Lexer *lex);
-static AST *parse_for(Lexer *lex);
-static AST *parse_def(Lexer *lex);
-static AST *parse_break(Lexer *lex);
-static AST *parse_continue(Lexer *lex);
-static AST *parse_return(Lexer *lex);
-static AST *parse_throw(Lexer *lex);
-static AST *parse_try_catch(Lexer *lex);
-static AST *parse_import(Lexer *lex);
-static AST *parse_export(Lexer *lex);
+static AST *parse_print(Parser *p);
+static AST *parse_if(Parser *p);
+static AST *parse_while(Parser *p);
+static AST *parse_for(Parser *p);
+static AST *parse_def(Parser *p);
+static AST *parse_break(Parser *p);
+static AST *parse_continue(Parser *p);
+static AST *parse_return(Parser *p);
+static AST *parse_throw(Parser *p);
+static AST *parse_try_catch(Parser *p);
+static AST *parse_import(Parser *p);
+static AST *parse_export(Parser *p);
 
-static AST *parse_block(Lexer *lex);
-static AST *parse_list(Lexer *lex);
+static AST *parse_block(Parser *p);
+static AST *parse_list(Parser *p);
 
-static AST *parse_empty(Lexer *lex);
+static AST *parse_empty(Parser *p);
 
-static struct ast_list *parse_comma_separated_list(Lexer *lex,
+static struct ast_list *parse_comma_separated_list(Parser *p,
                                                    const TokType open_type, const TokType close_type,
-                                                   AST *(*sub_element_parse_routine)(Lexer *),
+                                                   AST *(*sub_element_parse_routine)(Parser *),
                                                    unsigned int *count);
 
-static Token *expect(Lexer *lex, TokType type);
+static Token *expect(Parser *p, TokType type);
 
-static void parse_err_unexpected_token(Lexer *lex, Token *tok);
-static void parse_err_not_a_statement(Lexer *lex, Token *tok);
-static void parse_err_unclosed(Lexer *lex, Token *tok);
-static void parse_err_invalid_assign(Lexer *lex, Token *tok);
-static void parse_err_invalid_break(Lexer *lex, Token *tok);
-static void parse_err_invalid_continue(Lexer *lex, Token *tok);
-static void parse_err_invalid_return(Lexer *lex, Token *tok);
-static void parse_err_too_many_params(Lexer *lex, Token *tok);
-static void parse_err_empty_catch(Lexer *lex, Token *tok);
+static void parse_err_unexpected_token(Parser *p, Token *tok);
+static void parse_err_not_a_statement(Parser *p, Token *tok);
+static void parse_err_unclosed(Parser *p, Token *tok);
+static void parse_err_invalid_assign(Parser *p, Token *tok);
+static void parse_err_invalid_break(Parser *p, Token *tok);
+static void parse_err_invalid_continue(Parser *p, Token *tok);
+static void parse_err_invalid_return(Parser *p, Token *tok);
+static void parse_err_too_many_params(Parser *p, Token *tok);
+static void parse_err_empty_catch(Parser *p, Token *tok);
 
-Program *parse(Lexer *lex)
+Parser *parser_new(char *str, const size_t length, const char *name)
+{
+#define INITIAL_TOKEN_ARRAY_CAPACITY 5
+	Parser *p = rho_malloc(sizeof(Parser));
+	p->code = str;
+	p->end = &str[length - 1];
+	p->pos = &str[0];
+	p->mark = 0;
+	p->tokens = rho_malloc(INITIAL_TOKEN_ARRAY_CAPACITY * sizeof(Token));
+	p->tok_count = 0;
+	p->tok_capacity = INITIAL_TOKEN_ARRAY_CAPACITY;
+	p->tok_pos = 0;
+	p->lineno = 1;
+	p->peek = NULL;
+	p->name = name;
+	p->in_function = 0;
+	p->in_loop = 0;
+	p->error_type = PARSE_ERR_NONE;
+	p->error_msg = NULL;
+
+	parser_tokenize(p);
+
+	return p;
+#undef INITIAL_TOKEN_ARRAY_CAPACITY
+}
+
+void parser_free(Parser *p)
+{
+	free(p->tokens);
+	FREE(p->error_msg);
+	free(p);
+}
+
+Program *parse(Parser *p)
 {
 	Program *head = ast_list_new();
 	struct ast_list *node = head;
 
-	while (lex_has_next(lex)) {
-		AST *stmt = parse_stmt(lex);
+	while (parser_has_next_token(p)) {
+		AST *stmt = parse_stmt(p);
+		ERROR_CHECK_LIST(p, stmt, head);
 
 		if (stmt == NULL) {
 			break;
@@ -140,55 +216,56 @@ Program *parse(Lexer *lex)
 /*
  * Parses a top-level statement
  */
-static AST *parse_stmt(Lexer *lex)
+static AST *parse_stmt(Parser *p)
 {
-	Token *tok = lex_peek_token(lex);
+	Token *tok = parser_peek_token(p);
 
 	AST *stmt;
 
 	switch (tok->type) {
 	case TOK_PRINT:
-		stmt = parse_print(lex);
+		stmt = parse_print(p);
 		break;
 	case TOK_IF:
-		stmt = parse_if(lex);
+		stmt = parse_if(p);
 		break;
 	case TOK_WHILE:
-		stmt = parse_while(lex);
+		stmt = parse_while(p);
 		break;
 	case TOK_FOR:
-		stmt = parse_for(lex);
+		stmt = parse_for(p);
 		break;
 	case TOK_DEF:
-		stmt = parse_def(lex);
+		stmt = parse_def(p);
 		break;
 	case TOK_BREAK:
-		stmt = parse_break(lex);
+		stmt = parse_break(p);
 		break;
 	case TOK_CONTINUE:
-		stmt = parse_continue(lex);
+		stmt = parse_continue(p);
 		break;
 	case TOK_RETURN:
-		stmt = parse_return(lex);
+		stmt = parse_return(p);
 		break;
 	case TOK_THROW:
-		stmt = parse_throw(lex);
+		stmt = parse_throw(p);
 		break;
 	case TOK_TRY:
-		stmt = parse_try_catch(lex);
+		stmt = parse_try_catch(p);
 		break;
 	case TOK_IMPORT:
-		stmt = parse_import(lex);
+		stmt = parse_import(p);
 		break;
 	case TOK_EXPORT:
-		stmt = parse_export(lex);
+		stmt = parse_export(p);
 		break;
 	case TOK_SEMICOLON:
-		return parse_empty(lex);
+		return parse_empty(p);
 	case TOK_EOF:
 		return NULL;
 	default: {
-		AST *expr_stmt = parse_expr(lex);
+		AST *expr_stmt = parse_expr(p);
+		ERROR_CHECK(p);
 		const NodeType type = expr_stmt->type;
 
 		/*
@@ -201,14 +278,16 @@ static AST *parse_stmt(Lexer *lex)
 		 * valid statement.
 		 */
 		if (!IS_EXPR_STMT(type)) {
-			parse_err_not_a_statement(lex, tok);
+			parse_err_not_a_statement(p, tok);
+			return NULL;
 		}
 
 		stmt = expr_stmt;
 	}
 	}
+	ERROR_CHECK(p);
 
-	Token *stmt_end = lex_peek_token_direct(lex);
+	Token *stmt_end = parser_peek_token_direct(p);
 	const TokType stmt_end_type = stmt_end->type;
 
 	if (stmt_end_type != TOK_SEMICOLON &&
@@ -216,27 +295,29 @@ static AST *parse_stmt(Lexer *lex)
 	    stmt_end_type != TOK_EOF &&
 	    stmt_end_type != TOK_BRACE_CLOSE) {
 
-		parse_err_unexpected_token(lex, stmt_end);
+		parse_err_unexpected_token(p, stmt_end);
+		return NULL;
 	}
 
 	return stmt;
 }
 
-static AST *parse_expr(Lexer *lex)
+static AST *parse_expr(Parser *p)
 {
-	return parse_expr_min_prec(lex, 1);
+	return parse_expr_min_prec(p, 1);
 }
 
 /*
  * Implementation of precedence climbing method.
  */
-static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec)
+static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec)
 {
-	AST *lhs = parse_atom(lex);
+	AST *lhs = parse_atom(p);
+	ERROR_CHECK(p);
 
-	while (lex_has_next(lex)) {
+	while (parser_has_next_token(p)) {
 
-		Token *tok = lex_peek_token(lex);
+		Token *tok = parser_peek_token(p);
 
 		const TokType type = tok->type;
 
@@ -253,14 +334,16 @@ static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec)
 		const NodeType lhs_type = lhs->type;
 
 		if (IS_ASSIGNMENT_TOK(op.type) && (min_prec != 1 || !IS_ASSIGNABLE(lhs_type))) {
-			parse_err_invalid_assign(lex, tok);
+			parse_err_invalid_assign(p, tok);
+			return NULL;
 		}
 
 		const unsigned int next_min_prec = op.assoc ? (op.prec + 1) : op.prec;
 
-		lex_next_token(lex);
+		parser_next_token(p);
 
-		AST *rhs = parse_expr_min_prec(lex, next_min_prec);
+		AST *rhs = parse_expr_min_prec(p, next_min_prec);
+		ERROR_CHECK_AST(p, rhs, lhs);
 
 		NodeType node_type = nodetype_from_op(op);
 		AST *ast = ast_new(node_type, lhs, rhs, tok->lineno);
@@ -312,47 +395,50 @@ static AST *parse_expr_min_prec(Lexer *lex, unsigned int min_prec)
  *  The horizontal arrow represents the parameters of
  *  the function call.
  */
-static AST *parse_atom(Lexer *lex)
+static AST *parse_atom(Parser *p)
 {
-	Token *tok = lex_peek_token(lex);
+	Token *tok = parser_peek_token(p);
 	AST *ast;
 
 	switch (tok->type) {
 	case TOK_PAREN_OPEN:
-		ast = parse_parens(lex);
+		ast = parse_parens(p);
 		break;
 	case TOK_INT:
-		ast = parse_int(lex);
+		ast = parse_int(p);
 		break;
 	case TOK_FLOAT:
-		ast = parse_float(lex);
+		ast = parse_float(p);
 		break;
 	case TOK_STR:
-		ast = parse_str(lex);
+		ast = parse_str(p);
 		break;
 	case TOK_IDENT:
-		ast = parse_ident(lex);
+		ast = parse_ident(p);
 		break;
 	case TOK_BRACK_OPEN:
-		ast = parse_list(lex);
+		ast = parse_list(p);
 		break;
 	case TOK_NOT:
 	case TOK_BITNOT:
 	case TOK_PLUS:
 	case TOK_MINUS: {
-		ast = parse_unop(lex);
+		ast = parse_unop(p);
 		break;
 	}
 	default:
-		parse_err_unexpected_token(lex, tok);
+		parse_err_unexpected_token(p, tok);
 		ast = NULL;
+		return NULL;
 	}
 
-	if (!lex_has_next(lex)) {
+	ERROR_CHECK(p);
+
+	if (!parser_has_next_token(p)) {
 		goto end;
 	}
 
-	tok = lex_peek_token(lex);
+	tok = parser_peek_token(p);
 
 	/*
 	 * Deal with cases like `foo[7].bar(42)`...
@@ -360,27 +446,32 @@ static AST *parse_atom(Lexer *lex)
 	while (tok->type == TOK_DOT || tok->type == TOK_PAREN_OPEN || tok->type == TOK_BRACK_OPEN) {
 		switch (tok->type) {
 		case TOK_DOT: {
-			Token *dot_tok = expect(lex, TOK_DOT);
-
-			AST *ident = parse_ident(lex);
+			Token *dot_tok = expect(p, TOK_DOT);
+			ERROR_CHECK_AST(p, dot_tok, ast);
+			AST *ident = parse_ident(p);
+			ERROR_CHECK_AST(p, ident, ast);
 			AST *dot = ast_new(NODE_DOT, ast, ident, dot_tok->lineno);
 			ast = dot;
 			break;
 		}
 		case TOK_PAREN_OPEN: {
-			ParamList *params = parse_comma_separated_list(lex,
+			ParamList *params = parse_comma_separated_list(p,
 														   TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
 														   parse_expr,
 														   NULL);
+			ERROR_CHECK_AST(p, params, ast);
 			AST *call = ast_new(NODE_CALL, ast, NULL, tok->lineno);
 			call->v.params = params;
 			ast = call;
 			break;
 		}
 		case TOK_BRACK_OPEN: {
-			expect(lex, TOK_BRACK_OPEN);
-			AST *index = parse_expr(lex);
-			expect(lex, TOK_BRACK_CLOSE);
+			expect(p, TOK_BRACK_OPEN);
+			ERROR_CHECK_AST(p, NULL, ast);
+			AST *index = parse_expr(p);
+			ERROR_CHECK_AST(p, index, ast);
+			expect(p, TOK_BRACK_CLOSE);
+			ERROR_CHECK_AST2(p, NULL, ast, index);
 			AST *index_expr = ast_new(NODE_INDEX, ast, index, tok->lineno);
 			ast = index_expr;
 			break;
@@ -390,7 +481,7 @@ static AST *parse_atom(Lexer *lex)
 		}
 		}
 
-		tok = lex_peek_token(lex);
+		tok = parser_peek_token(p);
 	}
 
 	end:
@@ -400,17 +491,19 @@ static AST *parse_atom(Lexer *lex)
 /*
  * Parses parenthesized expression.
  */
-static AST *parse_parens(Lexer *lex)
+static AST *parse_parens(Parser *p)
 {
-	Token *paren_open = expect(lex, TOK_PAREN_OPEN);
+	Token *paren_open = expect(p, TOK_PAREN_OPEN);
+	ERROR_CHECK(p);
 	const unsigned int lineno = paren_open->lineno;
 
-	Token *peek = lex_peek_token(lex);
+	Token *peek = parser_peek_token(p);
 
 	if (peek->type == TOK_PAREN_CLOSE) {
 		/* we have an empty tuple */
 
-		expect(lex, TOK_PAREN_CLOSE);
+		expect(p, TOK_PAREN_CLOSE);
+		ERROR_CHECK(p);
 		AST *ast = ast_new(NODE_TUPLE, NULL, NULL, lineno);
 		ast->v.list = NULL;
 		return ast;
@@ -421,22 +514,25 @@ static AST *parse_parens(Lexer *lex)
 	 * we have a non-empty tuple.
 	 */
 
-	AST *ast = parse_expr(lex);
-	peek = lex_peek_token(lex);
+	AST *ast = parse_expr(p);
+	ERROR_CHECK(p);
+	peek = parser_peek_token(p);
 
 	if (peek->type == TOK_COMMA) {
 		/* we have a non-empty tuple */
 
-		expect(lex, TOK_COMMA);
+		expect(p, TOK_COMMA);
+		ERROR_CHECK_AST(p, NULL, ast);
 		struct ast_list *list_head = ast_list_new();
 		list_head->ast = ast;
 		struct ast_list *list = list_head;
 
 		do {
-			Token *next = lex_peek_token(lex);
+			Token *next = parser_peek_token(p);
 
 			if (next->type == TOK_EOF) {
-				parse_err_unclosed(lex, paren_open);
+				parse_err_unclosed(p, paren_open);
+				ERROR_CHECK_LIST(p, NULL, list_head);
 			}
 
 			if (next->type == TOK_PAREN_CLOSE) {
@@ -445,14 +541,17 @@ static AST *parse_parens(Lexer *lex)
 
 			list->next = ast_list_new();
 			list = list->next;
-			list->ast = parse_expr(lex);
+			list->ast = parse_expr(p);
+			ERROR_CHECK_LIST(p, list->ast, list_head);
 
-			next = lex_peek_token(lex);
+			next = parser_peek_token(p);
 
 			if (next->type == TOK_COMMA) {
-				expect(lex, TOK_COMMA);
+				expect(p, TOK_COMMA);
+				ERROR_CHECK_LIST(p, NULL, list_head);
 			} else if (next->type != TOK_PAREN_CLOSE) {
-				parse_err_unexpected_token(lex, next);
+				parse_err_unexpected_token(p, next);
+				ERROR_CHECK_LIST(p, NULL, list_head);
 			}
 		} while (true);
 
@@ -460,14 +559,15 @@ static AST *parse_parens(Lexer *lex)
 		ast->v.list = list_head;
 	}
 
-	expect(lex, TOK_PAREN_CLOSE);
+	expect(p, TOK_PAREN_CLOSE);
+	ERROR_CHECK_AST(p, NULL, ast);
 
 	return ast;
 }
 
-static AST *parse_unop(Lexer *lex)
+static AST *parse_unop(Parser *p)
 {
-	Token *tok = lex_next_token(lex);
+	Token *tok = parser_next_token(p);
 
 	NodeType type;
 	switch (tok->type) {
@@ -489,30 +589,34 @@ static AST *parse_unop(Lexer *lex)
 		break;
 	}
 
-	AST *atom = parse_atom(lex);
+	AST *atom = parse_atom(p);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(type, atom, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_int(Lexer *lex)
+static AST *parse_int(Parser *p)
 {
-	Token *tok = expect(lex, TOK_INT);
+	Token *tok = expect(p, TOK_INT);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_INT, NULL, NULL, tok->lineno);
 	ast->v.int_val = atoi(tok->value);
 	return ast;
 }
 
-static AST *parse_float(Lexer *lex)
+static AST *parse_float(Parser *p)
 {
-	Token *tok = expect(lex, TOK_FLOAT);
+	Token *tok = expect(p, TOK_FLOAT);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_FLOAT, NULL, NULL, tok->lineno);
 	ast->v.float_val = atof(tok->value);
 	return ast;
 }
 
-static AST *parse_str(Lexer *lex)
+static AST *parse_str(Parser *p)
 {
-	Token *tok = expect(lex, TOK_STR);
+	Token *tok = expect(p, TOK_STR);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_STRING, NULL, NULL, tok->lineno);
 
 	// deal with quotes appropriately:
@@ -521,37 +625,48 @@ static AST *parse_str(Lexer *lex)
 	return ast;
 }
 
-static AST *parse_ident(Lexer *lex)
+static AST *parse_ident(Parser *p)
 {
-	Token *tok = expect(lex, TOK_IDENT);
+	Token *tok = expect(p, TOK_IDENT);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_IDENT, NULL, NULL, tok->lineno);
 	ast->v.ident = str_new_copy(tok->value, tok->length);
 	return ast;
 }
 
-static AST *parse_print(Lexer *lex)
+static AST *parse_print(Parser *p)
 {
-	Token *tok = expect(lex, TOK_PRINT);
-	AST *expr = parse_expr(lex);
+	Token *tok = expect(p, TOK_PRINT);
+	ERROR_CHECK(p);
+	AST *expr = parse_expr(p);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_PRINT, expr, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_if(Lexer *lex)
+static AST *parse_if(Parser *p)
 {
-	Token *tok = expect(lex, TOK_IF);
-	AST *condition = parse_expr(lex);
-	AST *body = parse_block(lex);
+	Token *tok = expect(p, TOK_IF);
+	ERROR_CHECK(p);
+	AST *condition = parse_expr(p);
+	ERROR_CHECK(p);
+	AST *body = parse_block(p);
+	ERROR_CHECK_AST(p, body, condition);
 	AST *ast = ast_new(NODE_IF, condition, body, tok->lineno);
+	ast->v.middle = NULL;
 
 	AST *else_chain_base = NULL;
 	AST *else_chain_last = NULL;
 
-	while ((tok = lex_peek_token(lex))->type == TOK_ELIF) {
-		expect(lex, TOK_ELIF);
-		AST *elif_condition = parse_expr(lex);
-		AST *elif_body = parse_block(lex);
+	while ((tok = parser_peek_token(p))->type == TOK_ELIF) {
+		expect(p, TOK_ELIF);
+		ERROR_CHECK_AST2(p, NULL, ast, else_chain_base);
+		AST *elif_condition = parse_expr(p);
+		ERROR_CHECK_AST2(p, elif_condition, ast, else_chain_base);
+		AST *elif_body = parse_block(p);
+		ERROR_CHECK_AST3(p, elif_body, ast, else_chain_base, elif_condition);
 		AST *elif = ast_new(NODE_ELIF, elif_condition, elif_body, tok->lineno);
+		elif->v.middle = NULL;
 
 		if (else_chain_base == NULL) {
 			else_chain_base = else_chain_last = elif;
@@ -561,9 +676,11 @@ static AST *parse_if(Lexer *lex)
 		}
 	}
 
-	if ((tok = lex_peek_token(lex))->type == TOK_ELSE) {
-		expect(lex, TOK_ELSE);
-		AST *else_body = parse_block(lex);
+	if ((tok = parser_peek_token(p))->type == TOK_ELSE) {
+		expect(p, TOK_ELSE);
+		ERROR_CHECK_AST2(p, NULL, ast, else_chain_base);
+		AST *else_body = parse_block(p);
+		ERROR_CHECK_AST2(p, else_body, ast, else_chain_base);
 		AST *else_ast = ast_new(NODE_ELSE, else_body, NULL, tok->lineno);
 
 		if (else_chain_base == NULL) {
@@ -583,59 +700,80 @@ static AST *parse_if(Lexer *lex)
 	return ast;
 }
 
-static AST *parse_while(Lexer *lex)
+static AST *parse_while(Parser *p)
 {
-	Token *tok = expect(lex, TOK_WHILE);
-	AST *condition = parse_expr(lex);
+	Token *tok = expect(p, TOK_WHILE);
+	ERROR_CHECK(p);
+	AST *condition = parse_expr(p);
+	ERROR_CHECK(p);
 
-	unsigned old_in_loop = lex->in_loop;
-	lex->in_loop = 1;
-	AST *body = parse_block(lex);
-	lex->in_loop = old_in_loop;
+	unsigned old_in_loop = p->in_loop;
+	p->in_loop = 1;
+	AST *body = parse_block(p);
+	p->in_loop = old_in_loop;
+	ERROR_CHECK_AST(p, body, condition);
 
 	AST *ast = ast_new(NODE_WHILE, condition, body, tok->lineno);
 	return ast;
 }
 
-static AST *parse_for(Lexer *lex)
+static AST *parse_for(Parser *p)
 {
-	Token *tok = expect(lex, TOK_FOR);
+	Token *tok = expect(p, TOK_FOR);
+	ERROR_CHECK(p);
 
-	AST *lcv = parse_ident(lex);  // loop-control variable
+	AST *lcv = parse_ident(p);  // loop-control variable
+	ERROR_CHECK(p);
 
-	expect(lex, TOK_IN);
+	expect(p, TOK_IN);
+	ERROR_CHECK_AST(p, NULL, lcv);
 
-	AST *iter = parse_expr(lex);
+	AST *iter = parse_expr(p);
+	ERROR_CHECK_AST(p, iter, lcv);
 
-	unsigned old_in_loop = lex->in_loop;
-	lex->in_loop = 1;
-	AST *body = parse_block(lex);
-	lex->in_loop = old_in_loop;
+	unsigned old_in_loop = p->in_loop;
+	p->in_loop = 1;
+	AST *body = parse_block(p);
+	p->in_loop = old_in_loop;
+	ERROR_CHECK_AST2(p, body, lcv, iter);
 
 	AST *ast = ast_new(NODE_FOR, lcv, iter, tok->lineno);
 	ast->v.middle = body;
 	return ast;
 }
 
-static AST *parse_def(Lexer *lex)
+static AST *parse_def(Parser *p)
 {
-	Token *tok = expect(lex, TOK_DEF);
-	Token *name_tok = lex_peek_token(lex);
-	AST *name = parse_ident(lex);
+	Token *tok = expect(p, TOK_DEF);
+	ERROR_CHECK(p);
+	Token *name_tok = parser_peek_token(p);
+	AST *name = parse_ident(p);
+	ERROR_CHECK(p);
 
 	unsigned int nargs = 0;
-	ParamList *params = parse_comma_separated_list(lex,
+	ParamList *params = parse_comma_separated_list(p,
 	                                               TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
 	                                               parse_ident,
 	                                               &nargs);
+	ERROR_CHECK_AST(p, params, name);
+	unsigned old_in_function = p->in_function;
+	p->in_function = 1;
+	AST *body = parse_block(p);
+	p->in_function = old_in_function;
 
-	unsigned old_in_function = lex->in_function;
-	lex->in_function = 1;
-	AST *body = parse_block(lex);
-	lex->in_function = old_in_function;
+	if (PARSER_ERROR(p)) {
+		assert(body == NULL);
+		ast_free(name);
+		ast_list_free(params);
+		return NULL;
+	}
 
 	if (nargs > FUNCTION_MAX_PARAMS) {
-		parse_err_too_many_params(lex, name_tok);
+		ast_free(name);
+		ast_free(body);
+		ast_list_free(params);
+		parse_err_too_many_params(p, name_tok);
+		return NULL;
 	}
 
 	AST *ast = ast_new(NODE_DEF, name, body, tok->lineno);
@@ -643,117 +781,151 @@ static AST *parse_def(Lexer *lex)
 	return ast;
 }
 
-static AST *parse_break(Lexer *lex)
+static AST *parse_break(Parser *p)
 {
-	Token *tok = expect(lex, TOK_BREAK);
+	Token *tok = expect(p, TOK_BREAK);
+	ERROR_CHECK(p);
 
-	if (!lex->in_loop) {
-		parse_err_invalid_break(lex, tok);
+	if (!p->in_loop) {
+		parse_err_invalid_break(p, tok);
+		return NULL;
 	}
 
 	AST *ast = ast_new(NODE_BREAK, NULL, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_continue(Lexer *lex)
+static AST *parse_continue(Parser *p)
 {
-	Token *tok = expect(lex, TOK_CONTINUE);
+	Token *tok = expect(p, TOK_CONTINUE);
+	ERROR_CHECK(p);
 
-	if (!lex->in_loop) {
-		parse_err_invalid_continue(lex, tok);
+	if (!p->in_loop) {
+		parse_err_invalid_continue(p, tok);
+		return NULL;
 	}
 
 	AST *ast = ast_new(NODE_CONTINUE, NULL, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_return(Lexer *lex)
+static AST *parse_return(Parser *p)
 {
-	Token *tok = expect(lex, TOK_RETURN);
+	Token *tok = expect(p, TOK_RETURN);
+	ERROR_CHECK(p);
 
-	if (!lex->in_function) {
-		parse_err_invalid_return(lex, tok);
+	if (!p->in_function) {
+		parse_err_invalid_return(p, tok);
+		return NULL;
 	}
 
-	AST *expr = parse_expr(lex);
+	AST *expr = parse_expr(p);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_RETURN, expr, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_throw(Lexer *lex)
+static AST *parse_throw(Parser *p)
 {
-	Token *tok = expect(lex, TOK_THROW);
-	AST *expr = parse_expr(lex);
+	Token *tok = expect(p, TOK_THROW);
+	ERROR_CHECK(p);
+	AST *expr = parse_expr(p);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_THROW, expr, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_try_catch(Lexer *lex)
+static AST *parse_try_catch(Parser *p)
 {
-	Token *tok = expect(lex, TOK_TRY);
-	AST *try_body = parse_block(lex);
-	Token *catch = expect(lex, TOK_CATCH);
+	Token *tok = expect(p, TOK_TRY);
+	ERROR_CHECK(p);
+	AST *try_body = parse_block(p);
+	ERROR_CHECK(p);
+	Token *catch = expect(p, TOK_CATCH);
+	ERROR_CHECK_AST(p, catch, try_body);
+
 	unsigned int count;
-	struct ast_list *exc_list = parse_comma_separated_list(lex,
+	struct ast_list *exc_list = parse_comma_separated_list(p,
 	                                                       TOK_PAREN_OPEN,
 	                                                       TOK_PAREN_CLOSE,
 	                                                       parse_expr,
 	                                                       &count);
 
+	ERROR_CHECK_AST(p, exc_list, try_body);
+
 	if (count == 0) {
-		parse_err_empty_catch(lex, catch);
+		parse_err_empty_catch(p, catch);
+		ast_free(try_body);
+		ast_list_free(exc_list);
+		return NULL;
 	}
 
-	AST *catch_body = parse_block(lex);
+	AST *catch_body = parse_block(p);
+
+	if (PARSER_ERROR(p)) {
+		assert(catch_body == NULL);
+		ast_free(try_body);
+		ast_list_free(exc_list);
+	}
+
 	AST *ast = ast_new(NODE_TRY_CATCH, try_body, catch_body, tok->lineno);
 	ast->v.excs = exc_list;
 	return ast;
 }
 
-static AST *parse_import(Lexer *lex)
+static AST *parse_import(Parser *p)
 {
-	Token *tok = expect(lex, TOK_IMPORT);
-	AST *ident = parse_ident(lex);
+	Token *tok = expect(p, TOK_IMPORT);
+	ERROR_CHECK(p);
+	AST *ident = parse_ident(p);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_IMPORT, ident, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_export(Lexer *lex)
+static AST *parse_export(Parser *p)
 {
-	Token *tok = expect(lex, TOK_EXPORT);
-	AST *ident = parse_ident(lex);
+	Token *tok = expect(p, TOK_EXPORT);
+	ERROR_CHECK(p);
+	AST *ident = parse_ident(p);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_EXPORT, ident, NULL, tok->lineno);
 	return ast;
 }
 
-static AST *parse_block(Lexer *lex)
+static AST *parse_block(Parser *p)
 {
 	Block *block_head = NULL;
 
-	Token *peek = lex_peek_token(lex);
+	Token *peek = parser_peek_token(p);
 
 	Token *brace_open;
 
 	if (peek->type == TOK_COLON) {
-		brace_open = expect(lex, TOK_COLON);
+		brace_open = expect(p, TOK_COLON);
+		ERROR_CHECK(p);
 		block_head = ast_list_new();
-		block_head->ast = parse_stmt(lex);
+		block_head->ast = parse_stmt(p);
+		ERROR_CHECK(p);
 	} else {
-		brace_open = expect(lex, TOK_BRACE_OPEN);
+		brace_open = expect(p, TOK_BRACE_OPEN);
+		ERROR_CHECK(p);
 		Block *block = NULL;
 
 		do {
-			Token *next = lex_peek_token(lex);
+			Token *next = parser_peek_token(p);
 
 			if (next->type == TOK_EOF) {
-				parse_err_unclosed(lex, brace_open);
+				parse_err_unclosed(p, brace_open);
+				return NULL;
 			}
 
 			if (next->type == TOK_BRACE_CLOSE) {
 				break;
 			}
 
-			AST *stmt = parse_stmt(lex);
+			AST *stmt = parse_stmt(p);
+			ERROR_CHECK_LIST(p, stmt, block_head);
 
 			/*
 			 * We don't include empty statements
@@ -777,7 +949,8 @@ static AST *parse_block(Lexer *lex)
 			block->ast = stmt;
 		} while (true);
 
-		expect(lex, TOK_BRACE_CLOSE);
+		expect(p, TOK_BRACE_CLOSE);
+		ERROR_CHECK_LIST(p, NULL, block_head);
 	}
 
 	AST *ast = ast_new(NODE_BLOCK, NULL, NULL, brace_open->lineno);
@@ -785,22 +958,24 @@ static AST *parse_block(Lexer *lex)
 	return ast;
 }
 
-static AST *parse_list(Lexer *lex)
+static AST *parse_list(Parser *p)
 {
-	Token *brack_open = lex_peek_token(lex);  /* parse_comma_separated_list does error checking */
-	struct ast_list *list_head = parse_comma_separated_list(lex,
+	Token *brack_open = parser_peek_token(p);  /* parse_comma_separated_list does error checking */
+	struct ast_list *list_head = parse_comma_separated_list(p,
 	                                                        TOK_BRACK_OPEN,
 	                                                        TOK_BRACK_CLOSE,
 	                                                        parse_expr,
 	                                                        NULL);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_LIST, NULL, NULL, brack_open->lineno);
 	ast->v.list = list_head;
 	return ast;
 }
 
-static AST *parse_empty(Lexer *lex)
+static AST *parse_empty(Parser *p)
 {
-	Token *tok = expect(lex, TOK_SEMICOLON);
+	Token *tok = expect(p, TOK_SEMICOLON);
+	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_EMPTY, NULL, NULL, tok->lineno);
 	return ast;
 }
@@ -809,23 +984,24 @@ static AST *parse_empty(Lexer *lex)
  * Parses generic comma-separated list with given start and end delimiters.
  * Returns the number of elements in this parsed list.
  */
-static struct ast_list *parse_comma_separated_list(Lexer *lex,
+static struct ast_list *parse_comma_separated_list(Parser *p,
                                                    const TokType open_type, const TokType close_type,
-                                                   AST *(*sub_element_parse_routine)(Lexer *),
+                                                   AST *(*sub_element_parse_routine)(Parser *),
                                                    unsigned int *count)
 {
-	Token *tok_open = expect(lex, open_type);
-
+	Token *tok_open = expect(p, open_type);
+	ERROR_CHECK(p);
 	struct ast_list *list_head = NULL;
 	struct ast_list *list = NULL;
 
 	unsigned int nelements = 0;
 
 	do {
-		Token *next = lex_peek_token(lex);
+		Token *next = parser_peek_token(p);
 
 		if (next->type == TOK_EOF) {
-			parse_err_unclosed(lex, tok_open);
+			parse_err_unclosed(p, tok_open);
+			ERROR_CHECK_LIST(p, NULL, list_head);
 		}
 
 		if (next->type == close_type) {
@@ -842,19 +1018,23 @@ static struct ast_list *parse_comma_separated_list(Lexer *lex,
 			list = list->next;
 		}
 
-		list->ast = sub_element_parse_routine(lex);
+		list->ast = sub_element_parse_routine(p);
+		ERROR_CHECK_LIST(p, list->ast, list_head);
 		++nelements;
 
-		next = lex_peek_token(lex);
+		next = parser_peek_token(p);
 
 		if (next->type == TOK_COMMA) {
-			expect(lex, TOK_COMMA);
+			expect(p, TOK_COMMA);
+			ERROR_CHECK_LIST(p, NULL, list_head);
 		} else if (next->type != close_type) {
-			parse_err_unexpected_token(lex, next);
+			parse_err_unexpected_token(p, next);
+			ERROR_CHECK_LIST(p, NULL, list_head);
 		}
 	} while (true);
 
-	expect(lex, close_type);
+	expect(p, close_type);
+	ERROR_CHECK_LIST(p, NULL, list_head);
 
 	if (count != NULL) {
 		*count = nelements;
@@ -953,14 +1133,15 @@ static NodeType nodetype_from_op(Op op)
 	}
 }
 
-static Token *expect(Lexer *lex, TokType type)
+static Token *expect(Parser *p, TokType type)
 {
 	assert(type != TOK_NONE);
-	Token *next = lex_has_next(lex) ? lex_next_token(lex) : NULL;
+	Token *next = parser_has_next_token(p) ? parser_next_token(p) : NULL;
 	const TokType next_type = next ? next->type : TOK_NONE;
 
 	if (next_type != type) {
-		parse_err_unexpected_token(lex, next);
+		parse_err_unexpected_token(p, next);
+		ERROR_CHECK(p);
 	}
 
 	return next;
@@ -972,37 +1153,47 @@ static Token *expect(Lexer *lex, TokType type)
 
 DECL_MIN_FUNC(min, size_t)
 
-static void err_on_tok(Lexer *lex, Token *tok)
+static const char *err_on_tok(Parser *p, Token *tok)
 {
-	err_on_char(tok->value, lex->code, lex->end, tok->lineno);
+	return err_on_char(tok->value, p->code, p->end, tok->lineno);
 }
 
-static void parse_err_unexpected_token(Lexer *lex, Token *tok)
+static void parse_err_unexpected_token(Parser *p, Token *tok)
 {
 #define MAX_LEN 1024
 
 	if (tok->type == TOK_EOF) {
-		fprintf(stderr,
-		        SYNTAX_ERROR " unexpected end-of-file after token\n\n",
-		        lex->name,
-		        tok->lineno);
-
 		/*
 		 * This should really always be true,
 		 * since we shouldn't have an unexpected
 		 * token in an empty file.
 		 */
-		if (lex->tok_count > 1) {
-			Token *tokens = lex->tokens;
-			size_t last = lex->tok_count - 2;
+		if (p->tok_count > 1) {
+			const char *tok_err = "";
+			bool free_tok_err = false;
+			Token *tokens = p->tokens;
+			size_t last = p->tok_count - 2;
 
 			while (last > 0 && tokens[last].type == TOK_NEWLINE) {
 				--last;
 			}
 
 			if (tokens[last].type != TOK_NEWLINE) {
-				err_on_tok(lex, &tokens[last]);
+				tok_err = err_on_tok(p, &tokens[last]);
+				free_tok_err = true;
 			}
+
+			PARSER_SET_ERROR_MSG(p,
+			                     str_format(SYNTAX_ERROR " unexpected end-of-file after token\n\n%s",
+			                                p->name, tok->lineno, tok_err));
+
+			if (free_tok_err) {
+				FREE(tok_err);
+			}
+		} else {
+			PARSER_SET_ERROR_MSG(p,
+			                     str_format(SYNTAX_ERROR " unexpected end-of-file after token\n\n",
+			                                p->name, tok->lineno));
 		}
 	} else {
 		char tok_str[MAX_LEN];
@@ -1011,113 +1202,94 @@ static void parse_err_unexpected_token(Lexer *lex, Token *tok)
 		memcpy(tok_str, tok->value, tok_len);
 		tok_str[tok_len] = '\0';
 
-		fprintf(stderr,
-		        SYNTAX_ERROR " unexpected token: %s\n\n",
-		        lex->name,
-		        tok->lineno,
-		        tok_str);
-
-		err_on_tok(lex, tok);
+		const char *tok_err = err_on_tok(p, tok);
+		PARSER_SET_ERROR_MSG(p,
+		                     str_format(SYNTAX_ERROR " unexpected token: %s\n\n%s",
+		                                p->name, tok->lineno, tok_str, tok_err));
+		FREE(tok_err);
 	}
 
-	exit(EXIT_FAILURE);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNEXPECTED_TOKEN);
 
 #undef MAX_LEN
 }
 
-static void parse_err_not_a_statement(Lexer *lex, Token *tok)
+static void parse_err_not_a_statement(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " not a statement\n\n",
-	        lex->name,
-	        tok->lineno);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " not a statement\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_NOT_A_STATEMENT);
 }
 
-static void parse_err_unclosed(Lexer *lex, Token *tok)
+static void parse_err_unclosed(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " unclosed\n\n",
-	        lex->name,
-	        tok->lineno);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " unclosed\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNCLOSED);
 }
 
-static void parse_err_invalid_assign(Lexer *lex, Token *tok)
+static void parse_err_invalid_assign(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " misplaced assignment\n\n",
-	        lex->name,
-	        tok->lineno);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " misplaced assignment\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_INVALID_ASSIGN);
 }
 
-static void parse_err_invalid_break(Lexer *lex, Token *tok)
+static void parse_err_invalid_break(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " misplaced break statement\n\n",
-	        lex->name,
-	        tok->lineno);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " misplaced break statement\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_INVALID_BREAK);
 }
 
-static void parse_err_invalid_continue(Lexer *lex, Token *tok)
+static void parse_err_invalid_continue(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " misplaced continue statement\n\n",
-	        lex->name,
-	        tok->lineno);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " misplaced continue statement\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_INVALID_CONTINUE);
 }
 
-static void parse_err_invalid_return(Lexer *lex, Token *tok)
+static void parse_err_invalid_return(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " misplaced return statement\n\n",
-	        lex->name,
-	        tok->lineno);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " misplaced return statement\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_INVALID_RETURN);
 }
 
-static void parse_err_too_many_params(Lexer *lex, Token *tok)
+static void parse_err_too_many_params(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " function has too many parameters (max %d)\n\n",
-	        lex->name,
-	        tok->lineno,
-	        FUNCTION_MAX_PARAMS);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " function has too many parameters (max %d)\n\n%s",
+	                                p->name, tok->lineno, FUNCTION_MAX_PARAMS, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_TOO_MANY_PARAMETERS);
 }
 
-static void parse_err_empty_catch(Lexer *lex, Token *tok)
+static void parse_err_empty_catch(Parser *p, Token *tok)
 {
-	fprintf(stderr,
-	        SYNTAX_ERROR " empty catch statement\n\n",
-	        lex->name,
-	        tok->lineno);
-
-	err_on_tok(lex, tok);
-
-	exit(EXIT_FAILURE);
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " empty catch statement\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_EMPTY_CATCH);
 }

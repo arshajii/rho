@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <string.h>
 #include <assert.h>
 #include "err.h"
@@ -173,4 +174,41 @@ bool is_big_endian(void)
 	} bint = {0x01020304};
 
 	return (bint.c[0] == 1);
+}
+
+const char *str_format(const char *format, ...)
+{
+	char buf[1000];
+
+	va_list args;
+	va_start(args, format);
+	int n = vsnprintf(buf, sizeof(buf), format, args);
+	assert(n >= 0);
+	va_end(args);
+
+	if ((size_t)n >= sizeof(buf)) {
+		n = sizeof(buf) - 1;
+	}
+
+	char *str = rho_malloc(n + 1);
+	strcpy(str, buf);
+	return str;
+}
+
+char *file_to_str(const char *filename)
+{
+	FILE *file = fopen(filename, "r");
+
+	if (file == NULL) {
+		return NULL;
+	}
+
+	fseek(file, 0L, SEEK_END);
+	size_t size = ftell(file);
+	fseek(file, 0L, SEEK_SET);
+	char *str = rho_malloc(size + 1);
+	fread(str, sizeof(char), size, file);
+	fclose(file);
+	str[size] = '\0';
+	return str;
 }
