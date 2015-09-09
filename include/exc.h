@@ -1,6 +1,7 @@
 #ifndef EXC_H
 #define EXC_H
 
+#include <stdio.h>
 #include <stdbool.h>
 #include "object.h"
 
