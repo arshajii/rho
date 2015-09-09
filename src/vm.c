@@ -129,11 +129,7 @@ int vm_exec_code(VM *vm, Code *code)
 		status = 1;
 		Exception *e = (Exception *)objvalue(ret);
 		vm_traceback(vm);
-		if (e->msg != NULL) {
-			fprintf(stderr, "%s: %s\n", e->base.class->name, e->msg);
-		} else {
-			fprintf(stderr, "%s\n", e->base.class->name);
-		}
+		exc_print_msg(e, stderr);
 		release(ret);
 	}
 

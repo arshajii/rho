@@ -35,6 +35,15 @@ Value exc_make(Class *exc_class, bool active, const char *msg_format, ...)
 #undef EXC_MSG_BUF_SIZE
 }
 
+void exc_print_msg(Exception *e, FILE *out)
+{
+	if (e->msg != NULL) {
+		fprintf(out, "%s: %s\n", e->base.class->name, e->msg);
+	} else {
+		fprintf(out, "%s\n", e->base.class->name);
+	}
+}
+
 /* Base Exception */
 
 static Value exc_init(Value *this, Value *args, size_t nargs)

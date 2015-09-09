@@ -32,6 +32,7 @@ extern Class attr_exception_class;
 extern Class import_exception_class;
 
 Value exc_make(Class *exc_class, bool active, const char *msg_format, ...);
+void exc_print_msg(Exception *e, FILE *out);
 
 #define EXC(...)        exc_make(&exception_class, true, __VA_ARGS__)
 #define INDEX_EXC(...)  exc_make(&index_exception_class, true, __VA_ARGS__)
