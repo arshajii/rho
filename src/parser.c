@@ -93,6 +93,7 @@ static const Op ops[] = {
 	{TOK_ASSIGN_SHIFTL, 10,          true},
 	{TOK_ASSIGN_SHIFTR, 10,          true},
 	{TOK_DOT,           99,          true},
+	{TOK_IN,             9,          true},
 };
 
 static const size_t ops_size = (sizeof(ops) / sizeof(Op));
@@ -1127,6 +1128,8 @@ static NodeType nodetype_from_op(Op op)
 		return NODE_ASSIGN_SHIFTL;
 	case TOK_ASSIGN_SHIFTR:
 		return NODE_ASSIGN_SHIFTR;
+	case TOK_IN:
+		return NODE_IN;
 	default:
 		INTERNAL_ERROR();
 		return -1;

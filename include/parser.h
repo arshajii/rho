@@ -36,6 +36,7 @@ typedef enum {
 	TOK_LE,
 	TOK_GE,
 	TOK_DOT,
+	TOK_IN,  // really a keyword but treated as an operator in some contexts
 
 	/* assignments */
 	TOK_ASSIGNMENTS_START,
@@ -68,7 +69,6 @@ typedef enum {
 	TOK_ELSE,
 	TOK_WHILE,
 	TOK_FOR,
-	TOK_IN,
 	TOK_DEF,
 	TOK_BREAK,
 	TOK_CONTINUE,

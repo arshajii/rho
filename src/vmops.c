@@ -6,6 +6,7 @@
 #include "strobject.h"
 #include "method.h"
 #include "attr.h"
+#include "iter.h"
 #include "exc.h"
 #include "err.h"
 #include "util.h"
@@ -777,6 +778,60 @@ Value op_call(Value *v, Value *args, const size_t nargs)
 	}
 
 	return call(v, args, nargs);
+}
+
+Value op_in(Value *element, Value *collection)
+{
+	Class *class = getclass(collection);
+	const BoolBinOp contains = resolve_contains(class);
+
+	if (contains) {
+		return makeint(contains(collection, element));
+	}
+
+	const UnOp iter_fn = resolve_iter(class);
+
+	if (!iter_fn) {
+		return type_exc_not_iterable(class);
+	}
+
+	Value iter = iter_fn(collection);
+	Class *iter_class = getclass(&iter);
+	const UnOp iternext = resolve_iternext(iter_class);
+
+	if (!iternext) {
+		return type_exc_not_iterator(iter_class);
+	}
+
+	while (1) {
+		Value next = iternext(&iter);
+
+		if (is_iter_stop(&next)) {
+			break;
+		}
+
+		if (iserror(&next)) {
+			release(&iter);
+			return next;
+		}
+
+		Value eq = op_eq(&next, element);
+
+		release(&next);
+
+		if (iserror(&eq)) {
+			release(&iter);
+			return eq;
+		}
+
+		if (isint(&eq) && intvalue(&eq) != 0) {
+			release(&iter);
+			return makeint(1);
+		}
+	}
+
+	release(&iter);
+	return makeint(0);
 }
 
 Value op_iter(Value *v)

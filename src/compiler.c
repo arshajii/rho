@@ -888,6 +888,8 @@ static Opcode to_opcode(NodeType type)
 		return INS_ISHIFTL;
 	case NODE_ASSIGN_SHIFTR:
 		return INS_ISHIFTR;
+	case NODE_IN:
+		return INS_IN;
 	default:
 		INTERNAL_ERROR();
 		return 0;
@@ -930,6 +932,7 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_GT:
 	case NODE_LE:
 	case NODE_GE:
+	case NODE_IN:
 		compile_node(compiler, ast->left, false);
 		compile_node(compiler, ast->right, false);
 		write_ins(compiler, to_opcode(ast->type), lineno);
@@ -1414,6 +1417,7 @@ int arg_size(Opcode opcode)
 	case INS_IXOR:
 	case INS_ISHIFTL:
 	case INS_ISHIFTR:
+	case INS_IN:
 		return 0;
 	case INS_STORE:
 	case INS_LOAD:
@@ -1554,6 +1558,7 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_IXOR:
 	case INS_ISHIFTL:
 	case INS_ISHIFTR:
+	case INS_IN:
 		return -1;
 	case INS_STORE:
 		return -1;

@@ -746,6 +746,20 @@ void vm_eval_frame(VM *vm)
 			STACK_SET_TOP(res);
 			break;
 		}
+		case INS_IN: {
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_in(v1, v2);
+
+			release(v2);
+			if (iserror(&res)) {
+				goto error;
+			}
+			release(v1);
+
+			STACK_SET_TOP(res);
+			break;
+		}
 		case INS_STORE: {
 			v1 = STACK_POP();
 			const unsigned int id = GET_UINT16();
