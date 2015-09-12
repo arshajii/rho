@@ -33,6 +33,13 @@ Error *error_new(ErrorType type, const char *msg_format, ...)
 #define ATTR_ERROR_HEADER "Attribute Error: "
 #define FATAL_ERROR_HEADER "Fatal Error: "
 
+Error *invalid_file_signature_error(const char *module)
+{
+	return error_new(ERR_TYPE_FATAL,
+	                 "invalid file signature encountered when loading module '%s'",
+	                 module);
+}
+
 Error *unbound_error(const char *var)
 {
 	return error_new(ERR_TYPE_NAME, "cannot reference unbound variable '%s'", var);

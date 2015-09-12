@@ -15,7 +15,7 @@ int load_from_file(const char *name, Code *dest)
 	FILE *compiled = fopen(filename_buf, "rb");
 
 	if (compiled == NULL) {
-		return 1;
+		return LOAD_ERR_NOT_FOUND;
 	}
 
 	fseek(compiled, 0L, SEEK_END);
@@ -26,8 +26,7 @@ int load_from_file(const char *name, Code *dest)
 	for (size_t i = 0; i < magic_size; i++) {
 		const byte c = fgetc(compiled);
 		if (c != magic[i]) {
-			fatal_error("invalid file signature");
-			return 1;
+			return LOAD_ERR_INVALID_SIGNATURE;
 		}
 	}
 
@@ -35,5 +34,5 @@ int load_from_file(const char *name, Code *dest)
 	fread(dest->bc, 1, code_size, compiled);
 	dest->size = code_size;
 	fclose(compiled);
-	return 0;
+	return LOAD_ERR_NONE;
 }

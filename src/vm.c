@@ -1219,7 +1219,10 @@ static Value vm_import(VM *vm, const char *name)
 	Code code;
 	int error = load_from_file(name, &code);
 
-	if (error) {
+	switch (error) {
+	case LOAD_ERR_NONE:
+		break;
+	case LOAD_ERR_NOT_FOUND: {
 		Value builtin_module = strdict_get_cstr(&vm->builtin_modules, name);
 
 		if (isempty(&builtin_module)) {
@@ -1227,6 +1230,9 @@ static Value vm_import(VM *vm, const char *name)
 		}
 
 		return builtin_module;
+	}
+	case LOAD_ERR_INVALID_SIGNATURE:
+		return makeerr(invalid_file_signature_error(name));
 	}
 
 	VM *vm2 = vm_new();

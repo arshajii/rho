@@ -10,6 +10,7 @@
  */
 
 #define ERR_TYPE_LIST \
+	X(ERR_TYPE_FATAL,       "Fatal Error") \
 	X(ERR_TYPE_TYPE,        "Type Error") \
 	X(ERR_TYPE_NAME,        "Name Error") \
 	X(ERR_TYPE_DIV_BY_ZERO, "Division by Zero Error")
@@ -29,6 +30,7 @@ typedef struct error {
 
 Error *error_new(ErrorType type, const char *msg_format, ...);
 
+Error *invalid_file_signature_error(const char *module);
 Error *unbound_error(const char *var);
 Error *bad_load_global_error(const char *fn);
 Error *type_error_invalid_cmp(const Class *c1);
