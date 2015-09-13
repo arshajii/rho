@@ -70,11 +70,12 @@ static void builtin_modules_dealloc(void)
 	}
 }
 
+static unsigned int get_lineno(Frame *frame);
+
 static void vm_push_module_frame(VM *vm, Code *code);
 static void vm_load_builtins(StrDict *builtins_dict);
 static void vm_load_builtin_modules(StrDict *builtin_modules_dict);
 static Value vm_import(VM *vm, const char *name);
-static void vm_traceback(VM *vm);
 
 VM *vm_new(void)
 {
@@ -128,9 +129,15 @@ int vm_exec_code(VM *vm, Code *code)
 	if (isexc(ret)) {
 		status = 1;
 		Exception *e = (Exception *)objvalue(ret);
-		vm_traceback(vm);
+		exc_traceback_print(e, stderr);
 		exc_print_msg(e, stderr);
 		release(ret);
+	} else if (iserror(ret)) {
+		status = 1;
+		Error *e = errvalue(ret);
+		error_traceback_print(e, stderr);
+		error_print_msg(e, stderr);
+		error_free(e);
 	}
 
 	vm_popframe(vm);
@@ -1147,6 +1154,8 @@ void vm_eval_frame(VM *vm)
 
 		if (EXC_STACK_EMPTY()) {
 			retain(&res);
+			Exception *e = (Exception *)objvalue(&res);
+			exc_traceback_append(e, frame->co->name, get_lineno(frame));
 			frame->return_value = res;
 			return;
 		} else {
@@ -1157,12 +1166,10 @@ void vm_eval_frame(VM *vm)
 		break;
 	}
 	case VAL_TYPE_ERROR: {
-		vm_traceback(vm);
 		Error *e = errvalue(&res);
-		fflush(NULL);
-		fprintf(stderr, "%s: %s\n", err_type_headers[e->type], e->msg);
-		exit(EXIT_FAILURE);
-		break;
+		error_traceback_append(e, frame->co->name, get_lineno(frame));
+		frame->return_value = res;
+		return;
 	}
 	default:
 		INTERNAL_ERROR();
@@ -1296,16 +1303,4 @@ static unsigned int get_lineno(Frame *frame)
 	}
 
 	return first_lineno + lineno_offset;
-}
-
-static void vm_traceback(VM *vm)
-{
-	fprintf(stderr, "Traceback:\n");
-	Frame *frame = vm->callstack;
-
-	while (frame != NULL) {
-		const unsigned int lineno = get_lineno(frame);
-		fprintf(stderr, "  Line %u in %s\n", lineno, frame->co->name);
-		frame = frame->prev;
-	}
 }

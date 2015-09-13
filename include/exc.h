@@ -3,11 +3,13 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include "err.h"
 #include "object.h"
 
 typedef struct {
 	Object base;
 	const char *msg;
+	struct traceback_manager tbm;
 } Exception;
 
 typedef struct {
@@ -33,6 +35,10 @@ extern Class attr_exception_class;
 extern Class import_exception_class;
 
 Value exc_make(Class *exc_class, bool active, const char *msg_format, ...);
+void exc_traceback_append(Exception *e,
+                          const char *fn,
+                          const unsigned int lineno);
+void exc_traceback_print(Exception *e, FILE *out);
 void exc_print_msg(Exception *e, FILE *out);
 
 #define EXC(...)        exc_make(&exception_class, true, __VA_ARGS__)

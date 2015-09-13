@@ -16,6 +16,47 @@ const char *err_type_headers[] = {
 };
 #undef X
 
+#define TBM_INIT_CAPACITY 5
+void tb_manager_init(struct traceback_manager *tbm)
+{
+	tbm->tb = rho_malloc(TBM_INIT_CAPACITY * sizeof(struct traceback_stack_item));
+	tbm->tb_count = 0;
+	tbm->tb_cap = TBM_INIT_CAPACITY;
+}
+
+void tb_manager_add(struct traceback_manager *tbm,
+                    const char *fn,
+                    const unsigned int lineno)
+{
+	const size_t cap = tbm->tb_cap;
+	if (tbm->tb_count == cap) {
+		const size_t new_cap = (cap * 3)/2 + 1;
+		tbm->tb = rho_realloc(tbm->tb, new_cap * sizeof(struct traceback_stack_item));
+		tbm->tb_cap = new_cap;
+	}
+
+	tbm->tb[tbm->tb_count++] = (struct traceback_stack_item){str_dup(fn), lineno};
+}
+
+void tb_manager_print(struct traceback_manager *tbm, FILE *out)
+{
+	fprintf(out, "Traceback:\n");
+	const size_t count = tbm->tb_count;
+
+	for (size_t i = 0; i < count; i++) {
+		fprintf(out, "  Line %u in %s\n", tbm->tb[i].lineno, tbm->tb[i].fn);
+	}
+}
+
+void tb_manager_dealloc(struct traceback_manager *tbm)
+{
+	const size_t count = tbm->tb_count;
+	for (size_t i = 0; i < count; i++) {
+		FREE(tbm->tb[i].fn);
+	}
+	free(tbm->tb);
+}
+
 Error *error_new(ErrorType type, const char *msg_format, ...)
 {
 	Error *error = rho_malloc(sizeof(Error));
@@ -26,7 +67,26 @@ Error *error_new(ErrorType type, const char *msg_format, ...)
 	vsnprintf(error->msg, sizeof(error->msg), msg_format, args);
 	va_end(args);
 
+	tb_manager_init(&error->tbm);
 	return error;
+}
+
+void error_free(Error *error)
+{
+	tb_manager_dealloc(&error->tbm);
+	free(error);
+}
+
+void error_traceback_append(Error *error,
+                            const char *fn,
+                            const unsigned int lineno)
+{
+	tb_manager_add(&error->tbm, fn, lineno);
+}
+
+void error_traceback_print(Error *error, FILE *out)
+{
+	tb_manager_print(&error->tbm, out);
 }
 
 #define FUNC_ERROR_HEADER "Function Error: "
@@ -79,6 +139,11 @@ Error *type_error_invalid_throw(const Class *c1)
 Error *div_by_zero_error(void)
 {
 	return error_new(ERR_TYPE_DIV_BY_ZERO, "division or modulo by zero");
+}
+
+void error_print_msg(Error *e, FILE *out)
+{
+	fprintf(out, "%s: %s\n", err_type_headers[e->type], e->msg);
 }
 
 void fatal_error(const char *msg)

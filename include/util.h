@@ -45,6 +45,7 @@ void *rho_calloc(size_t num, size_t size);
 void *rho_realloc(void *p, size_t n);
 #define FREE(ptr) free((void *)(ptr))
 
+const char *str_dup(const char *str);
 const char *str_format(const char *format, ...);
 
 char *file_to_str(const char *filename);

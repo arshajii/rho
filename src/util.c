@@ -176,6 +176,14 @@ bool is_big_endian(void)
 	return (bint.c[0] == 1);
 }
 
+const char *str_dup(const char *str)
+{
+	const size_t len = strlen(str);
+	char *copy = rho_malloc(len + 1);
+	strcpy(copy, str);
+	return copy;
+}
+
 const char *str_format(const char *format, ...)
 {
 	char buf[1000];

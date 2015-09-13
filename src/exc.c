@@ -16,6 +16,7 @@ Value exc_make(Class *exc_class, bool active, const char *msg_format, ...)
 	char msg_static[EXC_MSG_BUF_SIZE];
 
 	Exception *exc = obj_alloc(exc_class);
+	tb_manager_init(&exc->tbm);
 
 	va_list args;
 	va_start(args, msg_format);
@@ -33,6 +34,18 @@ Value exc_make(Class *exc_class, bool active, const char *msg_format, ...)
 	return active ? makeexc(exc) : makeobj(exc);
 
 #undef EXC_MSG_BUF_SIZE
+}
+
+void exc_traceback_append(Exception *e,
+                          const char *fn,
+                          const unsigned int lineno)
+{
+	tb_manager_add(&e->tbm, fn, lineno);
+}
+
+void exc_traceback_print(Exception *e, FILE *out)
+{
+	tb_manager_print(&e->tbm, out);
 }
 
 void exc_print_msg(Exception *e, FILE *out)
@@ -55,6 +68,8 @@ static Value exc_init(Value *this, Value *args, size_t nargs)
 	}
 
 	Exception *e = objvalue(this);
+	tb_manager_init(&e->tbm);
+
 	if (nargs == 0) {
 		e->msg = NULL;
 	} else {
@@ -78,6 +93,7 @@ static void exc_free(Value *this)
 {
 	Exception *exc = objvalue(this);
 	FREE(exc->msg);
+	tb_manager_dealloc(&exc->tbm);
 	obj_class.del(this);
 }
 
