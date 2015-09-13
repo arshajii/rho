@@ -146,19 +146,6 @@ void error_print_msg(Error *e, FILE *out)
 	fprintf(out, "%s: %s\n", err_type_headers[e->type], e->msg);
 }
 
-void fatal_error(const char *msg)
-{
-	fprintf(stderr, FATAL_ERROR_HEADER "%s", msg);
-	exit(EXIT_FAILURE);
-}
-
-void unexpected_byte(const char *fn, const byte p)
-{
-	char buf[64];
-	sprintf("unexpected byte in %s: %02x", fn, p);
-	fatal_error(buf);
-}
-
 /* compilation errors */
 
 const char *err_on_char(const char *culprit,

@@ -1141,7 +1141,7 @@ void vm_eval_frame(VM *vm)
 			break;
 		}
 		default: {
-			UNEXP_BYTE(opcode);
+			INTERNAL_ERROR();
 			break;
 		}
 		}

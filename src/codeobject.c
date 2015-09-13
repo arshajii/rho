@@ -126,9 +126,7 @@ static void read_lno_table(CodeObject *co, Code *code)
  */
 static void read_sym_table(CodeObject *co, Code *code)
 {
-	if (code_read_byte(code) != ST_ENTRY_BEGIN) {
-		fatal_error("symbol table expected");
-	}
+	assert(code_read_byte(code) == ST_ENTRY_BEGIN);
 
 	byte *symtab_bc = code->bc;  /* this is where the table is located */
 
@@ -207,9 +205,7 @@ static void read_sym_table(CodeObject *co, Code *code)
 static void read_const_table(CodeObject *co, Code *code)
 {
 	/* read the constant table */
-	if (code_read_byte(code) != CT_ENTRY_BEGIN) {
-		fatal_error("constant table expected");
-	}
+	assert(code_read_byte(code) == CT_ENTRY_BEGIN);
 
 	const size_t ct_size = code_read_uint16(code);
 	Value *constants = rho_malloc(ct_size * sizeof(Value));
@@ -219,7 +215,7 @@ static void read_const_table(CodeObject *co, Code *code)
 
 		switch (p) {
 		case CT_ENTRY_BEGIN:
-			fatal_error("unexpected CT_ENTRY_BEGIN in constant table");
+			INTERNAL_ERROR();
 			break;
 		case CT_ENTRY_INT:
 			constants[i].type = VAL_TYPE_INT;
@@ -275,10 +271,10 @@ static void read_const_table(CodeObject *co, Code *code)
 			break;
 		}
 		case CT_ENTRY_END:
-			fatal_error("unexpected CT_ENTRY_END in constant table");
+			INTERNAL_ERROR();
 			break;
 		default:
-			UNEXP_BYTE(p);
+			INTERNAL_ERROR();
 			break;
 		}
 	}

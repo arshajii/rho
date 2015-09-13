@@ -66,13 +66,7 @@ Error *div_by_zero_error(void);
 
 void error_print_msg(Error *e, FILE *out);
 
-void fatal_error(const char *msg);
-
-void unexpected_byte(const char *fn, const byte p);
-#define UNEXP_BYTE(p) (unexpected_byte(__FUNCTION__, (p)))
-
 #define INTERNAL_ERROR() (assert(0))
-#define OUT_OF_MEM_ERROR() fatal_error("memory allocation failed -- out of memory")
 
 /*
  * Syntax error message header. First format specifier

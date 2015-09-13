@@ -133,7 +133,7 @@ void *rho_malloc(size_t n)
 	void *p = malloc(n);
 
 	if (p == NULL && n > 0) {
-		OUT_OF_MEM_ERROR();
+		INTERNAL_ERROR();
 	}
 
 	return p;
@@ -144,7 +144,7 @@ void *rho_calloc(size_t num, size_t size)
 	void *p = calloc(num, size);
 
 	if (p == NULL && num > 0 && size > 0) {
-		OUT_OF_MEM_ERROR();
+		INTERNAL_ERROR();
 	}
 
 	return p;
@@ -155,7 +155,7 @@ void *rho_realloc(void *p, size_t n)
 	void *new_p = realloc(p, n);
 
 	if (new_p == NULL && n > 0) {
-		OUT_OF_MEM_ERROR();
+		INTERNAL_ERROR();
 	}
 
 	return new_p;
