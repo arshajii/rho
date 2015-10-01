@@ -747,8 +747,8 @@ static void lex_err_unexpected_char(Parser *p, const char *c)
 {
 	const char *tok_err = err_on_char(c, p->code, p->end, p->lineno);
 	PARSER_SET_ERROR_MSG(p,
-	              str_format(SYNTAX_ERROR " unrecognized character: %c\n\n%s",
-	            		     p->name, p->lineno, *c, tok_err));
+	                     str_format(SYNTAX_ERROR " unrecognized character: %c\n\n%s",
+	                                p->name, p->lineno, *c, tok_err));
 	FREE(tok_err);
 	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNEXPECTED_CHAR);
 }
