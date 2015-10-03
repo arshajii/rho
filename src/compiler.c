@@ -195,6 +195,9 @@ static struct metadata compile_program(Compiler *compiler, Program *program);
 static void compile_load(Compiler *compiler, AST *ast);
 static void compile_assignment(Compiler *compiler, AST *ast);
 
+static void compile_and(Compiler *compiler, AST *ast);
+static void compile_or(Compiler *compiler, AST *ast);
+
 static void compile_call(Compiler *compiler, AST *ast);
 
 static void compile_block(Compiler *compiler, AST *ast);
@@ -445,6 +448,29 @@ static void compile_call(Compiler *compiler, AST *ast)
 	write_ins(compiler, INS_CALL, lineno);
 	write_uint16(compiler, argcount);
 }
+
+static void compile_and(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_AND);
+	compile_node(compiler, ast->left, false);
+	write_ins(compiler, INS_JMP_IF_FALSE_ELSE_POP, ast->left->lineno);
+	size_t jump_index = compiler->code.size;
+	write_uint16(compiler, 0);  // placeholder for jump offset
+	compile_node(compiler, ast->right, false);
+	write_uint16_at(compiler, compiler->code.size - jump_index - 2, jump_index);
+}
+
+static void compile_or(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_OR);
+	compile_node(compiler, ast->left, false);
+	write_ins(compiler, INS_JMP_IF_TRUE_ELSE_POP, ast->left->lineno);
+	size_t jump_index = compiler->code.size;
+	write_uint16(compiler, 0);  // placeholder for jump offset
+	compile_node(compiler, ast->right, false);
+	write_uint16_at(compiler, compiler->code.size - jump_index - 2, jump_index);
+}
+
 
 static void compile_block(Compiler *compiler, AST *ast)
 {
@@ -924,8 +950,6 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_XOR:
 	case NODE_SHIFTL:
 	case NODE_SHIFTR:
-	case NODE_AND:
-	case NODE_OR:
 	case NODE_EQUAL:
 	case NODE_NOTEQ:
 	case NODE_LT:
@@ -936,6 +960,12 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 		compile_node(compiler, ast->left, false);
 		compile_node(compiler, ast->right, false);
 		write_ins(compiler, to_opcode(ast->type), lineno);
+		break;
+	case NODE_AND:
+		compile_and(compiler, ast);
+		break;
+	case NODE_OR:
+		compile_or(compiler, ast);
 		break;
 	case NODE_DOT:
 		compile_get_attr(compiler, ast);
@@ -1438,6 +1468,8 @@ int arg_size(Opcode opcode)
 	case INS_JMP_IF_FALSE:
 	case INS_JMP_BACK_IF_TRUE:
 	case INS_JMP_BACK_IF_FALSE:
+	case INS_JMP_IF_TRUE_ELSE_POP:
+	case INS_JMP_IF_FALSE_ELSE_POP:
 	case INS_CALL:
 		return 2;
 	case INS_RETURN:
@@ -1585,6 +1617,9 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_JMP_BACK_IF_TRUE:
 	case INS_JMP_BACK_IF_FALSE:
 		return -1;
+	case INS_JMP_IF_TRUE_ELSE_POP:
+	case INS_JMP_IF_FALSE_ELSE_POP:
+		return 0;  // -1 if jump not taken
 	case INS_CALL:
 		return -arg;
 	case INS_RETURN:

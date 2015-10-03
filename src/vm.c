@@ -935,6 +935,28 @@ void vm_eval_frame(VM *vm)
 			release(v1);
 			break;
 		}
+		case INS_JMP_IF_TRUE_ELSE_POP: {
+			v1 = STACK_TOP();
+			const unsigned int jmp = GET_UINT16();
+			if (resolve_nonzero(getclass(v1))(v1)) {
+				pos += jmp;
+			} else {
+				STACK_POP();
+				release(v1);
+			}
+			break;
+		}
+		case INS_JMP_IF_FALSE_ELSE_POP: {
+			v1 = STACK_TOP();
+			const unsigned int jmp = GET_UINT16();
+			if (!resolve_nonzero(getclass(v1))(v1)) {
+				pos += jmp;
+			} else {
+				STACK_POP();
+				release(v1);
+			}
+			break;
+		}
 		case INS_CALL: {
 			const unsigned int argcount = GET_UINT16();
 			v1 = STACK_POP();
