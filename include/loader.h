@@ -12,6 +12,6 @@ enum {
 	LOAD_ERR_INVALID_SIGNATURE
 };
 
-int load_from_file(const char *name, Code *dest);
+int load_from_file(const char *name, const bool name_has_ext, Code *dest);
 
 #endif /* LOADER_H */

@@ -1246,7 +1246,7 @@ static Value vm_import(VM *vm, const char *name)
 	}
 
 	Code code;
-	int error = load_from_file(name, &code);
+	int error = load_from_file(name, false, &code);
 
 	switch (error) {
 	case LOAD_ERR_NONE:

@@ -156,7 +156,7 @@ enum {
 	PARSE_ERR_EMPTY_CATCH
 };
 
-Parser *parser_new(char *str, const size_t length, const char *name);
+Parser *parser_new(char *str, const char *name);
 void parser_free(Parser *p);
 Program *parse(Parser *p);
 

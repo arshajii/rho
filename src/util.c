@@ -165,17 +165,6 @@ void *rho_realloc(void *p, size_t n)
  * Miscellaneous functions
  */
 
-/* http://stackoverflow.com/questions/1001307/ */
-bool is_big_endian(void)
-{
-	union {
-		uint32_t i;
-		char c[4];
-	} bint = {0x01020304};
-
-	return (bint.c[0] == 1);
-}
-
 const char *str_dup(const char *str)
 {
 	const size_t len = strlen(str);

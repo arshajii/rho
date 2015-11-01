@@ -148,12 +148,12 @@ static void parse_err_invalid_return(Parser *p, Token *tok);
 static void parse_err_too_many_params(Parser *p, Token *tok);
 static void parse_err_empty_catch(Parser *p, Token *tok);
 
-Parser *parser_new(char *str, const size_t length, const char *name)
+Parser *parser_new(char *str, const char *name)
 {
 #define INITIAL_TOKEN_ARRAY_CAPACITY 5
 	Parser *p = rho_malloc(sizeof(Parser));
 	p->code = str;
-	p->end = &str[length - 1];
+	p->end = &str[strlen(str) - 1];
 	p->pos = &str[0];
 	p->mark = 0;
 	p->tokens = rho_malloc(INITIAL_TOKEN_ARRAY_CAPACITY * sizeof(Token));

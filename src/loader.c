@@ -6,13 +6,19 @@
 #include "err.h"
 #include "loader.h"
 
-int load_from_file(const char *name, Code *dest)
+int load_from_file(const char *name, const bool name_has_ext, Code *dest)
 {
-	char filename_buf[FILENAME_MAX];
-	strcpy(filename_buf, name);
-	strcat(filename_buf, RHOC_EXT);
+	FILE *compiled;
 
-	FILE *compiled = fopen(filename_buf, "rb");
+	if (name_has_ext) {
+		compiled = fopen(name, "rb");
+	} else {
+		char *filename_buf = rho_malloc(strlen(name) + strlen(RHOC_EXT) + 1);
+		strcpy(filename_buf, name);
+		strcat(filename_buf, RHOC_EXT);
+		compiled = fopen(filename_buf, "rb");
+		free(filename_buf);
+	}
 
 	if (compiled == NULL) {
 		return LOAD_ERR_NOT_FOUND;
