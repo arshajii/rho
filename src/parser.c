@@ -708,7 +708,7 @@ static AST *parse_while(Parser *p)
 	AST *condition = parse_expr(p);
 	ERROR_CHECK(p);
 
-	unsigned old_in_loop = p->in_loop;
+	const unsigned old_in_loop = p->in_loop;
 	p->in_loop = 1;
 	AST *body = parse_block(p);
 	p->in_loop = old_in_loop;
@@ -732,7 +732,7 @@ static AST *parse_for(Parser *p)
 	AST *iter = parse_expr(p);
 	ERROR_CHECK_AST(p, iter, lcv);
 
-	unsigned old_in_loop = p->in_loop;
+	const unsigned old_in_loop = p->in_loop;
 	p->in_loop = 1;
 	AST *body = parse_block(p);
 	p->in_loop = old_in_loop;
@@ -757,10 +757,13 @@ static AST *parse_def(Parser *p)
 	                                               parse_ident,
 	                                               &nargs);
 	ERROR_CHECK_AST(p, params, name);
-	unsigned old_in_function = p->in_function;
+	const unsigned old_in_function = p->in_function;
+	const unsigned old_in_loop = p->in_loop;
 	p->in_function = 1;
+	p->in_loop = 0;
 	AST *body = parse_block(p);
 	p->in_function = old_in_function;
+	p->in_loop = old_in_loop;
 
 	if (PARSER_ERROR(p)) {
 		assert(body == NULL);
