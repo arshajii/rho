@@ -280,6 +280,7 @@ static AST *parse_stmt(Parser *p)
 		 */
 		if (!IS_EXPR_STMT(type)) {
 			parse_err_not_a_statement(p, tok);
+			ast_free(expr_stmt);
 			return NULL;
 		}
 
@@ -297,6 +298,7 @@ static AST *parse_stmt(Parser *p)
 	    stmt_end_type != TOK_BRACE_CLOSE) {
 
 		parse_err_unexpected_token(p, stmt_end);
+		ast_free(stmt);
 		return NULL;
 	}
 
@@ -336,6 +338,7 @@ static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec)
 
 		if (IS_ASSIGNMENT_TOK(op.type) && (min_prec != 1 || !IS_ASSIGNABLE(lhs_type))) {
 			parse_err_invalid_assign(p, tok);
+			ast_free(lhs);
 			return NULL;
 		}
 
