@@ -37,10 +37,10 @@ static Value module_attr_get(Value *this, const char *attr)
 
 static Value module_attr_set(Value *this, const char *attr, Value *v)
 {
-	UNUSED(this);
 	UNUSED(attr);
 	UNUSED(v);
-	return ATTR_EXC("cannot re-assign module attributes");
+	Module *mod = objvalue(this);
+	return ATTR_EXC("cannot re-assign attributes of module '%s'", mod->name);
 }
 
 struct num_methods module_num_methods = {
@@ -211,7 +211,7 @@ struct seq_methods builtin_module_seq_methods = {
 Class builtin_module_class = {
 	.base = CLASS_BASE_INIT(),
 	.name = "BuiltInModule",
-	.super = &obj_class,
+	.super = &module_class,
 
 	.instance_size = sizeof(BuiltInModule),
 
