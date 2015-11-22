@@ -103,8 +103,8 @@ static const size_t ops_size = (sizeof(ops) / sizeof(Op));
 static AST *parse_stmt(Parser *p);
 
 static AST *parse_expr(Parser *p);
+static AST *parse_expr_no_assign(Parser *p);
 static AST *parse_parens(Parser *p);
-static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec);
 static AST *parse_atom(Parser *p);
 static AST *parse_unop(Parser *p);
 
@@ -305,15 +305,29 @@ static AST *parse_stmt(Parser *p)
 	return stmt;
 }
 
+static AST *parse_expr_helper(Parser *p, const bool allow_assigns);
+
+static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec, bool allow_assigns);
+
 static AST *parse_expr(Parser *p)
 {
-	return parse_expr_min_prec(p, 1);
+	return parse_expr_helper(p, true);
+}
+
+static AST *parse_expr_no_assign(Parser *p)
+{
+	return parse_expr_helper(p, false);
+}
+
+static AST *parse_expr_helper(Parser *p, const bool allow_assigns)
+{
+	return parse_expr_min_prec(p, 1, allow_assigns);
 }
 
 /*
  * Implementation of precedence climbing method.
  */
-static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec)
+static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec, bool allow_assigns)
 {
 	AST *lhs = parse_atom(p);
 	ERROR_CHECK(p);
@@ -336,7 +350,8 @@ static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec)
 
 		const NodeType lhs_type = lhs->type;
 
-		if (IS_ASSIGNMENT_TOK(op.type) && (min_prec != 1 || !IS_ASSIGNABLE(lhs_type))) {
+		if (IS_ASSIGNMENT_TOK(op.type) &&
+		    (!allow_assigns || min_prec != 1 || !IS_ASSIGNABLE(lhs_type))) {
 			parse_err_invalid_assign(p, tok);
 			ast_free(lhs);
 			return NULL;
@@ -346,15 +361,21 @@ static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec)
 
 		parser_next_token(p);
 
-		AST *rhs = parse_expr_min_prec(p, next_min_prec);
+		AST *rhs = parse_expr_min_prec(p, next_min_prec, false);
 		ERROR_CHECK_AST(p, rhs, lhs);
 
 		NodeType node_type = nodetype_from_op(op);
 		AST *ast = ast_new(node_type, lhs, rhs, tok->lineno);
 		lhs = ast;
+		allow_assigns = false;
 	}
 
 	return lhs;
+}
+
+static AST *parse_arg(Parser *p)
+{
+	return parse_expr_no_assign(p);
 }
 
 /*
@@ -460,9 +481,9 @@ static AST *parse_atom(Parser *p)
 		}
 		case TOK_PAREN_OPEN: {
 			ParamList *params = parse_comma_separated_list(p,
-														   TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
-														   parse_expr,
-														   NULL);
+			                                               TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
+														   parse_arg,
+			                                               NULL);
 			ERROR_CHECK_AST(p, params, ast);
 			AST *call = ast_new(NODE_CALL, ast, NULL, tok->lineno);
 			call->v.params = params;
@@ -472,7 +493,7 @@ static AST *parse_atom(Parser *p)
 		case TOK_BRACK_OPEN: {
 			expect(p, TOK_BRACK_OPEN);
 			ERROR_CHECK_AST(p, NULL, ast);
-			AST *index = parse_expr(p);
+			AST *index = parse_expr_no_assign(p);
 			ERROR_CHECK_AST(p, index, ast);
 			expect(p, TOK_BRACK_CLOSE);
 			ERROR_CHECK_AST2(p, NULL, ast, index);
@@ -518,7 +539,7 @@ static AST *parse_parens(Parser *p)
 	 * we have a non-empty tuple.
 	 */
 
-	AST *ast = parse_expr(p);
+	AST *ast = parse_expr_no_assign(p);
 	ERROR_CHECK(p);
 	peek = parser_peek_token(p);
 
@@ -545,7 +566,7 @@ static AST *parse_parens(Parser *p)
 
 			list->next = ast_list_new();
 			list = list->next;
-			list->ast = parse_expr(p);
+			list->ast = parse_expr_no_assign(p);
 			ERROR_CHECK_LIST(p, list->ast, list_head);
 
 			next = parser_peek_token(p);
@@ -642,7 +663,7 @@ static AST *parse_print(Parser *p)
 {
 	Token *tok = expect(p, TOK_PRINT);
 	ERROR_CHECK(p);
-	AST *expr = parse_expr(p);
+	AST *expr = parse_expr_no_assign(p);
 	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_PRINT, expr, NULL, tok->lineno);
 	return ast;
@@ -652,7 +673,7 @@ static AST *parse_if(Parser *p)
 {
 	Token *tok = expect(p, TOK_IF);
 	ERROR_CHECK(p);
-	AST *condition = parse_expr(p);
+	AST *condition = parse_expr_no_assign(p);
 	ERROR_CHECK(p);
 	AST *body = parse_block(p);
 	ERROR_CHECK_AST(p, body, condition);
@@ -665,7 +686,7 @@ static AST *parse_if(Parser *p)
 	while ((tok = parser_peek_token(p))->type == TOK_ELIF) {
 		expect(p, TOK_ELIF);
 		ERROR_CHECK_AST2(p, NULL, ast, else_chain_base);
-		AST *elif_condition = parse_expr(p);
+		AST *elif_condition = parse_expr_no_assign(p);
 		ERROR_CHECK_AST2(p, elif_condition, ast, else_chain_base);
 		AST *elif_body = parse_block(p);
 		ERROR_CHECK_AST3(p, elif_body, ast, else_chain_base, elif_condition);
@@ -708,7 +729,7 @@ static AST *parse_while(Parser *p)
 {
 	Token *tok = expect(p, TOK_WHILE);
 	ERROR_CHECK(p);
-	AST *condition = parse_expr(p);
+	AST *condition = parse_expr_no_assign(p);
 	ERROR_CHECK(p);
 
 	const unsigned old_in_loop = p->in_loop;
@@ -732,7 +753,7 @@ static AST *parse_for(Parser *p)
 	expect(p, TOK_IN);
 	ERROR_CHECK_AST(p, NULL, lcv);
 
-	AST *iter = parse_expr(p);
+	AST *iter = parse_expr_no_assign(p);
 	ERROR_CHECK_AST(p, iter, lcv);
 
 	const unsigned old_in_loop = p->in_loop;
@@ -826,7 +847,7 @@ static AST *parse_return(Parser *p)
 		return NULL;
 	}
 
-	AST *expr = parse_expr(p);
+	AST *expr = parse_expr_no_assign(p);
 	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_RETURN, expr, NULL, tok->lineno);
 	return ast;
@@ -836,7 +857,7 @@ static AST *parse_throw(Parser *p)
 {
 	Token *tok = expect(p, TOK_THROW);
 	ERROR_CHECK(p);
-	AST *expr = parse_expr(p);
+	AST *expr = parse_expr_no_assign(p);
 	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_THROW, expr, NULL, tok->lineno);
 	return ast;
