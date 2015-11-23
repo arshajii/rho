@@ -268,12 +268,8 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 		while (params != NULL) {
 			Str *ident = params->ast->v.ident;
 
-			bool param_seen = ste_register_ident(child, ident, FLAG_BOUND_HERE | FLAG_FUNC_PARAM);
-
-			/* we can't have duplicate parameter names */
-			if (param_seen) {
-				def_error_dup_params(child->name, ident->value);
-			}
+			const bool param_seen = ste_register_ident(child, ident, FLAG_BOUND_HERE | FLAG_FUNC_PARAM);
+			assert(!param_seen);
 
 			params = params->next;
 		}

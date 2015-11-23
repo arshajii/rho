@@ -75,8 +75,6 @@ void error_print_msg(Error *e, FILE *out);
  */
 #define SYNTAX_ERROR "%s:%d: syntax error:"
 
-void def_error_dup_params(const char *fn, const char *param_name);
-
 const char *err_on_char(const char *culprit,
                         const char *code,
                         const char *end,

@@ -146,6 +146,7 @@ static void parse_err_invalid_break(Parser *p, Token *tok);
 static void parse_err_invalid_continue(Parser *p, Token *tok);
 static void parse_err_invalid_return(Parser *p, Token *tok);
 static void parse_err_too_many_params(Parser *p, Token *tok);
+static void parse_err_dup_params(Parser *p, Token *tok);
 static void parse_err_empty_catch(Parser *p, Token *tok);
 
 Parser *parser_new(char *str, const char *name)
@@ -781,6 +782,19 @@ static AST *parse_def(Parser *p)
 	                                               parse_ident,
 	                                               &nargs);
 	ERROR_CHECK_AST(p, params, name);
+
+	/* we shouldn't have duplicate parameter names */
+	for (struct ast_list *param = params; param != NULL; param = param->next) {
+		for (struct ast_list *check = params; check != param; check = check->next) {
+			if (str_eq(param->ast->v.ident, check->ast->v.ident)) {
+				ast_free(name);
+				ast_list_free(params);
+				parse_err_dup_params(p, name_tok);
+				return NULL;
+			}
+		}
+	}
+
 	const unsigned old_in_function = p->in_function;
 	const unsigned old_in_loop = p->in_loop;
 	p->in_function = 1;
@@ -1312,6 +1326,16 @@ static void parse_err_too_many_params(Parser *p, Token *tok)
 	                                p->name, tok->lineno, FUNCTION_MAX_PARAMS, tok_err));
 	FREE(tok_err);
 	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_TOO_MANY_PARAMETERS);
+}
+
+static void parse_err_dup_params(Parser *p, Token *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " function has duplicate parameter\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_DUPLICATE_PARAMETERS);
 }
 
 static void parse_err_empty_catch(Parser *p, Token *tok)

@@ -199,13 +199,3 @@ const char *err_on_char(const char *culprit,
 
 #undef MAX_LEN
 }
-
-void def_error_dup_params(const char *fn, const char *param_name)
-{
-	fprintf(stderr,
-	        FUNC_ERROR_HEADER "function %s has duplicate parameter name '%s'\n",
-	        fn,
-	        param_name);
-
-	exit(EXIT_FAILURE);
-}
