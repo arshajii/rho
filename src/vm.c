@@ -855,17 +855,18 @@ void vm_eval_frame(VM *vm)
 			v3 = STACK_POP();  /* N */
 			v2 = STACK_POP();  /* X */
 			v1 = STACK_POP();  /* Y */
+
 			res = op_set(v2, v3, v1);
 
-			release(&res);
+			release(v1);
+			release(v2);
+			release(v3);
 
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			release(v1);
-			release(v2);
-			release(v3);
+			release(&res);
 			break;
 		}
 		case INS_LOAD_NAME: {
