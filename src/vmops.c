@@ -768,7 +768,11 @@ Value op_set_attr_default(Value *v, const char *attr, Value *new)
 	return attr_exc_mismatch(v_class, attr, new_class);
 }
 
-Value op_call(Value *v, Value *args, const size_t nargs)
+Value op_call(Value *v,
+              Value *args,
+              Value *args_named,
+              const size_t nargs,
+              const size_t nargs_named)
 {
 	Class *class = getclass(v);
 	const CallFunc call = resolve_call(class);
@@ -777,7 +781,7 @@ Value op_call(Value *v, Value *args, const size_t nargs)
 		return type_exc_not_callable(class);
 	}
 
-	return call(v, args, nargs);
+	return call(v, args, args_named, nargs, nargs_named);
 }
 
 Value op_in(Value *element, Value *collection)

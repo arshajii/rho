@@ -90,7 +90,11 @@ Value op_set_attr(Value *v, const char *attr, Value *new);
 
 Value op_set_attr_default(Value *v, const char *attr, Value *new);
 
-Value op_call(Value *v, Value *args, const size_t nargs);
+Value op_call(Value *v,
+              Value *args,
+              Value *args_named,
+              const size_t nargs,
+              const size_t nargs_named);
 
 Value op_in(Value *element, Value *collection);
 

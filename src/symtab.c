@@ -264,14 +264,12 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 
 		STEntry *child = ste_new(name->value, FUNCTION);
 
-		ParamList *params = ast->v.params;
-		while (params != NULL) {
-			Str *ident = params->ast->v.ident;
+		for (struct ast_list *param = ast->v.params; param != NULL; param = param->next) {
+			Str *ident = (param->ast->type == NODE_ASSIGN) ? param->ast->left->v.ident :
+			                                                 param->ast->v.ident;
 
 			const bool param_seen = ste_register_ident(child, ident, FLAG_BOUND_HERE | FLAG_FUNC_PARAM);
 			assert(!param_seen);
-
-			params = params->next;
 		}
 
 		ste_add_child(st->ste_current, child);

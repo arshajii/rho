@@ -30,8 +30,18 @@ static void meta_class_str(Value *this, Str *dest)
 #undef STR_MAX_LEN
 }
 
-static Value meta_class_call(Value *this, Value *args, size_t nargs)
+static Value meta_class_call(Value *this,
+                             Value *args,
+                             Value *args_named,
+                             size_t nargs,
+                             size_t nargs_named)
 {
+	UNUSED(args_named);
+
+	if (nargs_named > 0) {
+		return call_exc_constructor_named_args();
+	}
+
 	Class *class = objvalue(this);
 	InitFunc init = resolve_init(class);
 

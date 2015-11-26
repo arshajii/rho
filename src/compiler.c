@@ -437,16 +437,40 @@ static void compile_call(Compiler *compiler, AST *ast)
 	AST_TYPE_ASSERT(ast, NODE_CALL);
 
 	const unsigned int lineno = ast->lineno;
-	size_t argcount = 0;
 
+	unsigned int unnamed_args = 0;
+	unsigned int named_args = 0;
+
+	bool flip = false;  // sanity check: no unnamed args after named ones
 	for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
-		compile_node(compiler, node->ast, false);
-		++argcount;
+		if (IS_ASSIGNMENT(node->ast->type)) {
+			AST_TYPE_ASSERT(node->ast, NODE_ASSIGN);
+			AST_TYPE_ASSERT(node->ast->left, NODE_IDENT);
+			flip = true;
+
+			CTConst name;
+			name.type = CT_STRING;
+			name.value.s = node->ast->left->v.ident;
+			const unsigned int id = ct_id_for_const(compiler->ct, name);
+
+			write_ins(compiler, INS_LOAD_CONST, lineno);
+			write_uint16(compiler, id);
+			compile_node(compiler, node->ast->right, false);
+
+			++named_args;
+		} else {
+			assert(!flip);
+			compile_node(compiler, node->ast, false);
+
+			++unnamed_args;
+		}
 	}
+
+	assert(unnamed_args <= 0xff && named_args <= 0xff);
 
 	compile_node(compiler, ast->left, false);  // callable
 	write_ins(compiler, INS_CALL, lineno);
-	write_uint16(compiler, argcount);
+	write_uint16(compiler, (named_args << 8) | unnamed_args);
 }
 
 static void compile_and(Compiler *compiler, AST *ast)
@@ -652,10 +676,7 @@ static void compile_def(Compiler *compiler, AST *ast)
 	AST_TYPE_ASSERT(ast, NODE_DEF);
 	const unsigned int lineno = ast->lineno;
 
-	/*
-	 * A function definition is essentially the assignment of
-	 * a code object to a variable.
-	 */
+	/* A function definition is essentially the assignment of a CodeObject to a variable. */
 	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
 
 	if (sym == NULL) {
@@ -663,6 +684,25 @@ static void compile_def(Compiler *compiler, AST *ast)
 	}
 
 	compile_const(compiler, ast->right);
+
+	bool flip = false;  // sanity check: no non-default args after default ones
+	unsigned int num_default = 0;
+	for (struct ast_list *param = ast->v.params; param != NULL; param = param->next) {
+		if (param->ast->type == NODE_ASSIGN) {
+			flip = true;
+			AST_TYPE_ASSERT(param->ast->left, NODE_IDENT);
+			compile_node(compiler, param->ast->right, false);
+			++num_default;
+		} else {
+			assert(!flip);
+		}
+	}
+
+	assert(num_default <= 0xffff);
+
+	write_ins(compiler, INS_CODEOBJ_INIT, lineno);
+	write_uint16(compiler, num_default);
+
 	write_ins(compiler, INS_STORE, lineno);
 	write_uint16(compiler, sym->id);
 }
@@ -1210,10 +1250,10 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		STEntry *child = parent->children[parent->child_pos++];
 
 		unsigned int nargs = 0;
-		ParamList *params = ast->v.params;
-
-		while (params != NULL) {
-			params = params->next;
+		for (struct ast_list *param = ast->v.params; param != NULL; param = param->next) {
+			if (param->ast->type == NODE_ASSIGN) {
+				fill_ct_from_ast(compiler, param->ast->right);
+			}
 			++nargs;
 		}
 
@@ -1276,7 +1316,16 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		goto end;
 	case NODE_CALL:
 		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
-			fill_ct_from_ast(compiler, node->ast);
+			AST *ast = node->ast;
+			if (ast->type == NODE_ASSIGN) {
+				AST_TYPE_ASSERT(ast->left, NODE_IDENT);
+				value.type = CT_STRING;
+				value.value.s = ast->left->v.ident;
+				ct_id_for_const(compiler->ct, value);
+				fill_ct_from_ast(compiler, ast->right);
+			} else {
+				fill_ct_from_ast(compiler, ast);
+			}
 		}
 		goto end;
 	case NODE_TRY_CATCH:
@@ -1492,6 +1541,8 @@ int arg_size(Opcode opcode)
 		return 0;
 	case INS_LOOP_ITER:
 		return 2;
+	case INS_CODEOBJ_INIT:
+		return 2;
 	case INS_POP:
 	case INS_DUP:
 	case INS_DUP_TWO:
@@ -1621,7 +1672,7 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_JMP_IF_FALSE_ELSE_POP:
 		return 0;  // -1 if jump not taken
 	case INS_CALL:
-		return -arg;
+		return -((arg & 0xff) + 2*(arg >> 8));
 	case INS_RETURN:
 	case INS_THROW:
 		return -1;
@@ -1643,6 +1694,8 @@ static int stack_delta(Opcode opcode, int arg)
 		return 0;
 	case INS_LOOP_ITER:
 		return 1;
+	case INS_CODEOBJ_INIT:
+		return -arg;
 	case INS_POP:
 		return -1;
 	case INS_DUP:

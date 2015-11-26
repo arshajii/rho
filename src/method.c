@@ -18,10 +18,14 @@ static void methobj_free(Value *this)
 	meth->base.class->super->del(this);
 }
 
-static Value methobj_invoke(Value *this, Value *args, size_t nargs)
+static Value methobj_invoke(Value *this,
+                            Value *args,
+                            Value *args_named,
+                            size_t nargs,
+                            size_t nargs_named)
 {
 	Method *meth = objvalue(this);
-	return meth->method(&makeobj(meth->binder), args, nargs);
+	return meth->method(&makeobj(meth->binder), args, args_named, nargs, nargs_named);
 }
 
 struct num_methods meth_num_methods = {

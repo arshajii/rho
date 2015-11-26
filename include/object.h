@@ -29,7 +29,11 @@ typedef void (*StrUnOp)(Value *this, Str *dest);
 
 typedef Value (*InitFunc)(Value *this, Value *args, size_t nargs);
 typedef void (*DelFunc)(Value *this);
-typedef Value (*CallFunc)(Value *this, Value *args, size_t nargs);
+typedef Value (*CallFunc)(Value *this,
+                          Value *args,
+                          Value *args_named,
+                          size_t nargs,
+                          size_t nargs_named);
 typedef int (*PrintFunc)(Value *this, FILE *out);
 typedef size_t (*LenFunc)(Value *this);
 typedef Value (*SeqSetFunc)(Value *this, Value *idx, Value *v);

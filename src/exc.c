@@ -340,12 +340,43 @@ Value type_exc_not_iterator(const Class *c1)
 	return TYPE_EXC("object of type '%s' is not an iterator", c1->name);
 }
 
-Value call_exc_args(const char *fn, unsigned int expected, unsigned int got)
+Value call_exc_num_args(const char *fn, unsigned int expected, unsigned int got)
 {
 	return TYPE_EXC("function %s(): expected %u arguments, got %u",
 	                fn,
 	                expected,
 	                got);
+}
+
+Value call_exc_dup_arg(const char *fn, const char *name)
+{
+	return TYPE_EXC("function %s(): duplicate argument for parameter '%s'",
+	                fn,
+	                name);
+}
+
+Value call_exc_unknown_arg(const char *fn, const char *name)
+{
+	return TYPE_EXC("function %s(): unknown parameter name '%s'",
+	                fn,
+	                name);
+}
+
+Value call_exc_missing_arg(const char *fn, const char *name)
+{
+	return TYPE_EXC("function %s(): missing argument for parameter '%s'",
+	                fn,
+	                name);
+}
+
+Value call_exc_native_named_args(void)
+{
+	return TYPE_EXC("native functions do not take named arguments");
+}
+
+Value call_exc_constructor_named_args(void)
+{
+	return TYPE_EXC("constructors do not take named arguments");
 }
 
 Value attr_exc_not_found(const Class *type, const char *attr)

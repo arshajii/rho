@@ -34,7 +34,11 @@ struct attr_member {
 #define ATTR_FLAG_TYPE_STRICT  (1 << 3)
 
 struct value;
-typedef struct value (*MethodFunc)(struct value *this, struct value *args, size_t nargs);
+typedef struct value (*MethodFunc)(struct value *this,
+                                   struct value *args,
+                                   struct value *args_named,
+                                   size_t nargs,
+                                   size_t nargs_named);
 
 /*
  * A class's method attributes are delineated via

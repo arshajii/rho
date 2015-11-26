@@ -146,7 +146,13 @@ static void parse_err_invalid_break(Parser *p, Token *tok);
 static void parse_err_invalid_continue(Parser *p, Token *tok);
 static void parse_err_invalid_return(Parser *p, Token *tok);
 static void parse_err_too_many_params(Parser *p, Token *tok);
-static void parse_err_dup_params(Parser *p, Token *tok);
+static void parse_err_dup_params(Parser *p, Token *tok, const char *param);
+static void parse_err_non_default_after_default(Parser *p, Token *tok);
+static void parse_err_malformed_params(Parser *p, Token *tok);
+static void parse_err_too_many_args(Parser *p, Token *tok);
+static void parse_err_dup_named_args(Parser *p, Token *tok, const char *name);
+static void parse_err_unnamed_after_named(Parser *p, Token *tok);
+static void parse_err_malformed_args(Parser *p, Token *tok);
 static void parse_err_empty_catch(Parser *p, Token *tok);
 
 Parser *parser_new(char *str, const char *name)
@@ -374,11 +380,6 @@ static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec, bool allow_ass
 	return lhs;
 }
 
-static AST *parse_arg(Parser *p)
-{
-	return parse_expr_no_assign(p);
-}
-
 /*
  * Parses a single unit of code. One of:
  *
@@ -481,11 +482,68 @@ static AST *parse_atom(Parser *p)
 			break;
 		}
 		case TOK_PAREN_OPEN: {
+			unsigned int nargs;
 			ParamList *params = parse_comma_separated_list(p,
 			                                               TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
-														   parse_arg,
-			                                               NULL);
+			                                               parse_expr,
+			                                               &nargs);
+
 			ERROR_CHECK_AST(p, params, ast);
+
+			/* argument syntax check */
+			for (struct ast_list *param = params; param != NULL; param = param->next) {
+				if (IS_ASSIGNMENT(param->ast->type) &&
+				      (param->ast->type != NODE_ASSIGN ||
+				       param->ast->left->type != NODE_IDENT)) {
+					parse_err_malformed_args(p, tok);
+					ast_list_free(params);
+					ast_free(ast);
+					return NULL;
+				}
+			}
+
+			if (nargs > FUNCTION_MAX_PARAMS) {
+				parse_err_too_many_args(p, tok);
+				ast_list_free(params);
+				ast_free(ast);
+				return NULL;
+			}
+
+			/* no unnamed arguments after named ones */
+			bool named = false;
+			for (struct ast_list *param = params; param != NULL; param = param->next) {
+				if (param->ast->type == NODE_ASSIGN) {
+					named = true;
+				} else if (named) {
+					parse_err_unnamed_after_named(p, tok);
+					ast_list_free(params);
+					ast_free(ast);
+					return NULL;
+				}
+			}
+
+			/* no duplicate named arguments */
+			for (struct ast_list *param = params; param != NULL; param = param->next) {
+				if (param->ast->type != NODE_ASSIGN) {
+					continue;
+				}
+				AST *ast1 = param->ast->left;
+
+				for (struct ast_list *check = params; check != param; check = check->next) {
+					if (check->ast->type != NODE_ASSIGN) {
+						continue;
+					}
+					AST *ast2 = check->ast->left;
+
+					if (str_eq(ast1->v.ident, ast2->v.ident)) {
+						parse_err_dup_named_args(p, tok, ast1->v.ident->value);
+						ast_list_free(params);
+						ast_free(ast);
+						return NULL;
+					}
+				}
+			}
+
 			AST *call = ast_new(NODE_CALL, ast, NULL, tok->lineno);
 			call->v.params = params;
 			ast = call;
@@ -776,20 +834,53 @@ static AST *parse_def(Parser *p)
 	AST *name = parse_ident(p);
 	ERROR_CHECK(p);
 
-	unsigned int nargs = 0;
+	unsigned int nargs;
 	ParamList *params = parse_comma_separated_list(p,
 	                                               TOK_PAREN_OPEN, TOK_PAREN_CLOSE,
-	                                               parse_ident,
+	                                               parse_expr,
 	                                               &nargs);
 	ERROR_CHECK_AST(p, params, name);
 
-	/* we shouldn't have duplicate parameter names */
+	/* parameter syntax check */
 	for (struct ast_list *param = params; param != NULL; param = param->next) {
+		if (!((param->ast->type == NODE_ASSIGN && param->ast->left->type == NODE_IDENT) ||
+		       param->ast->type == NODE_IDENT)) {
+			parse_err_malformed_params(p, name_tok);
+			ast_list_free(params);
+			ast_free(name);
+			return NULL;
+		}
+	}
+
+	if (nargs > FUNCTION_MAX_PARAMS) {
+		parse_err_too_many_params(p, name_tok);
+		ast_list_free(params);
+		ast_free(name);
+		return NULL;
+	}
+
+	/* no non-default parameters after default ones */
+	bool dflt = false;
+	for (struct ast_list *param = params; param != NULL; param = param->next) {
+		if (param->ast->type == NODE_ASSIGN) {
+			dflt = true;
+		} else if (dflt) {
+			parse_err_non_default_after_default(p, name_tok);
+			ast_list_free(params);
+			ast_free(name);
+			return NULL;
+		}
+	}
+
+	/* no duplicate parameter names */
+	for (struct ast_list *param = params; param != NULL; param = param->next) {
+		AST *ast1 = (param->ast->type == NODE_ASSIGN) ? param->ast->left : param->ast;
 		for (struct ast_list *check = params; check != param; check = check->next) {
-			if (str_eq(param->ast->v.ident, check->ast->v.ident)) {
+			AST *ast2 = (check->ast->type == NODE_ASSIGN) ? check->ast->left : check->ast;
+			if (str_eq(ast1->v.ident, ast2->v.ident)) {
+				parse_err_dup_params(p, name_tok, ast1->v.ident->value);
 				ast_free(name);
 				ast_list_free(params);
-				parse_err_dup_params(p, name_tok);
 				return NULL;
 			}
 		}
@@ -807,14 +898,6 @@ static AST *parse_def(Parser *p)
 		assert(body == NULL);
 		ast_free(name);
 		ast_list_free(params);
-		return NULL;
-	}
-
-	if (nargs > FUNCTION_MAX_PARAMS) {
-		ast_free(name);
-		ast_free(body);
-		ast_list_free(params);
-		parse_err_too_many_params(p, name_tok);
 		return NULL;
 	}
 
@@ -1328,14 +1411,74 @@ static void parse_err_too_many_params(Parser *p, Token *tok)
 	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_TOO_MANY_PARAMETERS);
 }
 
-static void parse_err_dup_params(Parser *p, Token *tok)
+static void parse_err_dup_params(Parser *p, Token *tok, const char *param)
 {
 	const char *tok_err = err_on_tok(p, tok);
 	PARSER_SET_ERROR_MSG(p,
-	                     str_format(SYNTAX_ERROR " function has duplicate parameter\n\n%s",
-	                                p->name, tok->lineno, tok_err));
+	                     str_format(SYNTAX_ERROR " function has duplicate parameter '%s'\n\n%s",
+	                                p->name, tok->lineno, param, tok_err));
 	FREE(tok_err);
 	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_DUPLICATE_PARAMETERS);
+}
+
+static void parse_err_non_default_after_default(Parser *p, Token *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " non-default parameter after default parameter\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_NON_DEFAULT_AFTER_DEFAULT_PARAMETERS);
+}
+
+static void parse_err_malformed_params(Parser *p, Token *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " function has malformed parameters\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_MALFORMED_PARAMETERS);
+}
+
+static void parse_err_too_many_args(Parser *p, Token *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " function call has too many arguments (max %d)\n\n%s",
+	                                p->name, tok->lineno, FUNCTION_MAX_PARAMS, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_TOO_MANY_ARGUMENTS);
+}
+
+static void parse_err_dup_named_args(Parser *p, Token *tok, const char *name)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " function call has duplicate named argument '%s'\n\n%s",
+	                                p->name, tok->lineno, name, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_DUPLICATE_NAMED_ARGUMENTS);
+}
+
+static void parse_err_unnamed_after_named(Parser *p, Token *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " unnamed arguments after named arguments\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNNAMED_AFTER_NAMED_ARGUMENTS);
+}
+
+static void parse_err_malformed_args(Parser *p, Token *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " function call has malformed arguments\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_MALFORMED_ARGUMENTS);
 }
 
 static void parse_err_empty_catch(Parser *p, Token *tok)

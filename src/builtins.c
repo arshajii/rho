@@ -34,7 +34,7 @@ const struct builtin builtins[] = {
 		{NULL,   makeempty()},
 };
 
-#define ARG_ERR(count, expected) return call_exc_args(__FUNCTION__, count, expected)
+#define ARG_ERR(count, expected) return call_exc_num_args(__FUNCTION__, count, expected)
 #define ARG_CHECK(count, expected) if (count != expected) ARG_ERR(count, expected)
 
 #define TYPE_ERROR(class) return makeerr(type_error_unsupported_1(__FUNCTION__, class))

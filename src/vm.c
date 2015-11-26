@@ -958,16 +958,27 @@ void vm_eval_frame(VM *vm)
 			break;
 		}
 		case INS_CALL: {
-			const unsigned int argcount = GET_UINT16();
+			const unsigned int x = GET_UINT16();
+			const unsigned int nargs = (x & 0xff);
+			const unsigned int nargs_named = (x >> 8);
 			v1 = STACK_POP();
-			res = op_call(v1, stack - argcount, argcount);
+			res = op_call(v1,
+			              stack - nargs_named*2 - nargs,
+			              stack - nargs_named*2,
+						  nargs,
+						  nargs_named);
 
 			release(v1);
 			if (iserror(&res)) {
 				goto error;
 			}
 
-			for (unsigned int i = 0; i < argcount; i++) {
+			for (unsigned int i = 0; i < nargs_named; i++) {
+				release(STACK_POP());  // value
+				release(STACK_POP());  // name
+			}
+
+			for (unsigned int i = 0; i < nargs; i++) {
 				release(STACK_POP());
 			}
 
@@ -1124,6 +1135,18 @@ void vm_eval_frame(VM *vm)
 				pos += jmp;
 			} else {
 				STACK_PUSH(res);
+			}
+
+			break;
+		}
+		case INS_CODEOBJ_INIT: {
+			const unsigned int num_defaults = GET_UINT16();
+
+			CodeObject *co = objvalue(stack - num_defaults - 1);
+			codeobj_init_defaults(co, stack - num_defaults, num_defaults);
+
+			for (unsigned i = 0; i < num_defaults; i++) {
+				release(STACK_POP());
 			}
 
 			break;

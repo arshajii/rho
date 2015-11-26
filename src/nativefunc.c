@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "object.h"
 #include "util.h"
+#include "exc.h"
 #include "nativefunc.h"
 
 static void nativefunc_free(Value *nfunc)
@@ -13,8 +14,18 @@ static void nativefunc_free(Value *nfunc)
 	UNUSED(nfunc);
 }
 
-static Value nativefunc_call(Value *this, Value *args, size_t nargs)
+static Value nativefunc_call(Value *this,
+                             Value *args,
+                             Value *args_named,
+                             size_t nargs,
+                             size_t nargs_named)
 {
+	UNUSED(args_named);
+
+	if (nargs_named > 0) {
+		return call_exc_native_named_args();
+	}
+
 	NativeFuncObject *nfunc = objvalue(this);
 	return nfunc->func(args, nargs);
 }

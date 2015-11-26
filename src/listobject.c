@@ -132,10 +132,22 @@ static Value list_set(Value *this, Value *idx, Value *v)
 	return old;
 }
 
-static Value list_append(Value *this, Value *args, size_t nargs)
+#define NAMED_ARGS_CHECK(name) \
+		if (nargs_named > 0) return TYPE_EXC(name "() takes no named arguments")
+
+static Value list_append(Value *this,
+                         Value *args,
+                         Value *args_named,
+                         size_t nargs,
+                         size_t nargs_named)
 {
+#define NAME "append"
+
+	UNUSED(args_named);
+	NAMED_ARGS_CHECK(NAME);
+
 	if (nargs != 1) {
-		return TYPE_EXC("append() takes exactly 1 argument (got %lu)", nargs);
+		return TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
 	}
 
 	ListObject *list = objvalue(this);
@@ -146,12 +158,23 @@ static Value list_append(Value *this, Value *args, size_t nargs)
 	list->elements[list->count++] = args[0];
 
 	return makeint(0);
+
+#undef NAME
 }
 
-static Value list_pop(Value *this, Value *args, size_t nargs)
+static Value list_pop(Value *this,
+                      Value *args,
+                      Value *args_named,
+                      size_t nargs,
+                      size_t nargs_named)
 {
+#define NAME "pop"
+
+	UNUSED(args_named);
+	NAMED_ARGS_CHECK(NAME);
+
 	if (nargs >= 2) {
-		return TYPE_EXC("pop() takes at most 1 argument (got %lu)", nargs);
+		return TYPE_EXC(NAME "() takes at most 1 argument (got %lu)", nargs);
 	}
 
 	ListObject *list = objvalue(this);
@@ -162,7 +185,7 @@ static Value list_pop(Value *this, Value *args, size_t nargs)
 		if (count > 0) {
 			return elements[--list->count];
 		} else {
-			return INDEX_EXC("cannot invoke pop() on an empty list");
+			return INDEX_EXC("cannot invoke " NAME "() on an empty list");
 		}
 	} else {
 		Value *idx = &args[0];
@@ -179,15 +202,26 @@ static Value list_pop(Value *this, Value *args, size_t nargs)
 			return ret;
 		} else {
 			Class *class = getclass(idx);
-			return TYPE_EXC("pop() requires an integer argument (got a %s)", class->name);
+			return TYPE_EXC(NAME "() requires an integer argument (got a %s)", class->name);
 		}
 	}
+
+#undef NAME
 }
 
-static Value list_insert(Value *this, Value *args, size_t nargs)
+static Value list_insert(Value *this,
+                         Value *args,
+                         Value *args_named,
+                         size_t nargs,
+                         size_t nargs_named)
 {
+#define NAME "insert"
+
+	UNUSED(args_named);
+	NAMED_ARGS_CHECK(NAME);
+
 	if (nargs != 2) {
-		return TYPE_EXC("insert() takes exactly 1 argument (got %lu)", nargs);
+		return TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
 	}
 
 	ListObject *list = objvalue(this);
@@ -198,7 +232,7 @@ static Value list_insert(Value *this, Value *args, size_t nargs)
 
 	if (!isint(idx)) {
 		Class *class = getclass(idx);
-		return TYPE_EXC("insert() requires an integer as its first argument (got a %s)", class->name);
+		return TYPE_EXC(NAME "() requires an integer as its first argument (got a %s)", class->name);
 	}
 
 	const long idx_raw = intvalue(idx);
@@ -216,6 +250,8 @@ static Value list_insert(Value *this, Value *args, size_t nargs)
 	elements[idx_raw] = *e;
 	++list->count;
 	return makeint(0);
+
+#undef NAME
 }
 
 static Value list_iter(Value *this)
