@@ -169,6 +169,9 @@ Class *getclass(Value *v)
 		return NULL;
 	}
 	}
+
+	INTERNAL_ERROR();
+	return NULL;
 }
 
 /*
