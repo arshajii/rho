@@ -169,6 +169,12 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 		assert(ast->left->type == NODE_IDENT);
 		assert(ast->right->type == NODE_BLOCK);
 
+		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
+			if (node->ast->type == NODE_ASSIGN) {
+				populate_symtable_from_node(st, node->ast->right);
+			}
+		}
+
 		STEntry *parent = st->ste_current;
 		STEntry *child = parent->children[parent->child_pos++];
 
