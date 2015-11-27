@@ -1031,7 +1031,7 @@ static AST *parse_block(Parser *p)
 		ERROR_CHECK(p);
 		block_head = ast_list_new();
 		block_head->ast = parse_stmt(p);
-		ERROR_CHECK(p);
+		ERROR_CHECK_LIST(p, block_head->ast, block_head);
 	} else {
 		brace_open = expect(p, TOK_BRACE_OPEN);
 		ERROR_CHECK(p);
