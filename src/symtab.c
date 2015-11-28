@@ -1,5 +1,7 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 #include <assert.h>
 #include "ast.h"
 #include "str.h"
@@ -183,6 +185,15 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 		st->ste_current = parent;
 		break;
 	}
+	case NODE_LAMBDA: {
+		STEntry *parent = st->ste_current;
+		STEntry *child = parent->children[parent->child_pos++];
+
+		st->ste_current = child;
+		populate_symtable_from_node(st, ast->left);
+		st->ste_current = parent;
+		break;
+	}
 	case NODE_CALL: {
 		populate_symtable_from_node(st, ast->left);
 		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
@@ -284,6 +295,38 @@ static void register_bindings_from_node(SymTable *st, AST *ast)
 		st->ste_current = child->parent;
 		break;
 	}
+	case NODE_LAMBDA: {
+		STEntry *child = ste_new("<lambda>", FUNCTION);
+		const unsigned int max_dollar_ident = ast->v.max_dollar_ident;
+		assert(max_dollar_ident <= 128);
+
+		char buf[4];
+		for (unsigned i = 1; i <= max_dollar_ident; i++) {
+			sprintf(buf, "$%u", i);
+			Str *ident = str_new_copy(buf, strlen(buf));
+			ident->freeable = 1;
+			ste_register_ident(child, ident, FLAG_BOUND_HERE | FLAG_FUNC_PARAM);
+		}
+
+		ste_add_child(st->ste_current, child);
+		st->ste_current = child;
+		register_bindings_from_node(st, ast->left);
+		st->ste_current = child->parent;
+		break;
+	}
+	case NODE_CALL: {
+		register_bindings_from_node(st, ast->left);
+		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
+			register_bindings_from_node(st, node->ast);
+		}
+		break;
+	}
+	case NODE_LIST:
+	case NODE_TUPLE:
+		for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+			register_bindings_from_node(st, node->ast);
+		}
+		break;
 	default:
 		register_bindings_from_node(st, ast->left);
 		register_bindings_from_node(st, ast->right);
@@ -560,6 +603,11 @@ static void stsymbol_free(STSymbol *entry)
 	while (entry != NULL) {
 		STSymbol *temp = entry;
 		entry = entry->next;
+
+		if (temp->key->freeable) {
+			str_free(temp->key);
+		}
+
 		free(temp);
 	}
 }

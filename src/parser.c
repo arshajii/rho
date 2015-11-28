@@ -112,6 +112,7 @@ static AST *parse_int(Parser *p);
 static AST *parse_float(Parser *p);
 static AST *parse_str(Parser *p);
 static AST *parse_ident(Parser *p);
+static AST *parse_dollar_ident(Parser *p);
 
 static AST *parse_print(Parser *p);
 static AST *parse_if(Parser *p);
@@ -128,6 +129,7 @@ static AST *parse_export(Parser *p);
 
 static AST *parse_block(Parser *p);
 static AST *parse_list(Parser *p);
+static AST *parse_lambda(Parser *p);
 
 static AST *parse_empty(Parser *p);
 
@@ -154,6 +156,7 @@ static void parse_err_dup_named_args(Parser *p, Token *tok, const char *name);
 static void parse_err_unnamed_after_named(Parser *p, Token *tok);
 static void parse_err_malformed_args(Parser *p, Token *tok);
 static void parse_err_empty_catch(Parser *p, Token *tok);
+static void parse_err_misplaced_dollar_identifier(Parser *p, Token *tok);
 
 Parser *parser_new(char *str, const char *name)
 {
@@ -171,6 +174,7 @@ Parser *parser_new(char *str, const char *name)
 	p->peek = NULL;
 	p->name = name;
 	p->in_function = 0;
+	p->in_lambda = 0;
 	p->in_loop = 0;
 	p->error_type = PARSE_ERR_NONE;
 	p->error_msg = NULL;
@@ -443,16 +447,21 @@ static AST *parse_atom(Parser *p)
 	case TOK_IDENT:
 		ast = parse_ident(p);
 		break;
+	case TOK_DOLLAR:
+		ast = parse_dollar_ident(p);
+		break;
 	case TOK_BRACK_OPEN:
 		ast = parse_list(p);
 		break;
 	case TOK_NOT:
 	case TOK_BITNOT:
 	case TOK_PLUS:
-	case TOK_MINUS: {
+	case TOK_MINUS:
 		ast = parse_unop(p);
 		break;
-	}
+	case TOK_COLON:
+		ast = parse_lambda(p);
+		break;
 	default:
 		parse_err_unexpected_token(p, tok);
 		ast = NULL;
@@ -718,6 +727,33 @@ static AST *parse_ident(Parser *p)
 	return ast;
 }
 
+static AST *parse_dollar_ident(Parser *p)
+{
+	Token *tok = expect(p, TOK_DOLLAR);
+	ERROR_CHECK(p);
+
+	if (!p->in_lambda) {
+		parse_err_misplaced_dollar_identifier(p, tok);
+		return NULL;
+	}
+
+	const unsigned int value = atoi(&tok->value[1]);
+	assert(value > 0);
+
+	if (value > FUNCTION_MAX_PARAMS) {
+		parse_err_too_many_params(p, tok);
+		return NULL;
+	}
+
+	if (value > p->max_dollar_ident) {
+		p->max_dollar_ident = value;
+	}
+
+	AST *ast = ast_new(NODE_IDENT, NULL, NULL, tok->lineno);
+	ast->v.ident = str_new_copy(tok->value, tok->length);
+	return ast;
+}
+
 static AST *parse_print(Parser *p)
 {
 	Token *tok = expect(p, TOK_PRINT);
@@ -887,11 +923,14 @@ static AST *parse_def(Parser *p)
 	}
 
 	const unsigned old_in_function = p->in_function;
+	const unsigned old_in_lambda = p->in_lambda;
 	const unsigned old_in_loop = p->in_loop;
 	p->in_function = 1;
+	p->in_lambda = 0;
 	p->in_loop = 0;
 	AST *body = parse_block(p);
 	p->in_function = old_in_function;
+	p->in_lambda = old_in_lambda;
 	p->in_loop = old_in_loop;
 
 	if (PARSER_ERROR(p)) {
@@ -1094,6 +1133,34 @@ static AST *parse_list(Parser *p)
 	ERROR_CHECK(p);
 	AST *ast = ast_new(NODE_LIST, NULL, NULL, brack_open->lineno);
 	ast->v.list = list_head;
+	return ast;
+}
+
+static AST *parse_lambda(Parser *p)
+{
+	Token *colon = parser_peek_token(p);
+	expect(p, TOK_COLON);
+	ERROR_CHECK(p);
+
+	const unsigned old_max_dollar_ident = p->max_dollar_ident;
+	const unsigned old_in_function = p->in_function;
+	const unsigned old_in_lambda = p->in_lambda;
+	const unsigned old_in_loop = p->in_loop;
+	p->max_dollar_ident = 0;
+	p->in_function = 1;
+	p->in_loop = 0;
+	p->in_lambda = 1;
+	AST *body = parse_expr(p);
+	const unsigned int max_dollar_ident = p->max_dollar_ident;
+	p->max_dollar_ident = old_max_dollar_ident;
+	p->in_function = old_in_function;
+	p->in_lambda = old_in_lambda;
+	p->in_loop = old_in_loop;
+
+	ERROR_CHECK(p);
+
+	AST *ast = ast_new(NODE_LAMBDA, body, NULL, colon->lineno);
+	ast->v.max_dollar_ident = max_dollar_ident;
 	return ast;
 }
 
@@ -1489,4 +1556,14 @@ static void parse_err_empty_catch(Parser *p, Token *tok)
 	                                p->name, tok->lineno, tok_err));
 	FREE(tok_err);
 	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_EMPTY_CATCH);
+}
+
+static void parse_err_misplaced_dollar_identifier(Parser *p, Token *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	PARSER_SET_ERROR_MSG(p,
+	                     str_format(SYNTAX_ERROR " dollar identifier outside lambda\n\n%s",
+	                                p->name, tok->lineno, tok_err));
+	FREE(tok_err);
+	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_MISPLACED_DOLLAR_IDENTIFIER);
 }

@@ -72,6 +72,7 @@ typedef enum {
 	NODE_BLOCK,
 	NODE_LIST,
 	NODE_TUPLE,
+	NODE_LAMBDA,
 
 	NODE_CALL,
 	NODE_INDEX
@@ -102,6 +103,7 @@ typedef struct AST {
 		ParamList *params;
 		ExcList *excs;
 		struct ast_list *list;
+		unsigned int max_dollar_ident;
 	} v;
 
 	struct AST *left;

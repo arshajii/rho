@@ -550,6 +550,23 @@ static Token next_colon(Parser *p)
 	return tok;
 }
 
+static Token next_dollar_ident(Parser *p)
+{
+	assert(currc(p) == '$');
+
+	if (!isdigit(nextc(p)) || nextc(p) == '0') {
+		fwd(p);
+		PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNEXPECTED_CHAR);
+		Token x;
+		return x;
+	}
+
+	read_digits(p);
+	Token tok = get(p, TOK_DOLLAR);
+	fix(p);
+	return tok;
+}
+
 static Token next_semicolon(Parser *p)
 {
 	assert(currc(p) == ';');
@@ -649,6 +666,9 @@ void parser_tokenize(Parser *p)
 			case ':':
 				tok = next_colon(p);
 				break;
+			case '$':
+				tok = next_dollar_ident(p);
+				break;
 			case ';':
 				tok = next_semicolon(p);
 				break;
@@ -658,15 +678,13 @@ void parser_tokenize(Parser *p)
 			case '#':
 				pass_comment(p);
 				continue;
-			default: {
-				lex_err_unexpected_char(p, p->pos);
-				free(p->tokens);
-				p->tokens = NULL;
-				p->tok_count = 0;
-				p->tok_capacity = 0;
-				return;
+			default:
+				goto err;
 			}
-			}
+		}
+
+		if (PARSER_ERROR(p)) {
+			goto err;
 		}
 
 		add_token(p, &tok);
@@ -675,6 +693,14 @@ void parser_tokenize(Parser *p)
 	Token eof = eof_token();
 	eof.lineno = p->lineno;
 	add_token(p, &eof);
+	return;
+
+	err:
+	lex_err_unexpected_char(p, p->pos);
+	free(p->tokens);
+	p->tokens = NULL;
+	p->tok_count = 0;
+	p->tok_capacity = 0;
 }
 
 /*
@@ -747,7 +773,7 @@ static void lex_err_unexpected_char(Parser *p, const char *c)
 {
 	const char *tok_err = err_on_char(c, p->code, p->end, p->lineno);
 	PARSER_SET_ERROR_MSG(p,
-	                     str_format(SYNTAX_ERROR " unrecognized character: %c\n\n%s",
+	                     str_format(SYNTAX_ERROR " unexpected character: %c\n\n%s",
 	                                p->name, p->lineno, *c, tok_err));
 	FREE(tok_err);
 	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNEXPECTED_CHAR);

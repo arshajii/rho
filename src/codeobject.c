@@ -335,6 +335,11 @@ static Value codeobj_call(Value *this,
 	VM *vm = co->vm;
 
 	const unsigned int argcount = co->argcount;
+
+	if (nargs > argcount) {
+		return call_exc_num_args(co->name, argcount, nargs);
+	}
+
 	Value *locals = rho_calloc(argcount, sizeof(Value));
 
 	for (unsigned i = 0; i < nargs; i++) {

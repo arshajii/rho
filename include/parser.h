@@ -82,6 +82,7 @@ typedef enum {
 	/* miscellaneous tokens */
 	TOK_COMMA,
 	TOK_COLON,
+	TOK_DOLLAR,
 
 	/* statement terminators */
 	TOK_SEMICOLON,
@@ -137,9 +138,13 @@ typedef struct {
 	const char *error_msg;
 	int error_type;
 
+	/* maximum $N identifier in lambda */
+	unsigned int max_dollar_ident;
+
 	/* parse flags */
 	unsigned in_function : 1;
-	unsigned in_loop : 1;
+	unsigned in_lambda   : 1;
+	unsigned in_loop     : 1;
 } Parser;
 
 enum {
@@ -160,7 +165,8 @@ enum {
 	PARSE_ERR_DUPLICATE_NAMED_ARGUMENTS,
 	PARSE_ERR_UNNAMED_AFTER_NAMED_ARGUMENTS,
 	PARSE_ERR_MALFORMED_ARGUMENTS,
-	PARSE_ERR_EMPTY_CATCH
+	PARSE_ERR_EMPTY_CATCH,
+	PARSE_ERR_MISPLACED_DOLLAR_IDENTIFIER
 };
 
 Parser *parser_new(char *str, const char *name);

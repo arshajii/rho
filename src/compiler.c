@@ -209,6 +209,7 @@ static void compile_if(Compiler *compiler, AST *ast);
 static void compile_while(Compiler *compiler, AST *ast);
 static void compile_for(Compiler *compiler, AST *ast);
 static void compile_def(Compiler *compiler, AST *ast);
+static void compile_lambda(Compiler *compiler, AST *ast);
 static void compile_break(Compiler *compiler, AST *ast);
 static void compile_continue(Compiler *compiler, AST *ast);
 static void compile_return(Compiler *compiler, AST *ast);
@@ -221,8 +222,12 @@ static void compile_get_attr(Compiler *compiler, AST *ast);
 
 static int max_stack_depth(byte *bc, size_t len);
 
-static struct metadata compile_raw(Compiler *compiler, Program *program)
+static struct metadata compile_raw(Compiler *compiler, Program *program, bool is_single_expr)
 {
+	if (is_single_expr) {
+		assert(program->next == NULL);
+	}
+
 	fill_ct(compiler, program);
 	write_sym_table(compiler);
 	write_const_table(compiler);
@@ -235,8 +240,12 @@ static struct metadata compile_raw(Compiler *compiler, Program *program)
 		ast_node = ast_node->next;
 	}
 
-	write_ins(compiler, INS_LOAD_NULL, 0);
-	write_ins(compiler, INS_RETURN, 0);
+	if (is_single_expr) {
+		write_ins(compiler, INS_RETURN, 0);
+	} else {
+		write_ins(compiler, INS_LOAD_NULL, 0);
+		write_ins(compiler, INS_RETURN, 0);
+	}
 
 	Code *code = &compiler->code;
 	Code *lno_table = &compiler->lno_table;
@@ -279,7 +288,7 @@ static struct metadata compile_raw(Compiler *compiler, Program *program)
 static struct metadata compile_program(Compiler *compiler, Program *program)
 {
 	populate_symtable(compiler->st, program);
-	return compile_raw(compiler, program);
+	return compile_raw(compiler, program, false);
 }
 
 static void compile_const(Compiler *compiler, AST *ast)
@@ -300,10 +309,8 @@ static void compile_const(Compiler *compiler, AST *ast)
 		value.type = CT_STRING;
 		value.value.s = ast->v.str_val;
 		break;
-	case NODE_BLOCK: {
-		/*
-		 * a block indicates a function
-		 */
+	case NODE_DEF:
+	case NODE_LAMBDA: {
 		const unsigned int const_id = ct_poll_codeobj(compiler->ct);
 		write_ins(compiler, INS_LOAD_CONST, lineno);
 		write_uint16(compiler, const_id);
@@ -683,7 +690,7 @@ static void compile_def(Compiler *compiler, AST *ast)
 		INTERNAL_ERROR();
 	}
 
-	compile_const(compiler, ast->right);
+	compile_const(compiler, ast);
 
 	bool flip = false;  // sanity check: no non-default args after default ones
 	unsigned int num_default = 0;
@@ -705,6 +712,12 @@ static void compile_def(Compiler *compiler, AST *ast)
 
 	write_ins(compiler, INS_STORE, lineno);
 	write_uint16(compiler, sym->id);
+}
+
+static void compile_lambda(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_LAMBDA);
+	compile_const(compiler, ast);
 }
 
 static void compile_break(Compiler *compiler, AST *ast)
@@ -1047,6 +1060,9 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_DEF:
 		compile_def(compiler, ast);
 		break;
+	case NODE_LAMBDA:
+		compile_lambda(compiler, ast);
+		break;
 	case NODE_BREAK:
 		compile_break(compiler, ast);
 		break;
@@ -1242,22 +1258,36 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		value.type = CT_STRING;
 		value.value.s = ast->v.str_val;
 		break;
-	case NODE_DEF: {
+	case NODE_DEF:
+	case NODE_LAMBDA: {
 		value.type = CT_CODEOBJ;
 
 		SymTable *st = compiler->st;
 		STEntry *parent = compiler->st->ste_current;
 		STEntry *child = parent->children[parent->child_pos++];
 
-		unsigned int nargs = 0;
-		for (struct ast_list *param = ast->v.params; param != NULL; param = param->next) {
-			if (param->ast->type == NODE_ASSIGN) {
-				fill_ct_from_ast(compiler, param->ast->right);
+		unsigned int nargs;
+
+		if (ast->type == NODE_DEF) {
+			nargs = 0;
+			for (struct ast_list *param = ast->v.params; param != NULL; param = param->next) {
+				if (param->ast->type == NODE_ASSIGN) {
+					fill_ct_from_ast(compiler, param->ast->right);
+				}
+				++nargs;
 			}
-			++nargs;
+		} else {
+			nargs = ast->v.max_dollar_ident;
 		}
 
-		Block *body = ast->right->v.block;
+		Block *body;
+
+		if (ast->type == NODE_DEF) {
+			body = ast->right->v.block;
+		} else {
+			body = ast_list_new();
+			body->ast = ast->left;
+		}
 
 		unsigned int lineno;
 		if (body == NULL) {
@@ -1269,7 +1299,7 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		st->ste_current = child;
 		Compiler *sub = compiler_new(compiler->filename, lineno, st);
 
-		struct metadata metadata = compile_raw(sub, body);
+		struct metadata metadata = compile_raw(sub, body, (ast->type == NODE_LAMBDA));
 		st->ste_current = parent;
 
 		Code *subcode = &sub->code;
@@ -1279,17 +1309,24 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 
 		Code *fncode = rho_malloc(sizeof(Code));
 
-		const size_t name_len = ast->left->v.ident->len;
+#define LAMBDA "<lambda>"
+		Str name = (ast->type == NODE_DEF) ? *ast->left->v.ident : STR_INIT(LAMBDA, strlen(LAMBDA), 0);
+#undef LAMBDA
 
-		code_init(fncode, (name_len + 1) + 2 + 2 + 2 + subcode->size);  // total size
-		code_write_str(fncode, ast->left->v.ident);                     // name
-		code_write_uint16(fncode, nargs);                               // argument count
-		code_write_uint16(fncode, max_vstack_depth);                    // max stack depth
-		code_write_uint16(fncode, max_try_catch_depth);                 // max try-catch depth
+		code_init(fncode, (name.len + 1) + 2 + 2 + 2 + subcode->size);  // total size
+		code_write_str(fncode, &name);                                       // name
+		code_write_uint16(fncode, nargs);                                   // argument count
+		code_write_uint16(fncode, max_vstack_depth);                        // max stack depth
+		code_write_uint16(fncode, max_try_catch_depth);                     // max try-catch depth
 		code_append(fncode, subcode);
 
 		compiler_free(sub, false);
 		value.value.c = fncode;
+
+		if (ast->type != NODE_DEF) {
+			free(body);
+		}
+
 		break;
 	}
 	case NODE_IF:
