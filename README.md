@@ -67,6 +67,9 @@ a = 1
         <b>return</b> x**2
     }
 
-    <b>return</b> (square(a) + square(b)) ** 0.5
+    <i># functions can be anonymous:</i>
+	sqrt = :($1 ** 0.5)
+
+    <b>return</b> sqrt(square(a) + square(b))
 }
 </pre>
