@@ -234,10 +234,8 @@ static struct metadata compile_raw(Compiler *compiler, Program *program, bool is
 
 	const size_t start_size = compiler->code.size;
 
-	struct ast_list *ast_node = program;
-	while (ast_node != NULL) {
-		compile_node(compiler, ast_node->ast, true);
-		ast_node = ast_node->next;
+	for (struct ast_list *node = program; node != NULL; node = node->next) {
+		compile_node(compiler, node->ast, !is_single_expr);
 	}
 
 	if (is_single_expr) {
