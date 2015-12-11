@@ -31,13 +31,7 @@ More recent items are added to the top. Items followed by a question mark as in 
       
   - [x] Update the parser to allow for `def` statements to define functions.
     
-  - [x] The function definition syntax (for proof-of-concept purposes) is currently:
-
-      def foo {...}
-
-   Parameters should also be incorporated so as to produce the more conventional form:
-
-      def foo(...) {...}
+  - [x] The function definition syntax (for proof-of-concept purposes) is currently `def foo {...}`. Parameters should also be incorporated so as to produce the more conventional form `def foo(...) {...}`
           
 - [x] Implement a more robust parser.
 
