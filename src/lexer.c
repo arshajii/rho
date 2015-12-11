@@ -609,7 +609,7 @@ static Token eof_token(void)
 static void pass_comment(Parser *p)
 {
 	assert(currc(p) == '#');
-	while (currc(p) != '\n' && nextc(p) != EOF) {
+	while (currc(p) != '\n' && currc(p) != '\0') {
 		fwd(p);
 	}
 }
