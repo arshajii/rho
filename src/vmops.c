@@ -403,6 +403,49 @@ Value op_set(Value *v, Value *idx, Value *e)
 	return set(v, idx, e);
 }
 
+Value op_apply(Value *v, Value *fn)
+{
+	Class *class = getclass(v);
+	BinOp apply = resolve_apply(class);
+
+	if (!apply) {
+		return type_exc_cannot_apply(class);
+	}
+
+	Class *fn_class = getclass(fn);
+	if (!resolve_call(fn_class)) {
+		return type_exc_not_callable(fn_class);
+	}
+
+	return apply(v, fn);
+}
+
+Value op_iapply(Value *v, Value *fn)
+{
+	Class *class = getclass(v);
+	BinOp iapply = resolve_iapply(class);
+
+	Class *fn_class = getclass(fn);
+
+	if (!resolve_call(fn_class)) {
+		return type_exc_not_callable(fn_class);
+	}
+
+	if (!iapply) {
+		BinOp apply = resolve_apply(class);
+
+		if (!apply) {
+			return type_exc_cannot_apply(class);
+		}
+
+		Value ret = apply(v, fn);
+		release(v);
+		return ret;
+	}
+
+	return iapply(v, fn);
+}
+
 Value op_get_attr(Value *v, const char *attr)
 {
 	Class *class = getclass(v);

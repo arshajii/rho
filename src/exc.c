@@ -320,6 +320,11 @@ Value type_exc_cannot_index(const Class *c1)
 	return TYPE_EXC("type '%s' does not support indexing", c1->name);
 }
 
+Value type_exc_cannot_apply(const Class *c1)
+{
+	return TYPE_EXC("type '%s' does not support function application", c1->name);
+}
+
 Value type_exc_cannot_instantiate(const Class *c1)
 {
 	return TYPE_EXC("class '%s' cannot be instantiated", c1->name);

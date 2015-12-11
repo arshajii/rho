@@ -132,6 +132,31 @@ static Value list_set(Value *this, Value *idx, Value *v)
 	return old;
 }
 
+static Value list_apply(Value *this, Value *fn)
+{
+	ListObject *list = objvalue(this);
+	CallFunc call = resolve_call(getclass(fn));  // this should've been checked already
+
+	Value list2_value = list_make(list->elements, list->count);
+	ListObject *list2 = objvalue(&list2_value);
+	Value *elements = list2->elements;
+	const size_t count = list2->count;
+
+	for (size_t i = 0; i < count; i++) {
+		Value r = call(fn, &elements[i], NULL, 1, 0);
+
+		if (iserror(&r)) {
+			list2->count = i;
+			list_free(&makeobj(list2));
+			return r;
+		}
+
+		elements[i] = r;
+	}
+
+	return makeobj(list2);
+}
+
 #define NAMED_ARGS_CHECK(name) \
 		if (nargs_named > 0) return TYPE_EXC(name "() takes no named arguments")
 
@@ -332,6 +357,8 @@ struct seq_methods list_seq_methods = {
 	list_get,    /* get */
 	list_set,    /* set */
 	NULL,    /* contains */
+	list_apply,    /* apply */
+	NULL,    /* iapply */
 };
 
 struct attr_method list_methods[] = {
@@ -403,6 +430,15 @@ static void iter_free(Value *this)
 	iter_class.del(this);
 }
 
+struct seq_methods list_iter_seq_methods = {
+	NULL,    /* len */
+	NULL,    /* get */
+	NULL,    /* set */
+	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
+};
+
 Class list_iter_class = {
 	.base = CLASS_BASE_INIT(),
 	.name = "ListIter",
@@ -425,7 +461,7 @@ Class list_iter_class = {
 	.iternext = iter_next,
 
 	.num_methods = NULL,
-	.seq_methods = NULL,
+	.seq_methods = &list_iter_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,

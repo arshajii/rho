@@ -113,6 +113,8 @@ struct seq_methods obj_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
 };
 
 Class obj_class = {
@@ -312,6 +314,8 @@ MAKE_METHOD_RESOLVER(len, seq_methods, LenFunc)
 MAKE_METHOD_RESOLVER(get, seq_methods, BinOp)
 MAKE_METHOD_RESOLVER(set, seq_methods, SeqSetFunc)
 MAKE_METHOD_RESOLVER(contains, seq_methods, BoolBinOp)
+MAKE_METHOD_RESOLVER(apply, seq_methods, BinOp)
+MAKE_METHOD_RESOLVER(iapply, seq_methods, BinOp)
 
 #undef MAKE_METHOD_RESOLVER_DIRECT
 #undef MAKE_METHOD_RESOLVER

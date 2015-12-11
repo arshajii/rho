@@ -82,6 +82,10 @@ Value op_get(Value *v, Value *idx);
 
 Value op_set(Value *v, Value *idx, Value *e);
 
+Value op_apply(Value *v, Value *fn);
+
+Value op_iapply(Value *v, Value *fn);
+
 Value op_get_attr(Value *v, const char *attr);
 
 Value op_get_attr_default(Value *v, const char *attr);

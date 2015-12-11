@@ -92,7 +92,9 @@ static const Op ops[] = {
 	{TOK_ASSIGN_XOR,    10,          true},
 	{TOK_ASSIGN_SHIFTL, 10,          true},
 	{TOK_ASSIGN_SHIFTR, 10,          true},
+	{TOK_ASSIGN_AT,     10,          true},
 	{TOK_DOT,           99,          true},
+	{TOK_AT,            91,          false},
 	{TOK_IN,             9,          true},
 };
 
@@ -1293,6 +1295,8 @@ static NodeType nodetype_from_op(Op op)
 		return NODE_LE;
 	case TOK_GE:
 		return NODE_GE;
+	case TOK_AT:
+		return NODE_APPLY;
 	case TOK_DOT:
 		return NODE_DOT;
 	case TOK_ASSIGN:
@@ -1319,6 +1323,8 @@ static NodeType nodetype_from_op(Op op)
 		return NODE_ASSIGN_SHIFTL;
 	case TOK_ASSIGN_SHIFTR:
 		return NODE_ASSIGN_SHIFTR;
+	case TOK_ASSIGN_AT:
+		return NODE_ASSIGN_APPLY;
 	case TOK_IN:
 		return NODE_IN;
 	default:

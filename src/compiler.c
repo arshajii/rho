@@ -937,6 +937,8 @@ static Opcode to_opcode(NodeType type)
 		return INS_LE;
 	case NODE_GE:
 		return INS_GE;
+	case NODE_APPLY:
+		return INS_APPLY;
 	case NODE_UPLUS:
 		return INS_NOP;
 	case NODE_UMINUS:
@@ -965,6 +967,8 @@ static Opcode to_opcode(NodeType type)
 		return INS_ISHIFTL;
 	case NODE_ASSIGN_SHIFTR:
 		return INS_ISHIFTR;
+	case NODE_ASSIGN_APPLY:
+		return INS_IAPPLY;
 	case NODE_IN:
 		return INS_IN;
 	default:
@@ -1007,6 +1011,7 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_GT:
 	case NODE_LE:
 	case NODE_GE:
+	case NODE_APPLY:
 	case NODE_IN:
 		compile_node(compiler, ast->left, false);
 		compile_node(compiler, ast->right, false);
@@ -1033,6 +1038,7 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_ASSIGN_XOR:
 	case NODE_ASSIGN_SHIFTL:
 	case NODE_ASSIGN_SHIFTR:
+	case NODE_ASSIGN_APPLY:
 		compile_assignment(compiler, ast);
 		break;
 	case NODE_BITNOT:
@@ -1541,6 +1547,8 @@ int arg_size(Opcode opcode)
 		return 2;
 	case INS_LOAD_INDEX:
 	case INS_SET_INDEX:
+	case INS_APPLY:
+	case INS_IAPPLY:
 		return 0;
 	case INS_LOAD_NAME:
 		return 2;
@@ -1691,6 +1699,9 @@ static int stack_delta(Opcode opcode, int arg)
 		return -1;
 	case INS_SET_INDEX:
 		return -3;
+	case INS_APPLY:
+	case INS_IAPPLY:
+		return -1;
 	case INS_LOAD_NAME:
 		return 1;
 	case INS_PRINT:

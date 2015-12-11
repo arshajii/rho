@@ -97,6 +97,8 @@ struct seq_methods {
 	BinOp get;
 	SeqSetFunc set;
 	BoolBinOp contains;
+	BinOp apply;
+	BinOp iapply;
 };
 
 struct class {
@@ -253,7 +255,9 @@ UnOp resolve_to_float(Class *class);
 LenFunc resolve_len(Class *class);
 BinOp resolve_get(Class *class);
 SeqSetFunc resolve_set(Class *class);
-BoolBinOp resolve_contains (Class *class);
+BoolBinOp resolve_contains(Class *class);
+BinOp resolve_apply(Class *class);
+BinOp resolve_iapply(Class *class);
 
 void *obj_alloc(Class *class);
 void *obj_alloc_var(Class *class, size_t extra);

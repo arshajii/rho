@@ -50,6 +50,7 @@ void exc_print_msg(Exception *e, FILE *out);
 Value type_exc_unsupported_1(const char *op, const Class *c1);
 Value type_exc_unsupported_2(const char *op, const Class *c1, const Class *c2);
 Value type_exc_cannot_index(const Class *c1);
+Value type_exc_cannot_apply(const Class *c1);
 Value type_exc_cannot_instantiate(const Class *c1);
 Value type_exc_not_callable(const Class *c1);
 Value type_exc_not_iterable(const Class *c1);

@@ -35,6 +35,7 @@ typedef enum {
 	TOK_GT,
 	TOK_LE,
 	TOK_GE,
+	TOK_AT,
 	TOK_DOT,
 	TOK_IN,  // really a keyword but treated as an operator in some contexts
 
@@ -52,6 +53,7 @@ typedef enum {
 	TOK_ASSIGN_XOR,
 	TOK_ASSIGN_SHIFTL,
 	TOK_ASSIGN_SHIFTR,
+	TOK_ASSIGN_AT,
 	TOK_ASSIGNMENTS_END,
 	TOK_OPS_END,    /* marker */
 

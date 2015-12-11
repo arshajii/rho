@@ -99,6 +99,8 @@ struct seq_methods module_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
 };
 
 Class module_class = {
@@ -206,6 +208,8 @@ struct seq_methods builtin_module_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
 };
 
 Class builtin_module_class = {

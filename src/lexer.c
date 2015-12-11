@@ -58,6 +58,7 @@ static bool is_op_char(const char c)
 	case '<':
 	case '>':
 	case '.':
+	case '@':
 		return true;
 	default:
 		return false;
@@ -255,6 +256,17 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_DOT;
 
 		switch (str[1]) {
+		}
+		break;
+	case '@':
+		if (len == 1)
+			return TOK_AT;
+
+		switch (str[1]) {
+		case '=':
+			if (len == 2)
+				return TOK_ASSIGN_AT;
+			break;
 		}
 		break;
 	}

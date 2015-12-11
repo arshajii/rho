@@ -170,6 +170,8 @@ struct seq_methods str_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
 };
 
 Class str_class = {

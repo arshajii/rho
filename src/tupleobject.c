@@ -88,7 +88,7 @@ static size_t tuple_len(Value *this)
 static Value tuple_get(Value *this, Value *idx)
 {
 	if (!isint(idx)) {
-		return TYPE_EXC("list indices must be integers, not %s instances", getclass(idx));
+		return TYPE_EXC("list indices must be integers, not %s instances", getclass(idx)->name);
 	}
 
 	TupleObject *tup = objvalue(this);
@@ -157,6 +157,8 @@ struct seq_methods tuple_seq_methods = {
 	tuple_get,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
 };
 
 Class tuple_class = {

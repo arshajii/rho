@@ -84,6 +84,8 @@ struct seq_methods meth_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
 };
 
 Class method_class = {

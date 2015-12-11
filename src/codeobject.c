@@ -469,6 +469,8 @@ struct seq_methods co_seq_methods = {
 	NULL,    /* get */
 	NULL,    /* set */
 	NULL,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
 };
 
 Class co_class = {

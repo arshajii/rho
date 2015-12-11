@@ -869,6 +869,33 @@ void vm_eval_frame(VM *vm)
 			release(&res);
 			break;
 		}
+		case INS_APPLY: {
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_apply(v2, v1);  // yes, the arguments are reversed
+
+			release(v2);
+			if (iserror(&res)) {
+				goto error;
+			}
+			release(v1);
+
+			STACK_SET_TOP(res);
+			break;
+		}
+		case INS_IAPPLY: {
+			v2 = STACK_POP();
+			v1 = STACK_TOP();
+			res = op_iapply(v1, v2);
+
+			release(v2);
+			if (iserror(&res)) {
+				goto error;
+			}
+
+			STACK_SET_TOP(res);
+			break;
+		}
 		case INS_LOAD_NAME: {
 			const unsigned int id = GET_UINT16();
 			Str *key = &frees[id];
