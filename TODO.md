@@ -35,7 +35,7 @@ More recent items are added to the top. Items followed by a question mark as in 
 
       def foo {...}
 
-      # Parameters should also be incorporated so as to produce the more conventional form:
+   Parameters should also be incorporated so as to produce the more conventional form:
 
       def foo(...) {...}
           
