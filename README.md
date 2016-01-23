@@ -1,3 +1,5 @@
+![logo](resources/logo.png =250x)
+
 Rho Programming Language
 ========================
 
