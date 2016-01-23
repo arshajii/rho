@@ -1,4 +1,4 @@
-![logo](resources/logo.png =250x)
+<img src="https://raw.githubusercontent.com/arshajii/rho/master/resources/logo.png" alt="logo" width="250" height="250">
 
 Rho Programming Language
 ========================
