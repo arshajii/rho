@@ -210,8 +210,9 @@ int main(int argc, char *argv[])
 			Code code;
 			assert(load_from_file(out_filename_buf, true, &code) == 0);
 			VM *vm = vm_new();
+			set_current_vm(vm);
 			vm_exec_code(vm, &code);
-			vm_free(vm, true);
+			vm_free(vm);
 		}
 
 		free(out_filename_buf);
@@ -240,8 +241,9 @@ int main(int argc, char *argv[])
 		}
 
 		VM *vm = vm_new();
+		set_current_vm(vm);
 		vm_exec_code(vm, &code);
-		vm_free(vm, true);
+		vm_free(vm);
 		exit(EXIT_SUCCESS);
 	} else {
 		INTERNAL_ERROR();

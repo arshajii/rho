@@ -105,13 +105,6 @@ Error *unbound_error(const char *var)
 	return error_new(ERR_TYPE_NAME, "cannot reference unbound variable '%s'", var);
 }
 
-Error *bad_load_global_error(const char *fn)
-{
-	return error_new(ERR_TYPE_NAME,
-	                 "cannot load global variable from imported function %s",
-	                 fn);
-}
-
 Error *type_error_invalid_cmp(const Class *c1)
 {
 	return error_new(ERR_TYPE_TYPE, "comparison of type '%s' did not return an int", c1->name);

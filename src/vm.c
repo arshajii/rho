@@ -28,6 +28,18 @@
 #include "vmops.h"
 #include "vm.h"
 
+static VM *current_vm = NULL;
+
+VM *get_current_vm(void)
+{
+	return current_vm;
+}
+
+void set_current_vm(VM *vm)
+{
+	current_vm = vm;
+}
+
 static Class *classes[] = {
 		&obj_class,
 		&int_class,
@@ -52,6 +64,7 @@ static Class *classes[] = {
 
 static StrDict builtins_dict;
 static StrDict builtin_modules_dict;
+static StrDict import_cache;
 
 static void builtins_dict_dealloc(void)
 {
@@ -68,6 +81,11 @@ static void builtin_modules_dealloc(void)
 	for (size_t i = 0; builtin_modules[i] != NULL; i++) {
 		strdict_dealloc((StrDict *)&builtin_modules[i]->contents);
 	}
+}
+
+static void import_cache_dealloc(void)
+{
+	strdict_dealloc(&import_cache);
 }
 
 static unsigned int get_lineno(Frame *frame);
@@ -88,6 +106,7 @@ VM *vm_new(void)
 
 		strdict_init(&builtins_dict);
 		strdict_init(&builtin_modules_dict);
+		strdict_init(&import_cache);
 
 		vm_load_builtins(&builtins_dict);
 		vm_load_builtin_modules(&builtin_modules_dict);
@@ -95,31 +114,64 @@ VM *vm_new(void)
 		atexit(builtins_dict_dealloc);
 		atexit(builtin_modules_dict_dealloc);
 		atexit(builtin_modules_dealloc);
+		atexit(import_cache_dealloc);
 
 		init = true;
 	}
 
 	VM *vm = rho_malloc(sizeof(VM));
+	vm->head = NULL;
 	vm->module = NULL;
 	vm->callstack = NULL;
-	vm->builtins = builtins_dict;
-	vm->builtin_modules = builtin_modules_dict;
+	vm->globals = (struct value_array){.array = NULL, .length = 0};
+	vm->children = NULL;
+	vm->sibling = NULL;
 	strdict_init(&vm->exports);
-	strdict_init(&vm->import_cache);
 	return vm;
 }
 
-void vm_free(VM *vm, bool dealloc_exports)
+static void vm_free_helper(VM *vm)
 {
-	if (dealloc_exports) {
-		strdict_dealloc(&vm->exports);
+	free(vm->head);
+	const size_t n_globals = vm->globals.length;
+	Value *globals = vm->globals.array;
+
+	for (size_t i = 0; i < n_globals; i++) {
+		release(&globals[i]);
 	}
-	strdict_dealloc(&vm->import_cache);
+
+	free(globals);
+
+	for (VM *child = vm->children; child != NULL;) {
+		VM *temp = child;
+		child = child->sibling;
+		vm_free_helper(temp);
+	}
+
 	free(vm);
+}
+
+void vm_free(VM *vm)
+{
+	/*
+	 * We only deallocate the export dictionary of the
+	 * top-level VM, since those of child VMs (i.e. the
+	 * result of imports) will be deallocated when their
+	 * associated Module instances are deallocated.
+	 */
+	strdict_dealloc(&vm->exports);
+	vm_free_helper(vm);
+}
+
+static void vm_link(VM *parent, VM *child)
+{
+	child->sibling = parent->children;
+	parent->children = child;
 }
 
 int vm_exec_code(VM *vm, Code *code)
 {
+	vm->head = code->bc;
 	vm_push_module_frame(vm, code);
 	vm_eval_frame(vm);
 
@@ -176,14 +228,24 @@ void vm_popframe(VM *vm)
 	Frame *frame = vm->callstack;
 	vm->callstack = frame->prev;
 
-	const size_t n_locals = frame->co->names.length;
-	Value *locals = frame->locals;
+	/*
+	 * We don't free the module-level local variables,
+	 * because these are actually global variables and
+	 * may still be referred to via imports. These will
+	 * eventually be freed once the VM instance itself
+	 * is freed.
+	 */
+	if (frame != vm->module) {
+		const size_t n_locals = CO_LOCALS_COUNT(frame->co);
+		Value *locals = frame->locals;
 
-	for (size_t i = 0; i < n_locals; i++) {
-		release(&locals[i]);
+		for (size_t i = 0; i < n_locals; i++) {
+			release(&locals[i]);
+		}
+
+		free(locals);
 	}
 
-	free(frame->locals);
 	free(frame->frees);
 	free(frame->exc_stack_base);
 	releaseo((Object *)frame->co);
@@ -207,6 +269,8 @@ static void vm_push_module_frame(VM *vm, Code *code)
 	CodeObject *co = codeobj_make(code, "<module>", 0, -1, -1, vm);
 	vm_pushframe(vm, co);
 	vm->module = vm->callstack;
+	vm->globals = (struct value_array){.array = vm->module->locals,
+	                                   .length = CO_LOCALS_COUNT(vm->module->co)};
 }
 
 void vm_eval_frame(VM *vm)
@@ -236,14 +300,13 @@ void vm_eval_frame(VM *vm)
 	Frame *module = vm->module;
 
 	Value *locals = frame->locals;
-	Value *globals = module->locals;
 	Str *frees = frame->frees;
-
 	const CodeObject *co = frame->co;
+	Value *globals = co->vm->globals.array;
+
 	struct str_array symbols = co->names;
 	struct str_array attrs = co->attrs;
 	struct str_array global_symbols = module->co->names;
-	const bool imported = co->imported;
 
 	Value *constants = co->consts.array;
 	byte *bc = co->bc;
@@ -790,12 +853,6 @@ void vm_eval_frame(VM *vm)
 		}
 		case INS_LOAD_GLOBAL: {
 			const unsigned int id = GET_UINT16();
-
-			if (imported) {
-				res = makeerr(bad_load_global_error(co->name));
-				goto error;
-			}
-
 			v1 = &globals[id];
 
 			if (isempty(v1)) {
@@ -899,7 +956,7 @@ void vm_eval_frame(VM *vm)
 		case INS_LOAD_NAME: {
 			const unsigned int id = GET_UINT16();
 			Str *key = &frees[id];
-			res = strdict_get(&vm->builtins, key);
+			res = strdict_get(&builtins_dict, key);
 
 			if (!isempty(&res)) {
 				retain(&res);
@@ -1276,20 +1333,9 @@ static void vm_load_builtin_modules(StrDict *builtin_modules_dict)
 	}
 }
 
-/* helper for vm_import */
-static void convert_codeobj_vm(Value *v, void *args)
-{
-	if (is_a(v, &co_class)) {
-		VM *vm = (VM *)args;
-		CodeObject *co = objvalue(v);
-		co->vm = vm;
-		co->imported = true;
-	}
-}
-
 static Value vm_import(VM *vm, const char *name)
 {
-	Value cached = strdict_get_cstr(&vm->import_cache, name);
+	Value cached = strdict_get_cstr(&import_cache, name);
 
 	if (!isempty(&cached)) {
 		retain(&cached);
@@ -1303,7 +1349,7 @@ static Value vm_import(VM *vm, const char *name)
 	case LOAD_ERR_NONE:
 		break;
 	case LOAD_ERR_NOT_FOUND: {
-		Value builtin_module = strdict_get_cstr(&vm->builtin_modules, name);
+		Value builtin_module = strdict_get_cstr(&builtin_modules_dict, name);
 
 		if (isempty(&builtin_module)) {
 			return import_exc_not_found(name);
@@ -1316,12 +1362,13 @@ static Value vm_import(VM *vm, const char *name)
 	}
 
 	VM *vm2 = vm_new();
+	set_current_vm(vm2);
 	vm_exec_code(vm2, &code);
 	StrDict *exports = &vm2->exports;
-	strdict_apply_to_all(exports, convert_codeobj_vm, vm);
 	Value mod = module_make(name, exports);
-	strdict_put(&vm->import_cache, name, &mod, false);
-	vm_free(vm2, false);
+	strdict_put(&import_cache, name, &mod, false);
+	set_current_vm(vm);
+	vm_link(vm, vm2);
 
 	retain(&mod);
 	return mod;
@@ -1377,3 +1424,4 @@ static unsigned int get_lineno(Frame *frame)
 
 	return first_lineno + lineno_offset;
 }
+

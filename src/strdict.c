@@ -66,6 +66,13 @@ void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable
 	     entry = entry->next) {
 
 		if (hash == entry->hash && str_eq(&key_str, &entry->key)) {
+			release(&entry->value);
+
+			if (entry->key.freeable) {
+				str_dealloc(&entry->key);
+			}
+
+			entry->key = key_str;
 			entry->value = *value;
 			return;
 		}
@@ -90,17 +97,6 @@ void strdict_put_copy(StrDict *dict, const char *key, size_t len, Value *value)
 	char *key_copy = rho_malloc(len + 1);
 	strcpy(key_copy, key);
 	strdict_put(dict, key_copy, value, true);
-}
-
-void strdict_apply_to_all(StrDict *dict, void (*fn)(Value *v, void *args), void *args)
-{
-	Entry **tab = dict->table;
-	const size_t cap = dict->capacity;
-	for (size_t i = 0; i < cap; i++) {
-		for (Entry *e = tab[i]; e != NULL; e = e->next) {
-			fn(&e->value, args);
-		}
-	}
 }
 
 void strdict_dealloc(StrDict *dict)

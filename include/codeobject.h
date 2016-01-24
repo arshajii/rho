@@ -16,9 +16,6 @@ typedef struct {
 	/* name of this code object */
 	const char *name;
 
-	/* full code (including tables) */
-	byte *head;
-
 	/* code segment */
 	byte *bc;
 
@@ -57,8 +54,6 @@ typedef struct {
 
 	/* virtual machine associated with this code object */
 	struct rho_vm *vm;
-
-	bool imported;
 } CodeObject;
 
 CodeObject *codeobj_make(Code *code,
@@ -69,5 +64,7 @@ CodeObject *codeobj_make(Code *code,
                          struct rho_vm *vm);
 
 void codeobj_init_defaults(CodeObject *co, Value *defaults, const size_t n_defaults);
+
+#define CO_LOCALS_COUNT(co) ((co)->names.length)
 
 #endif /* CODEOBJECT_H */

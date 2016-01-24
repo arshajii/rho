@@ -32,12 +32,20 @@ typedef struct frame {
 } Frame;
 
 typedef struct rho_vm {
+	byte *head;
 	Frame *module;
 	Frame *callstack;
-	StrDict builtins;
-	StrDict builtin_modules;
+	struct value_array globals;
 	StrDict exports;
-	StrDict import_cache;
+
+	/*
+	 * VM instances form a tree whose structure is
+	 * determined by imports. This is a convenient way
+	 * to retain the global variables of CodeObjects
+	 * that are imported.
+	 */
+	struct rho_vm *children;
+	struct rho_vm *sibling;
 } VM;
 
 VM *vm_new(void);
@@ -45,6 +53,9 @@ int vm_exec_code(VM *vm, Code *code);
 void vm_pushframe(VM *vm, CodeObject *co);
 void vm_eval_frame(VM *vm);
 void vm_popframe(VM *vm);
-void vm_free(VM *vm, bool dealloc_exports);
+void vm_free(VM *vm);
+
+VM *get_current_vm(void);
+void set_current_vm(VM *vm);
 
 #endif /* VM_H */

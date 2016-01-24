@@ -58,7 +58,6 @@ void error_traceback_print(Error *error, FILE *out);
 
 Error *invalid_file_signature_error(const char *module);
 Error *unbound_error(const char *var);
-Error *bad_load_global_error(const char *fn);
 Error *type_error_invalid_cmp(const Class *c1);
 Error *type_error_invalid_catch(const Class *c1);
 Error *type_error_invalid_throw(const Class *c1);

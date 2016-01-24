@@ -57,7 +57,6 @@ CodeObject *codeobj_make(Code *code,
 {
 	CodeObject *co = obj_alloc(&co_class);
 	co->name = name;
-	co->head = code->bc;
 
 	if (stack_depth == -1) {
 		assert(try_catch_depth == -1);
@@ -69,7 +68,6 @@ CodeObject *codeobj_make(Code *code,
 
 	co->defaults = NULL;
 	co->vm = vm;
-	co->imported = false;
 	read_lno_table(co, code);
 	read_sym_table(co, code);
 	read_const_table(co, code);
@@ -83,7 +81,6 @@ CodeObject *codeobj_make(Code *code,
 void codeobj_free(Value *this)
 {
 	CodeObject *co = objvalue(this);
-	free(co->head);
 	free(co->names.array);
 	free(co->attrs.array);
 	free(co->frees.array);
@@ -283,18 +280,17 @@ static void read_const_table(CodeObject *co, Code *code)
 		}
 		case CT_ENTRY_CODEOBJ: {
 			constants[i].type = VAL_TYPE_OBJECT;
-			const size_t colen = code_read_uint16(code);
+			const size_t code_len = code_read_uint16(code);
 			const char *name = code_read_str(code);
 			const unsigned int argcount = code_read_uint16(code);
 			const unsigned int stack_depth = code_read_uint16(code);
 			const unsigned int try_catch_depth = code_read_uint16(code);
 
 			Code sub;
-			code_init(&sub, colen);
-			for (size_t i = 0; i < colen; i++) {
-				const byte b = code_read_byte(code);
-				code_write_byte(&sub, b);
-			}
+			sub.bc = code->bc;
+			sub.size = code_len;
+			sub.capacity = 0;
+			code_skip_ahead(code, code_len);
 
 			constants[i].data.o = codeobj_make(&sub,
 			                                   name,
@@ -312,7 +308,7 @@ static void read_const_table(CodeObject *co, Code *code)
 			break;
 		}
 	}
-	code_read_byte(code);
+	assert(code_read_byte(code) == CT_ENTRY_END);
 
 	co->consts = (struct value_array){.array = constants, .length = ct_size};
 }
@@ -332,7 +328,7 @@ static Value codeobj_call(Value *this,
 	} while (0)
 
 	CodeObject *co = objvalue(this);
-	VM *vm = co->vm;
+	VM *vm = get_current_vm();
 
 	const unsigned int argcount = co->argcount;
 

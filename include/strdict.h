@@ -24,7 +24,6 @@ Value strdict_get(StrDict *dict, Str *key);
 Value strdict_get_cstr(StrDict *dict, const char *key);
 void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable);
 void strdict_put_copy(StrDict *dict, const char *key, size_t len, Value *value);
-void strdict_apply_to_all(StrDict *dict, void (*fn)(Value *v, void *args), void *args);
 void strdict_dealloc(StrDict *dict);
 
 #endif /* STRDICT_H */

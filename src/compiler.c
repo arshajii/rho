@@ -868,7 +868,7 @@ static void compile_export(Compiler *compiler, AST *ast)
 		fprintf(stderr,
 		        "%s:%d: cannot export free variable '%s'\n",
 		        compiler->filename, lineno, sym->key->value);
-		exit(EXIT_FAILURE);
+		exit(EXIT_FAILURE);  // XXX
 	}
 
 	write_uint16(compiler, sym->id);
@@ -1318,10 +1318,10 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 #undef LAMBDA
 
 		code_init(fncode, (name.len + 1) + 2 + 2 + 2 + subcode->size);  // total size
-		code_write_str(fncode, &name);                                       // name
-		code_write_uint16(fncode, nargs);                                   // argument count
-		code_write_uint16(fncode, max_vstack_depth);                        // max stack depth
-		code_write_uint16(fncode, max_try_catch_depth);                     // max try-catch depth
+		code_write_str(fncode, &name);                                  // name
+		code_write_uint16(fncode, nargs);                               // argument count
+		code_write_uint16(fncode, max_vstack_depth);                    // max stack depth
+		code_write_uint16(fncode, max_try_catch_depth);                 // max try-catch depth
 		code_append(fncode, subcode);
 
 		compiler_free(sub, false);
