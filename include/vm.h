@@ -36,6 +36,7 @@ typedef struct rho_vm {
 	Frame *module;
 	Frame *callstack;
 	struct value_array globals;
+	struct str_array global_names;
 	StrDict exports;
 
 	/*

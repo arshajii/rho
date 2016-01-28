@@ -141,6 +141,7 @@ static void vm_free_helper(VM *vm)
 	}
 
 	free(globals);
+	free(vm->global_names.array);
 
 	for (VM *child = vm->children; child != NULL;) {
 		VM *temp = child;
@@ -260,8 +261,7 @@ void vm_popframe(VM *vm)
 }
 
 /*
- * Assumes the symbol table and constant table
- * have not yet been read.
+ * Assumes the symbol table and constant table have not yet been read.
  */
 static void vm_push_module_frame(VM *vm, Code *code)
 {
@@ -270,7 +270,8 @@ static void vm_push_module_frame(VM *vm, Code *code)
 	vm_pushframe(vm, co);
 	vm->module = vm->callstack;
 	vm->globals = (struct value_array){.array = vm->module->locals,
-	                                   .length = CO_LOCALS_COUNT(vm->module->co)};
+	                                   .length = CO_LOCALS_COUNT(co)};
+	str_array_dup(&co->names, &vm->global_names);
 }
 
 void vm_eval_frame(VM *vm)
@@ -297,16 +298,16 @@ void vm_eval_frame(VM *vm)
 #define EXC_STACK_EMPTY()     (exc_stack == exc_stack_base)
 
 	Frame *frame = vm->callstack;
-	Frame *module = vm->module;
 
 	Value *locals = frame->locals;
 	Str *frees = frame->frees;
 	const CodeObject *co = frame->co;
-	Value *globals = co->vm->globals.array;
+	const VM *co_vm = co->vm;
+	Value *globals = co_vm->globals.array;
 
 	struct str_array symbols = co->names;
 	struct str_array attrs = co->attrs;
-	struct str_array global_symbols = module->co->names;
+	struct str_array global_symbols = co_vm->global_names;
 
 	Value *constants = co->consts.array;
 	byte *bc = co->bc;
@@ -835,6 +836,14 @@ void vm_eval_frame(VM *vm)
 			const unsigned int id = GET_UINT16();
 			Value old = locals[id];
 			locals[id] = *v1;
+			release(&old);
+			break;
+		}
+		case INS_STORE_GLOBAL: {
+			v1 = STACK_POP();
+			const unsigned int id = GET_UINT16();
+			Value old = globals[id];
+			globals[id] = *v1;
 			release(&old);
 			break;
 		}

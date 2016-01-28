@@ -2,7 +2,6 @@
 #define SYMTAB_H
 
 #include <stdlib.h>
-#include <stdbool.h>
 #include "ast.h"
 #include "str.h"
 

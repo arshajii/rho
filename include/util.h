@@ -40,6 +40,8 @@ struct str_array {
 	size_t length;
 };
 
+void str_array_dup(struct str_array *src, struct str_array *dst);
+
 void *rho_malloc(size_t n);
 void *rho_calloc(size_t num, size_t size);
 void *rho_realloc(void *p, size_t n);

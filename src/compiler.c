@@ -416,7 +416,7 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 
 		const unsigned int sym_id = sym->id;
 
-		if (!sym->bound_here) {
+		if (!sym->bound_here && !sym->global_var) {
 			/*
 			 * TODO: non-local assignments
 			 */
@@ -432,7 +432,16 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 			write_ins(compiler, to_opcode(type), lineno);
 		}
 
-		write_ins(compiler, INS_STORE, lineno);
+		byte store_ins;
+		if (sym->bound_here) {
+			store_ins = INS_STORE;
+		} else if (sym->global_var) {
+			store_ins = INS_STORE_GLOBAL;
+		} else {
+			INTERNAL_ERROR();
+		}
+
+		write_ins(compiler, store_ins, lineno);
 		write_uint16(compiler, sym_id);
 	}
 }
@@ -1540,6 +1549,7 @@ int arg_size(Opcode opcode)
 	case INS_IN:
 		return 0;
 	case INS_STORE:
+	case INS_STORE_GLOBAL:
 	case INS_LOAD:
 	case INS_LOAD_GLOBAL:
 	case INS_LOAD_ATTR:
@@ -1687,6 +1697,7 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_IN:
 		return -1;
 	case INS_STORE:
+	case INS_STORE_GLOBAL:
 		return -1;
 	case INS_LOAD:
 	case INS_LOAD_GLOBAL:
