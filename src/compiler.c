@@ -714,7 +714,7 @@ static void compile_def(Compiler *compiler, AST *ast)
 
 	assert(num_default <= 0xffff);
 
-	write_ins(compiler, INS_CODEOBJ_INIT, lineno);
+	write_ins(compiler, INS_MAKE_FUNCOBJ, lineno);
 	write_uint16(compiler, num_default);
 
 	write_ins(compiler, INS_STORE, lineno);
@@ -725,6 +725,8 @@ static void compile_lambda(Compiler *compiler, AST *ast)
 {
 	AST_TYPE_ASSERT(ast, NODE_LAMBDA);
 	compile_const(compiler, ast);
+	write_ins(compiler, INS_MAKE_FUNCOBJ, ast->lineno);
+	write_uint16(compiler, 0);
 }
 
 static void compile_break(Compiler *compiler, AST *ast)
@@ -1594,7 +1596,7 @@ int arg_size(Opcode opcode)
 		return 0;
 	case INS_LOOP_ITER:
 		return 2;
-	case INS_CODEOBJ_INIT:
+	case INS_MAKE_FUNCOBJ:
 		return 2;
 	case INS_POP:
 	case INS_DUP:
@@ -1751,7 +1753,7 @@ static int stack_delta(Opcode opcode, int arg)
 		return 0;
 	case INS_LOOP_ITER:
 		return 1;
-	case INS_CODEOBJ_INIT:
+	case INS_MAKE_FUNCOBJ:
 		return -arg;
 	case INS_POP:
 		return -1;

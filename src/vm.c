@@ -13,6 +13,7 @@
 #include "listobject.h"
 #include "tupleobject.h"
 #include "codeobject.h"
+#include "funcobject.h"
 #include "method.h"
 #include "nativefunc.h"
 #include "module.h"
@@ -48,6 +49,7 @@ static Class *classes[] = {
 		&list_class,
 		&tuple_class,
 		&co_class,
+		&fn_class,
 		&method_class,
 		&native_func_class,
 		&module_class,
@@ -1233,15 +1235,19 @@ void vm_eval_frame(VM *vm)
 
 			break;
 		}
-		case INS_CODEOBJ_INIT: {
+		case INS_MAKE_FUNCOBJ: {
 			const unsigned int num_defaults = GET_UINT16();
 
 			CodeObject *co = objvalue(stack - num_defaults - 1);
-			codeobj_init_defaults(co, stack - num_defaults, num_defaults);
+			FuncObject *fn = funcobj_make(co);
+			funcobj_init_defaults(fn, stack - num_defaults, num_defaults);
 
 			for (unsigned i = 0; i < num_defaults; i++) {
 				release(STACK_POP());
 			}
+
+			STACK_SET_TOP(makeobj(fn));
+			releaseo((Object *)co);
 
 			break;
 		}

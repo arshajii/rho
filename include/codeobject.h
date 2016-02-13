@@ -40,12 +40,6 @@ typedef struct {
 	/* enumerated constants */
 	struct value_array consts;
 
-	/* default arguments */
-	Value *defaults;
-
-	/* number of default arguments */
-	unsigned int n_defaults;
-
 	/* line number table */
 	byte *lno_table;
 
@@ -62,8 +56,6 @@ CodeObject *codeobj_make(Code *code,
                          int stack_depth,
                          int try_catch_depth,
                          struct rho_vm *vm);
-
-void codeobj_init_defaults(CodeObject *co, Value *defaults, const size_t n_defaults);
 
 #define CO_LOCALS_COUNT(co) ((co)->names.length)
 

@@ -108,7 +108,7 @@ Class iter_stop_class = {
 Value applied_iter_make(Iter *source, Value *fn)
 {
 	AppliedIter *appiter = obj_alloc(&applied_iter_class);
-	retaino((Object *)source);
+	retaino(source);
 	retain(fn);
 	appiter->source = source;
 	appiter->fn = *fn;

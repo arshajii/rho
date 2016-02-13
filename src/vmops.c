@@ -29,11 +29,11 @@ Value op_hash(Value *v)
 	return makeint(hash(v));
 }
 
-void op_str(Value *v, Str *dest)
+StrObject *op_str(Value *v)
 {
 	Class *class = getclass(v);
 	StrUnOp str = resolve_str(class);
-	str(v, dest);
+	return str(v);
 }
 
 void op_print(Value *v, FILE *out)
@@ -52,15 +52,9 @@ void op_print(Value *v, FILE *out)
 		if (print) {
 			print(v, out);
 		} else {
-			const StrUnOp op = resolve_str(o->class);
-			Str str;
-			op(v, &str);
-
-			fprintf(out, "%s\n", str.value);
-
-			if (str.freeable) {
-				str_dealloc(&str);
-			}
+			StrObject *str = op_str(v);
+			fprintf(out, "%s\n", str->str.value);
+			releaseo(str);
 		}
 		break;
 	}
