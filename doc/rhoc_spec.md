@@ -7,14 +7,14 @@ This document specifies the format of `.rhoc` (pronounced "row see") files, whic
 
 Every `.rhoc` file has the following global structure:
 
-  | Rhoc Layout                  |
-  |------------------------------|
-  | Magic bytes (`magic`)        |
-  | Metadata                     |
-  | Line number table (`lnotab`) |
-  | Symbol table (`symtab`)      |
-  | Constant table (`consttab`)  |
-  | Program bytecode (`code`)    |
+| Rhoc Layout                  |
+| ---------------------------- |
+| Magic bytes (`magic`)        |
+| Metadata                     |
+| Line number table (`lnotab`) |
+| Symbol table (`symtab`)      |
+| Constant table (`consttab`)  |
+| Program bytecode (`code`)    |
 
 Each component is described in detail below.
 
@@ -23,13 +23,13 @@ Types
 
 Before describing each section, we specify several data types used in `.rhoc` files.
 
-  | Type     | Description                                           |
-  |----------|-------------------------------------------------------|
-  | `byte`   | Unsigned 8-bit value                                  |
-  | `uint16` | Unsigned 16-bit value (little endian)                 |
-  | `int32`  | Signed (2's complement), 32-bit value (little endian) |
-  | `float`  | IEEE 754 64-bit floating point value                  |
-  | `str`    | Series of bytes terminated with a null byte (`0x00`)  |
+| Type     | Description                                           |
+| -------- | ----------------------------------------------------- |
+| `byte`   | Unsigned 8-bit value                                  |
+| `uint16` | Unsigned 16-bit value (little endian)                 |
+| `int32`  | Signed (2's complement), 32-bit value (little endian) |
+| `float`  | IEEE 754 64-bit floating point value                  |
+| `str`    | Series of bytes terminated with a null byte (`0x00`)  |
 
 Magic Bytes
 -----------
