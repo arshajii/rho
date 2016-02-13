@@ -5,6 +5,7 @@
 #include "strbuf.h"
 #include "vmops.h"
 #include "object.h"
+#include "strobject.h"
 #include "util.h"
 #include "listobject.h"
 
@@ -32,16 +33,14 @@ Value list_make(Value *elements, const size_t count)
 	return makeobj(list);
 }
 
-static void list_str(Value *this, Str *dest)
+static StrObject *list_str(Value *this)
 {
-	static Str empty_list_str = STR_INIT("[]", 2, 0);
-
 	ListObject *list = objvalue(this);
 	const size_t count = list->count;
 
 	if (count == 0) {
-		*dest = empty_list_str;
-		return;
+		Value ret = strobj_make_direct("[]", 2);
+		return (StrObject *)objvalue(&ret);
 	}
 
 	StrBuf sb;
@@ -55,13 +54,9 @@ static void list_str(Value *this, Str *dest)
 		if (isobject(v) && objvalue(v) == list) {
 			strbuf_append(&sb, "[...]", 5);
 		} else {
-			Str str;
-			op_str(v, &str);
-
-			strbuf_append(&sb, str.value, str.len);
-			if (str.freeable) {
-				str_dealloc(&str);
-			}
+			StrObject *str = op_str(v);
+			strbuf_append(&sb, str->str.value, str->str.len);
+			releaseo(str);
 		}
 
 		if (i < count - 1) {
@@ -72,8 +67,12 @@ static void list_str(Value *this, Str *dest)
 		}
 	}
 
-	strbuf_to_str(&sb, dest);
-	dest->freeable = 1;
+	Str dest;
+	strbuf_to_str(&sb, &dest);
+	dest.freeable = 1;
+
+	Value ret = strobj_make(dest);
+	return (StrObject *)objvalue(&ret);
 }
 
 static void list_free(Value *this)
@@ -405,7 +404,7 @@ Class list_class = {
 static Value iter_make(ListObject *list)
 {
 	ListIter *iter = obj_alloc(&list_iter_class);
-	retaino((Object *)list);
+	retaino(list);
 	iter->source = list;
 	iter->index = 0;
 	return makeobj(iter);

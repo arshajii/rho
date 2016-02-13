@@ -5,6 +5,7 @@
 #include "strbuf.h"
 #include "vmops.h"
 #include "object.h"
+#include "strobject.h"
 #include "tupleobject.h"
 
 #define INDEX_CHECK(index, count) \
@@ -22,16 +23,14 @@ Value tuple_make(Value *elements, const size_t count)
 	return makeobj(tup);
 }
 
-static void tuple_str(Value *this, Str *dest)
+static StrObject *tuple_str(Value *this)
 {
-	static Str empty_tup_str = STR_INIT("()", 2, 0);
-
 	TupleObject *tup = objvalue(this);
 	const size_t count = tup->count;
 
 	if (count == 0) {
-		*dest = empty_tup_str;
-		return;
+		Value ret = strobj_make_direct("()", 2);
+		return (StrObject *)objvalue(&ret);
 	}
 
 	StrBuf sb;
@@ -45,13 +44,9 @@ static void tuple_str(Value *this, Str *dest)
 		if (isobject(v) && objvalue(v) == tup) {  // this should really never happen
 			strbuf_append(&sb, "(...)", 5);
 		} else {
-			Str str;
-			op_str(v, &str);
-
-			strbuf_append(&sb, str.value, str.len);
-			if (str.freeable) {
-				str_dealloc(&str);
-			}
+			StrObject *str = op_str(v);
+			strbuf_append(&sb, str->str.value, str->str.len);
+			releaseo(str);
 		}
 
 		if (i < count - 1) {
@@ -62,8 +57,12 @@ static void tuple_str(Value *this, Str *dest)
 		}
 	}
 
-	strbuf_to_str(&sb, dest);
-	dest->freeable = 1;
+	Str dest;
+	strbuf_to_str(&sb, &dest);
+	dest.freeable = 1;
+
+	Value ret = strobj_make(dest);
+	return (StrObject *)objvalue(&ret);
 }
 
 static void tuple_free(Value *this)

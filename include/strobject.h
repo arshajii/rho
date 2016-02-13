@@ -10,7 +10,7 @@ extern struct num_methods str_num_methods;
 extern struct seq_methods str_seq_methods;
 extern Class str_class;
 
-typedef struct {
+typedef struct str_object {
 	Object base;
 	Str str;
 	bool freeable;  /* whether the underlying buffer should be freed */

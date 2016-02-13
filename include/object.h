@@ -20,12 +20,14 @@ struct object {
 
 typedef struct object Object;
 
+struct str_object;
+
 typedef Value (*UnOp)(Value *this);
 typedef Value (*BinOp)(Value *this, Value *other);
 typedef int (*IntUnOp)(Value *this);
 typedef bool (*BoolUnOp)(Value *this);
 typedef bool (*BoolBinOp)(Value *this, Value *other);
-typedef void (*StrUnOp)(Value *this, Str *dest);
+typedef struct str_object *(*StrUnOp)(Value *this);
 
 typedef Value (*InitFunc)(Value *this, Value *args, size_t nargs);
 typedef void (*DelFunc)(Value *this);
@@ -264,9 +266,9 @@ void *obj_alloc_var(Class *class, size_t extra);
 
 Value instantiate(Class *class, Value *args, size_t nargs);
 
-void retaino(Object *o);
-void releaseo(Object *o);
-void destroyo(Object *o);
+void retaino(void *o);
+void releaseo(void *o);
+void destroyo(void *o);
 
 void retain(Value *v);
 void release(Value *v);

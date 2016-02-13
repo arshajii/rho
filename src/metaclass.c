@@ -5,6 +5,7 @@
 #include "util.h"
 #include "exc.h"
 #include "object.h"
+#include "strobject.h"
 #include "metaclass.h"
 
 static void meta_class_del(Value *this)
@@ -12,7 +13,7 @@ static void meta_class_del(Value *this)
 	UNUSED(this);
 }
 
-static void meta_class_str(Value *this, Str *dest)
+static StrObject *meta_class_str(Value *this)
 {
 #define STR_MAX_LEN 50
 	char buf[STR_MAX_LEN];
@@ -24,9 +25,8 @@ static void meta_class_str(Value *this, Str *dest)
 		len = STR_MAX_LEN;
 	}
 
-	char *copy = rho_malloc(len + 1);
-	strcpy(copy, buf);
-	*dest = STR_INIT(copy, len, 1);
+	Value ret = strobj_make_direct(buf, len);
+	return (StrObject *)objvalue(&ret);
 #undef STR_MAX_LEN
 }
 

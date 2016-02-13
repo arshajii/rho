@@ -5,6 +5,7 @@
 #include <math.h>
 #include <assert.h>
 #include "object.h"
+#include "strobject.h"
 #include "util.h"
 #include "floatobject.h"
 
@@ -154,15 +155,15 @@ static Value float_to_float(Value *this)
 	return *this;
 }
 
-static void float_str(Value *this, Str *dest)
+static StrObject *float_str(Value *this)
 {
 	char buf[32];
 	const double d = floatvalue(this);
-	const size_t len = sprintf(buf, "%f", d);
-	assert(len > 0);
-	char *copy = rho_malloc(len + 1);
-	strcpy(copy, buf);
-	*dest = STR_INIT(copy, len, 1);
+	int len = snprintf(buf, sizeof(buf), "%f", d);
+	assert(0 < len && (size_t)len < sizeof(buf));
+
+	Value res = strobj_make_direct(buf, len);
+	return (StrObject *)objvalue(&res);
 }
 
 struct num_methods float_num_methods = {

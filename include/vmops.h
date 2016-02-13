@@ -1,12 +1,12 @@
 #ifndef VMOPS_H
 #define VMOPS_H
 
-#include "str.h"
+#include "strobject.h"
 #include "object.h"
 
 Value op_hash(Value *v);
 
-void op_str(Value *v, Str *dest);
+StrObject *op_str(Value *v);
 
 void op_print(Value *v, FILE *out);
 

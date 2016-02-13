@@ -7,6 +7,7 @@
 #include "util.h"
 #include "intobject.h"
 #include "floatobject.h"
+#include "strobject.h"
 #include "exc.h"
 #include "object.h"
 
@@ -29,7 +30,7 @@ static bool obj_eq(Value *this, Value *other)
 	return objvalue(this) == objvalue(other);
 }
 
-static void obj_str(Value *this, Str *dest)
+static StrObject *obj_str(Value *this)
 {
 #define STR_MAX_LEN 50
 	char buf[STR_MAX_LEN];
@@ -40,9 +41,8 @@ static void obj_str(Value *this, Str *dest)
 		len = STR_MAX_LEN;
 	}
 
-	char *copy = rho_malloc(len + 1);
-	strcpy(copy, buf);
-	*dest = STR_INIT(copy, len, 1);
+	Value ret = strobj_make_direct(buf, len);
+	return (StrObject *)objvalue(&ret);
 #undef STR_MAX_LEN
 }
 
@@ -352,22 +352,25 @@ Value instantiate(Class *class, Value *args, size_t nargs)
 	}
 }
 
-void retaino(Object *o)
+void retaino(void *p)
 {
+	Object *o = p;
 	if (o->refcnt != (unsigned)(-1)) {
 		++o->refcnt;
 	}
 }
 
-void releaseo(Object *o)
+void releaseo(void *p)
 {
+	Object *o = p;
 	if (o->refcnt != (unsigned)(-1) && --o->refcnt == 0) {
 		destroyo(o);
 	}
 }
 
-void destroyo(Object *o)
+void destroyo(void *p)
 {
+	Object *o = p;
 	o->class->del(&makeobj(o));
 }
 

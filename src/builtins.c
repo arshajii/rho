@@ -48,10 +48,7 @@ static Value hash(Value *args, size_t nargs)
 static Value str(Value *args, size_t nargs)
 {
 	ARG_CHECK(nargs, 1);
-	Str str;
-	op_str(&args[0], &str);
-	Value stro = strobj_make(str);
-	return stro;
+	return makeobj(op_str(&args[0]));
 }
 
 static Value len(Value *args, size_t nargs)
