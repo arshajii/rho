@@ -46,7 +46,9 @@ Thumbs.db
 .project
 .cproject
 /.settings/
+/.idea/
 /misc/
 /Debug/
 *.dSYM
+CMakeLists.txt
 rho
