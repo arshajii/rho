@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/arshajii/rho/master/resources/logo.png" alt="logo" width="250" height="250">
+<img src="https://raw.githubusercontent.com/arshajii/rho/master/resources/logo.png" alt="logo" width="300">
 
 Rho Programming Language
 ========================
