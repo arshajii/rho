@@ -256,6 +256,10 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 			return TOK_DOT;
 
 		switch (str[1]) {
+		case '.':
+			if (len == 2)
+				return TOK_DOTDOT;
+			break;
 		}
 		break;
 	case '@':
@@ -332,6 +336,14 @@ static inline char nextc(Parser *p)
 }
 
 /*
+ * Returns the lexer's next next character.
+ */
+static inline char next_nextc(Parser *p)
+{
+	return p->pos[p->mark + 2];
+}
+
+/*
  * Advances the lexer mark.
  */
 static inline void adv(Parser *p)
@@ -381,7 +393,7 @@ static Token next_number(Parser *p)
 	TokType type = TOK_INT;
 	read_digits(p);
 
-	if (nextc(p) == '.') {
+	if (nextc(p) == '.' && !is_op_char(next_nextc(p))) {
 		adv(p);
 		read_digits(p);
 		type = TOK_FLOAT;

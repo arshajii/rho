@@ -37,6 +37,7 @@ typedef enum {
 	TOK_GE,
 	TOK_AT,
 	TOK_DOT,
+	TOK_DOTDOT,
 	TOK_IN,  // really a keyword but treated as an operator in some contexts
 
 	/* assignments */

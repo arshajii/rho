@@ -982,6 +982,8 @@ static Opcode to_opcode(NodeType type)
 		return INS_IAPPLY;
 	case NODE_IN:
 		return INS_IN;
+	case NODE_DOTDOT:
+		return INS_MAKE_RANGE;
 	default:
 		INTERNAL_ERROR();
 		return 0;
@@ -1023,6 +1025,7 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	case NODE_LE:
 	case NODE_GE:
 	case NODE_APPLY:
+	case NODE_DOTDOT:
 	case NODE_IN:
 		compile_node(compiler, ast->left, false);
 		compile_node(compiler, ast->right, false);
@@ -1548,6 +1551,7 @@ int arg_size(Opcode opcode)
 	case INS_IXOR:
 	case INS_ISHIFTL:
 	case INS_ISHIFTR:
+	case INS_MAKE_RANGE:
 	case INS_IN:
 		return 0;
 	case INS_STORE:
@@ -1696,6 +1700,7 @@ static int stack_delta(Opcode opcode, int arg)
 	case INS_IXOR:
 	case INS_ISHIFTL:
 	case INS_ISHIFTR:
+	case INS_MAKE_RANGE:
 	case INS_IN:
 		return -1;
 	case INS_STORE:

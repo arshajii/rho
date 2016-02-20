@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include "object.h"
 #include "exc.h"
 #include "iter.h"
@@ -185,6 +186,107 @@ Class applied_iter_class = {
 
 	.num_methods = NULL,
 	.seq_methods  = &applied_iter_seq_methods,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
+
+/* Range iterators */
+Value range_make(Value *from, Value *to)
+{
+	if (!(isint(from) && isint(to))) {
+		return type_exc_unsupported_2("..", getclass(from), getclass(to));
+	}
+
+	Range *range = obj_alloc(&range_class);
+	range->from = range->i = intvalue(from);
+	range->to = intvalue(to);
+	return makeobj(range);
+}
+
+static void range_free(Value *this)
+{
+	iter_class.del(this);
+}
+
+static Value range_iternext(Value *this)
+{
+	Range *range = objvalue(this);
+
+	const long from = range->from;
+	const long to = range->to;
+	const long i = range->i;
+
+	if (to >= from) {
+		if (i < to) {
+			++(range->i);
+			return makeint(i);
+		} else {
+			return get_iter_stop();
+		}
+	} else {
+		if (i >= to) {
+			--(range->i);
+			return makeint(i);
+		} else {
+			return get_iter_stop();
+		}
+	}
+}
+
+static bool range_contains(Value *this, Value *n)
+{
+	if (!isint(n)) {
+		return false;
+	}
+
+	Range *range = objvalue(this);
+	const long target = intvalue(n);
+	const long from = range->from;
+	const long to = range->to;
+
+	if (to >= from) {
+		return from <= target && target < to;
+	} else {
+		return to <= target && target <= from;
+	}
+}
+
+struct seq_methods range_seq_methods = {
+	NULL,    /* len */
+	NULL,    /* get */
+	NULL,    /* set */
+	range_contains,    /* contains */
+	NULL,    /* apply */
+	NULL,    /* iapply */
+};
+
+Class range_class = {
+	.base = CLASS_BASE_INIT(),
+	.name = "Range",
+	.super = &iter_class,
+
+	.instance_size = sizeof(Range),
+
+	.init = NULL,
+	.del = range_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = range_iternext,
+
+	.num_methods = NULL,
+	.seq_methods  = &range_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,

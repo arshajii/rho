@@ -31,4 +31,16 @@ typedef struct {
 
 Value applied_iter_make(Iter *source, Value *fn);
 
+/* Range iterator */
+extern Class range_class;
+
+typedef struct {
+	Iter base;
+	long from;
+	long to;
+	long i;
+} Range;
+
+Value range_make(Value *from, Value *to);
+
 #endif /* ITER_H */
