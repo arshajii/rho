@@ -28,7 +28,7 @@ void funcobj_free(Value *this)
 {
 	FuncObject *fn = objvalue(this);
 	release_defaults(fn);
-	releaseo((Object *)fn->co);
+	releaseo(fn->co);
 	obj_class.del(this);
 }
 

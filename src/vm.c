@@ -251,7 +251,7 @@ void vm_popframe(VM *vm)
 
 	free(frame->frees);
 	free(frame->exc_stack_base);
-	releaseo((Object *)frame->co);
+	releaseo(frame->co);
 	release(&frame->return_value);
 	free(frame);
 
@@ -1247,7 +1247,7 @@ void vm_eval_frame(VM *vm)
 			}
 
 			STACK_SET_TOP(makeobj(fn));
-			releaseo((Object *)co);
+			releaseo(co);
 
 			break;
 		}

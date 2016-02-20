@@ -118,7 +118,7 @@ Value applied_iter_make(Iter *source, Value *fn)
 static void applied_iter_free(Value *this)
 {
 	AppliedIter *appiter = objvalue(this);
-	releaseo((Object *)appiter->source);
+	releaseo(appiter->source);
 	release(&appiter->fn);
 	iter_class.del(this);
 }

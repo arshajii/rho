@@ -425,7 +425,7 @@ static Value iter_next(Value *this)
 static void iter_free(Value *this)
 {
 	ListIter *iter = objvalue(this);
-	releaseo((Object *)iter->source);
+	releaseo(iter->source);
 	iter_class.del(this);
 }
 
