@@ -15,13 +15,13 @@
 
 static void release_defaults(FuncObject *fn);
 
-FuncObject *funcobj_make(CodeObject *co)
+Value funcobj_make(CodeObject *co)
 {
 	FuncObject *fn = obj_alloc(&fn_class);
 	retaino(co);
 	fn->co = co;
 	fn->defaults = (struct value_array){.array = NULL, .length = 0};
-	return fn;
+	return makeobj(fn);
 }
 
 void funcobj_free(Value *this)

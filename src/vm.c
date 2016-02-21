@@ -1253,14 +1253,14 @@ void vm_eval_frame(VM *vm)
 			const unsigned int num_defaults = GET_UINT16();
 
 			CodeObject *co = objvalue(stack - num_defaults - 1);
-			FuncObject *fn = funcobj_make(co);
-			funcobj_init_defaults(fn, stack - num_defaults, num_defaults);
+			Value fn = funcobj_make(co);
+			funcobj_init_defaults(objvalue(&fn), stack - num_defaults, num_defaults);
 
 			for (unsigned i = 0; i < num_defaults; i++) {
 				release(STACK_POP());
 			}
 
-			STACK_SET_TOP(makeobj(fn));
+			STACK_SET_TOP(fn);
 			releaseo(co);
 
 			break;
