@@ -97,6 +97,7 @@ static const Op ops[] = {
 	{TOK_DOTDOT,        92,          true},
 	{TOK_AT,            91,          false},
 	{TOK_IN,             9,          true},
+	{TOK_IF,            22,          true},  /* ternary operator */
 };
 
 static const size_t ops_size = (sizeof(ops) / sizeof(Op));
@@ -362,10 +363,8 @@ static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec, bool allow_ass
 			break;
 		}
 
-		const NodeType lhs_type = lhs->type;
-
 		if (IS_ASSIGNMENT_TOK(op.type) &&
-		    (!allow_assigns || min_prec != 1 || !IS_ASSIGNABLE(lhs_type))) {
+		    (!allow_assigns || min_prec != 1 || !IS_ASSIGNABLE(lhs->type))) {
 			parse_err_invalid_assign(p, tok);
 			ast_free(lhs);
 			return NULL;
@@ -375,11 +374,25 @@ static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec, bool allow_ass
 
 		parser_next_token(p);
 
+		const bool ternary = (op.type == TOK_IF);
+		AST *cond = NULL;
+
+		if (ternary) {  /* ternary operator */
+			cond = parse_expr_no_assign(p);
+			expect(p, TOK_ELSE);
+			ERROR_CHECK_AST2(p, NULL, cond, lhs);
+		}
+
 		AST *rhs = parse_expr_min_prec(p, next_min_prec, false);
-		ERROR_CHECK_AST(p, rhs, lhs);
+		ERROR_CHECK_AST2(p, rhs, lhs, cond);
 
 		NodeType node_type = nodetype_from_op(op);
 		AST *ast = ast_new(node_type, lhs, rhs, tok->lineno);
+
+		if (ternary) {
+			ast->v.middle = cond;
+		}
+
 		lhs = ast;
 		allow_assigns = false;
 	}
@@ -1330,6 +1343,8 @@ static NodeType nodetype_from_op(Op op)
 		return NODE_ASSIGN_APPLY;
 	case TOK_IN:
 		return NODE_IN;
+	case TOK_IF:
+		return NODE_COND_EXPR;
 	default:
 		INTERNAL_ERROR();
 		return -1;

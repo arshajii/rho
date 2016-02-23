@@ -200,6 +200,8 @@ static void compile_or(Compiler *compiler, AST *ast);
 
 static void compile_call(Compiler *compiler, AST *ast);
 
+static void compile_cond_expr(Compiler *compiler, AST *ast);
+
 static void compile_block(Compiler *compiler, AST *ast);
 static void compile_list(Compiler *compiler, AST *ast);
 static void compile_tuple(Compiler *compiler, AST *ast);
@@ -485,6 +487,29 @@ static void compile_call(Compiler *compiler, AST *ast)
 	compile_node(compiler, ast->left, false);  // callable
 	write_ins(compiler, INS_CALL, lineno);
 	write_uint16(compiler, (named_args << 8) | unnamed_args);
+}
+
+static void compile_cond_expr(Compiler *compiler, AST *ast)
+{
+	AST_TYPE_ASSERT(ast, NODE_COND_EXPR);
+
+	const unsigned int lineno = ast->lineno;
+
+	compile_node(compiler, ast->v.middle, false);  // condition
+	write_ins(compiler, INS_JMP_IF_FALSE, lineno);
+	const size_t jmp_to_false_index = compiler->code.size;
+	write_uint16(compiler, 0);
+
+	compile_node(compiler, ast->left, false);  // true branch
+	write_ins(compiler, INS_JMP, lineno);
+	const size_t jmp_out_index = compiler->code.size;
+	write_uint16(compiler, 0);
+
+	write_uint16_at(compiler, compiler->code.size - jmp_to_false_index - 2, jmp_to_false_index);
+
+	compile_node(compiler, ast->right, false);  // false branch
+
+	write_uint16_at(compiler, compiler->code.size - jmp_out_index - 2, jmp_out_index);
 }
 
 static void compile_and(Compiler *compiler, AST *ast)
@@ -1062,6 +1087,9 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 		compile_node(compiler, ast->left, false);
 		write_ins(compiler, to_opcode(ast->type), lineno);
 		break;
+	case NODE_COND_EXPR:
+		compile_cond_expr(compiler, ast);
+		break;
 	case NODE_PRINT:
 		compile_node(compiler, ast->left, false);
 		write_ins(compiler, INS_PRINT, lineno);
@@ -1387,6 +1415,9 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		for (struct ast_list *node = ast->v.excs; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
+		goto end;
+	case NODE_COND_EXPR:
+		fill_ct_from_ast(compiler, ast->v.middle);
 		goto end;
 	default:
 		goto end;

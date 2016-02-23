@@ -146,6 +146,7 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 		}
 		break;
 	case NODE_FOR:
+	case NODE_COND_EXPR:
 		populate_symtable_from_node(st, ast->left);
 		populate_symtable_from_node(st, ast->right);
 		populate_symtable_from_node(st, ast->v.middle);

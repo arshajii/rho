@@ -63,6 +63,9 @@ void ast_free(AST *ast)
 	case NODE_TRY_CATCH:
 		ast_list_free(ast->v.excs);
 		break;
+	case NODE_COND_EXPR:
+		ast_free(ast->v.middle);
+		break;
 	default:
 		break;
 	}
