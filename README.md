@@ -3,6 +3,9 @@
 Rho Programming Language
 ========================
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/arshajii/rho/master/LICENSE)
+
+
 *Rho* is a small, still-in-development, dynamically typed programming language written in C99. The language is largely inspired by Python.
 
 So far...
