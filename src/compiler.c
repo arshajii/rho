@@ -586,12 +586,10 @@ static void compile_if(Compiler *compiler, AST *ast)
 
 	AST *else_chain_base = ast->v.middle;
 	unsigned int n_elifs = 0;
-	bool has_else = false;
 
 	for (AST *node = else_chain_base; node != NULL; node = node->v.middle) {
 		if (node->type == NODE_ELSE) {
 			assert(node->v.middle == NULL);   // this'd better be the last node
-			has_else = true;
 		} else {
 			assert(node->type == NODE_ELIF);  // only ELSE and ELIF nodes allowed here
 			++n_elifs;

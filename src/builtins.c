@@ -8,7 +8,7 @@
 #include "module.h"
 #include "builtins.h"
 
-#define NFUNC_INIT(func) (NativeFuncObject){OBJ_INIT_STATIC(&native_func_class), func}
+#define NFUNC_INIT(func_) { .base = OBJ_INIT_STATIC(&native_func_class), .func = (func_) }
 
 static Value hash(Value *args, size_t nargs);
 static Value str(Value *args, size_t nargs);
@@ -25,19 +25,19 @@ static NativeFuncObject next_nfo = NFUNC_INIT(next);
 static NativeFuncObject type_nfo = NFUNC_INIT(type);
 
 const struct builtin builtins[] = {
-		{"hash", makeobj(&hash_nfo)},
-		{"str",  makeobj(&str_nfo)},
-		{"len",  makeobj(&len_nfo)},
-		{"iter", makeobj(&iter_nfo)},
-		{"next", makeobj(&next_nfo)},
-		{"type", makeobj(&type_nfo)},
-		{NULL,   makeempty()},
+		{"hash", MAKE_OBJ(&hash_nfo)},
+		{"str",  MAKE_OBJ(&str_nfo)},
+		{"len",  MAKE_OBJ(&len_nfo)},
+		{"iter", MAKE_OBJ(&iter_nfo)},
+		{"next", MAKE_OBJ(&next_nfo)},
+		{"type", MAKE_OBJ(&type_nfo)},
+		{NULL,   MAKE_EMPTY()},
 };
 
-#define ARG_ERR(count, expected) return call_exc_num_args(__FUNCTION__, count, expected)
+#define ARG_ERR(count, expected) return call_exc_num_args(__func__, count, expected)
 #define ARG_CHECK(count, expected) if (count != expected) ARG_ERR(count, expected)
 
-#define TYPE_ERROR(class) return makeerr(type_error_unsupported_1(__FUNCTION__, class))
+#define TYPE_ERROR(class) return makeerr(type_error_unsupported_1(__func__, class))
 
 static Value hash(Value *args, size_t nargs)
 {
@@ -58,7 +58,7 @@ static Value len(Value *args, size_t nargs)
 	LenFunc len = resolve_len(class);
 
 	if (!len) {
-		return type_exc_unsupported_1(__FUNCTION__, class);
+		return type_exc_unsupported_1(__func__, class);
 	}
 
 	return makeint(len(&args[0]));
@@ -114,11 +114,11 @@ static NativeFuncObject sin_nfo = NFUNC_INIT(rho_sin);
 #define E  2.71828182845904523536
 
 const struct builtin math_builtins[] = {
-		{"pi",  makefloat(PI)},
-		{"e",   makefloat(E)},
-		{"cos", makeobj(&cos_nfo)},
-		{"sin", makeobj(&sin_nfo)},
-		{NULL,  makeempty()},
+		{"pi",  MAKE_FLOAT(PI)},
+		{"e",   MAKE_FLOAT(E)},
+		{"cos", MAKE_OBJ(&cos_nfo)},
+		{"sin", MAKE_OBJ(&sin_nfo)},
+		{NULL,  MAKE_EMPTY()},
 };
 
 static void init_math_module(BuiltInModule *mod)

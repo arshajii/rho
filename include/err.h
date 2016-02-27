@@ -27,7 +27,7 @@ extern const char *err_type_headers[];
 
 struct traceback_stack_item {
 	const char *fn;
-	const unsigned int lineno;
+	unsigned int lineno;
 };
 
 struct traceback_manager {

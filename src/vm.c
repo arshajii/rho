@@ -559,7 +559,6 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_TOP();
 			res = op_not(v1);
 
-			release(v2);
 			if (iserror(&res)) {
 				goto error;
 			}

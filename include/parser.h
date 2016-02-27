@@ -94,7 +94,7 @@ typedef enum {
 } TokType;
 
 
-#define IS_OP(type) ((TOK_OPS_START < (type) && (type) < TOK_OPS_END) || type == TOK_IF)
+#define IS_OP(type) ((TOK_OPS_START < (type) && (type) < TOK_OPS_END))
 
 #define IS_ASSIGNMENT_TOK(type) \
 	(TOK_ASSIGNMENTS_START < (type) && (type) < TOK_ASSIGNMENTS_END)

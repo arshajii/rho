@@ -22,7 +22,10 @@ typedef struct built_in_module {
 	bool initialized;
 } BuiltInModule;
 
-#define BUILTIN_MODULE_INIT_STATIC(name_, init_func) \
-	((BuiltInModule){(Module){.base = OBJ_INIT_STATIC(&builtin_module_class), .name = (name_)}, (init_func), false})
+#define BUILTIN_MODULE_INIT_STATIC(name_, init_func_) { \
+  .base = { .base = OBJ_INIT_STATIC(&builtin_module_class), .name = (name_) }, \
+  .init_func = (init_func_), \
+  .initialized = false \
+}
 
 #endif /* MODULE_H */

@@ -65,7 +65,7 @@ Class iter_class = {
 /* IterStop */
 Value get_iter_stop(void)
 {
-	static IterStop iter_stop = (IterStop){OBJ_INIT_STATIC(&iter_stop_class)};
+	static IterStop iter_stop = { .base = OBJ_INIT_STATIC(&iter_stop_class) };
 	return makeobj(&iter_stop);
 }
 
