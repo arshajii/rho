@@ -350,10 +350,21 @@ static AST *parse_expr_min_prec(Parser *p, unsigned int min_prec, bool allow_ass
 	while (parser_has_next_token(p)) {
 
 		Token *tok = parser_peek_token(p);
-
 		const TokType type = tok->type;
+		Token *next_direct = parser_peek_token_direct(p);
 
-		if (!IS_OP(type)) {
+		/*
+		 * The 2nd component of the if-statement below is needed to
+		 * distinguish something like:
+		 *
+		 *     print x if c else ...
+		 *
+		 * from, say:
+		 *
+		 *     print x
+		 *     if c { ... }
+		 */
+		if (!IS_OP(type) && !(type == TOK_IF && (tok == next_direct))) {
 			break;
 		}
 
