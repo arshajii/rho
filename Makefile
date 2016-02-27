@@ -1,5 +1,5 @@
 TARGET = rho
-LIBS =
+LIBS = -lm
 CC = gcc
 WARNINGS = -Wall -Wextra -Werror
 CFLAGS = -std=c99 -g -pedantic -pedantic-errors -fstrict-aliasing $(WARNINGS)
