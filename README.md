@@ -8,17 +8,6 @@ Rho Programming Language
 
 *Rho* is a small, still-in-development, dynamically typed programming language written in C99. The language is largely inspired by Python.
 
-So far...
----------
-
-The language is still in its early stages of development. So far, the following have been implemented and tested:
-
-- Parser and compiler
-- ~~Rudimentary~~ object system
-- ~~Rudimentary~~ virtual machine
-
-Each of these components will likely change and evolve as time goes on.
-
 Examples
 --------
 
@@ -49,12 +38,20 @@ b = 1
 #### `while` statements
 
 <pre>
-<i># print integers from 1 to 10:</i>
+<i># print integers from 1 to 9:</i>
 a = 1
-<b>while</b> a <= 10 {
+<b>while</b> a < 10 {
     <b>print</b> a
     a += 1
 }
+</pre>
+
+#### `for` statements
+
+<pre>
+<i># equivalent of while-loop above:</i>
+<b>for</b> a <b>in</b> 1..10:  <i># ':' can be used for single-statement blocks</i>
+    <b>print</b> a
 </pre>
 
 #### Functions
@@ -73,7 +70,7 @@ a = 1
     }
 
     <i># functions can be anonymous:</i>
-	sqrt = :($1 ** 0.5)
+	sqrt = (: $1 ** 0.5)
 
     <b>return</b> sqrt(square(a) + square(b))
 }
