@@ -292,9 +292,10 @@ void vm_eval_frame(VM *vm)
 #define STACK_SET_TOP(v)     (stack[-1] = (v))
 #define STACK_SET_SECOND(v)  (stack[-2] = (v))
 #define STACK_SET_THIRD(v)   (stack[-3] = (v))
-#define STACK_PURGE()        do { while (stack != stack_base) {release(STACK_POP());} } while (0)
+#define STACK_PURGE(wall)    do { while (stack != wall) {release(STACK_POP());} } while (0)
 
-#define EXC_STACK_PUSH(start, end, handler)  (*exc_stack++ = (struct exc_stack_element){(start), (end), (handler)})
+#define EXC_STACK_PUSH(start, end, handler, purge_wall) \
+	(*exc_stack++ = (struct exc_stack_element){(start), (end), (handler), (purge_wall)})
 #define EXC_STACK_POP()       (--exc_stack)
 #define EXC_STACK_TOP()       (&exc_stack[-1])
 #define EXC_STACK_EMPTY()     (exc_stack == exc_stack_base)
@@ -1098,7 +1099,7 @@ void vm_eval_frame(VM *vm)
 			v1 = STACK_POP();
 			retain(v1);
 			frame->return_value = *v1;
-			STACK_PURGE();
+			STACK_PURGE(stack_base);
 			return;
 		}
 		case INS_THROW: {
@@ -1118,7 +1119,7 @@ void vm_eval_frame(VM *vm)
 			const unsigned int try_block_len = GET_UINT16();
 			const unsigned int handler_offset = GET_UINT16();
 
-			EXC_STACK_PUSH(pos, pos + try_block_len, pos + handler_offset);
+			EXC_STACK_PUSH(pos, pos + try_block_len, pos + handler_offset, stack);
 
 			break;
 		}
@@ -1308,17 +1309,18 @@ void vm_eval_frame(VM *vm)
 	error:
 	switch (res.type) {
 	case VAL_TYPE_EXC: {
-		STACK_PURGE();
-
 		if (EXC_STACK_EMPTY()) {
+			STACK_PURGE(stack_base);
 			retain(&res);
-			Exception *e = (Exception *)objvalue(&res);
+			Exception *e = objvalue(&res);
 			exc_traceback_append(e, frame->co->name, get_lineno(frame));
 			frame->return_value = res;
 			return;
 		} else {
+			const struct exc_stack_element *exc = EXC_STACK_POP();
+			STACK_PURGE(exc->purge_wall);
 			STACK_PUSH(res);
-			pos = EXC_STACK_POP()->handler_pos;
+			pos = exc->handler_pos;
 			goto head;
 		}
 		break;

@@ -14,6 +14,14 @@ struct exc_stack_element {
 	size_t start;  /* start position of try-block */
 	size_t end;    /* end position of try-block */
 	size_t handler_pos;  /* where to jump in case of exception */
+
+	/*
+	 * Some opcodes could be using space on the stack
+	 * long-term, so if we catch an exception, we don't
+	 * want to clear the whole stack. This pointer
+	 * defines where we should stop clearing.
+	 */
+	Value *purge_wall;
 };
 
 typedef struct frame {

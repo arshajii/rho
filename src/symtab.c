@@ -121,7 +121,8 @@ static void populate_symtable_from_node(SymTable *st, AST *ast)
 			 * table hierarchy in order to find where the name is bound, be
 			 * it in a lexically enclosing scope or in the global scope.
 			 */
-			if (ste_get_symbol(module, ident) != NULL) {
+			STSymbol *s;
+			if ((s = ste_get_symbol(module, ident)) != NULL && s->bound_here) {
 				ste_register_ident(current, ident, FLAG_GLOBAL_VAR);
 			} else {
 				ste_register_ident(current, ident, FLAG_FREE_VAR);
