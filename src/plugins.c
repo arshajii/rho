@@ -8,13 +8,14 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <dlfcn.h>
-#include <limits.h>
 #include <assert.h>
 #include "object.h"
 #include "module.h"
 #include "vm.h"
 #include "util.h"
 #include "plugins.h"
+
+#define PATH_MAX 4096
 
 static const char *plugin_path = NULL;
 
@@ -26,7 +27,7 @@ void rho_set_plugin_path(const char *path)
 static bool is_plugin(struct dirent *ent)
 {
 	const char *name = ent->d_name;
-	const size_t name_len = ent->d_namlen;
+	const size_t name_len = strlen(name);
 	return name_len > 3 && strcmp(name + name_len - 3, ".so") == 0;
 }
 
@@ -44,7 +45,7 @@ int rho_reload_plugins(void)
 
 	struct dirent *ent;
 	while ((ent = readdir(dir)) != NULL) {
-		if (ent->d_type == DT_REG && is_plugin(ent)) {
+		if (is_plugin(ent)) {
 			char full_name[PATH_MAX + 1];
 			snprintf(full_name, PATH_MAX + 1, "%s/%s", plugin_path, ent->d_name);
 			void *handle = dlopen(full_name, RTLD_NOW);
