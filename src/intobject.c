@@ -12,255 +12,255 @@
 #define TYPE_ERR_STR(op) "invalid operator types for operator " #op "."
 
 #define INT_BINOP_FUNC_BODY(op) \
-	if (isint(other)) { \
-		return makeint(intvalue(this) op intvalue(other)); \
-	} else if (isfloat(other)) { \
-		return makefloat(intvalue(this) op floatvalue(other)); \
+	if (rho_isint(other)) { \
+		return rho_makeint(rho_intvalue(this) op rho_intvalue(other)); \
+	} else if (rho_isfloat(other)) { \
+		return rho_makefloat(rho_intvalue(this) op rho_floatvalue(other)); \
 	} else { \
-		return makeut(); \
+		return rho_makeut(); \
 	}
 
 #define INT_BINOP_FUNC_BODY_NOFLOAT(op) \
-	if (isint(other)) { \
-		return makeint(intvalue(this) op intvalue(other)); \
+	if (rho_isint(other)) { \
+		return rho_makeint(rho_intvalue(this) op rho_intvalue(other)); \
 	} else { \
-		return makeut(); \
+		return rho_makeut(); \
 	}
 
 #define INT_IBINOP_FUNC_BODY(op) \
-	if (isint(other)) { \
-		intvalue(this) = intvalue(this) op intvalue(other); \
+	if (rho_isint(other)) { \
+		rho_intvalue(this) = rho_intvalue(this) op rho_intvalue(other); \
 		return *this; \
-	} else if (isfloat(other)) { \
-		this->type = VAL_TYPE_FLOAT; \
-		floatvalue(this) = intvalue(this) op floatvalue(other); \
+	} else if (rho_isfloat(other)) { \
+		this->type = RHO_VAL_TYPE_FLOAT; \
+		rho_floatvalue(this) = rho_intvalue(this) op rho_floatvalue(other); \
 		return *this; \
 	} else { \
-		return makeut(); \
+		return rho_makeut(); \
 	}
 
 #define INT_IBINOP_FUNC_BODY_NOFLOAT(op) \
-	if (isint(other)) { \
-		intvalue(this) = intvalue(this) op intvalue(other); \
+	if (rho_isint(other)) { \
+		rho_intvalue(this) = rho_intvalue(this) op rho_intvalue(other); \
 		return *this; \
 	} else { \
-		return makeut(); \
+		return rho_makeut(); \
 	}
 
-static bool int_eq(Value *this, Value *other)
+static bool int_eq(RhoValue *this, RhoValue *other)
 {
-	if (isint(other)) {
-		return intvalue(this) == intvalue(other);
-	} else if (isfloat(other)) {
-		return intvalue(this) == floatvalue(other);
+	if (rho_isint(other)) {
+		return rho_intvalue(this) == rho_intvalue(other);
+	} else if (rho_isfloat(other)) {
+		return rho_intvalue(this) == rho_floatvalue(other);
 	} else {
 		return false;
 	}
 }
 
-static int int_hash(Value *this)
+static int int_hash(RhoValue *this)
 {
-	return hash_long(intvalue(this));
+	return rho_util_hash_long(rho_intvalue(this));
 }
 
-static Value int_cmp(Value *this, Value *other)
+static RhoValue int_cmp(RhoValue *this, RhoValue *other)
 {
-	const long x = intvalue(this);
-	if (isint(other)) {
-		const long y = intvalue(other);
-		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
-	} else if (isfloat(other)) {
-		const double y = floatvalue(other);
-		return makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
+	const long x = rho_intvalue(this);
+	if (rho_isint(other)) {
+		const long y = rho_intvalue(other);
+		return rho_makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
+	} else if (rho_isfloat(other)) {
+		const double y = rho_floatvalue(other);
+		return rho_makeint((x < y) ? -1 : ((x == y) ? 0 : 1));
 	} else {
-		return makeut();
+		return rho_makeut();
 	}
 }
 
-static Value int_plus(Value *this)
+static RhoValue int_plus(RhoValue *this)
 {
 	return *this;
 }
 
-static Value int_minus(Value *this)
+static RhoValue int_minus(RhoValue *this)
 {
-	return makeint(-intvalue(this));
+	return rho_makeint(-rho_intvalue(this));
 }
 
-static Value int_abs(Value *this)
+static RhoValue int_abs(RhoValue *this)
 {
-	return makeint(labs(intvalue(this)));
+	return rho_makeint(labs(rho_intvalue(this)));
 }
 
-static Value int_add(Value *this, Value *other)
+static RhoValue int_add(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY(+)
 }
 
-static Value int_sub(Value *this, Value *other)
+static RhoValue int_sub(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY(-)
 }
 
-static Value int_mul(Value *this, Value *other)
+static RhoValue int_mul(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY(*)
 }
 
-static Value int_div(Value *this, Value *other)
+static RhoValue int_div(RhoValue *this, RhoValue *other)
 {
-	if (isint(other) && !intvalue(other)) {
-		return makedbz();
+	if (rho_isint(other) && !rho_intvalue(other)) {
+		return rho_makedbz();
 	}
 	INT_BINOP_FUNC_BODY(/)
 }
 
-static Value int_mod(Value *this, Value *other)
+static RhoValue int_mod(RhoValue *this, RhoValue *other)
 {
-	if (isint(other) && !intvalue(other)) {
-		return makedbz();
+	if (rho_isint(other) && !rho_intvalue(other)) {
+		return rho_makedbz();
 	}
 	INT_BINOP_FUNC_BODY_NOFLOAT(%)
 }
 
-static Value int_pow(Value *this, Value *other)
+static RhoValue int_pow(RhoValue *this, RhoValue *other)
 {
-	if (isint(other)) {
-		return makeint(pow(intvalue(this), intvalue(other)));
-	} else if (isfloat(other)) {
-		return makefloat(pow(intvalue(this), floatvalue(other)));
+	if (rho_isint(other)) {
+		return rho_makeint(pow(rho_intvalue(this), rho_intvalue(other)));
+	} else if (rho_isfloat(other)) {
+		return rho_makefloat(pow(rho_intvalue(this), rho_floatvalue(other)));
 	} else {
-		return makeut();
+		return rho_makeut();
 	}
 }
 
-static Value int_bitnot(Value *this)
+static RhoValue int_bitnot(RhoValue *this)
 {
-	return makeint(~intvalue(this));
+	return rho_makeint(~rho_intvalue(this));
 }
 
-static Value int_bitand(Value *this, Value *other)
+static RhoValue int_bitand(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY_NOFLOAT(&)
 }
 
-static Value int_bitor(Value *this, Value *other)
+static RhoValue int_bitor(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY_NOFLOAT(|)
 }
 
-static Value int_xor(Value *this, Value *other)
+static RhoValue int_xor(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY_NOFLOAT(^)
 }
 
-static Value int_shiftl(Value *this, Value *other)
+static RhoValue int_shiftl(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY_NOFLOAT(<<)
 }
 
-static Value int_shiftr(Value *this, Value *other)
+static RhoValue int_shiftr(RhoValue *this, RhoValue *other)
 {
 	INT_BINOP_FUNC_BODY_NOFLOAT(>>)
 }
 
-static Value int_iadd(Value *this, Value *other)
+static RhoValue int_iadd(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY(+)
 }
 
-static Value int_isub(Value *this, Value *other)
+static RhoValue int_isub(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY(-)
 }
 
-static Value int_imul(Value *this, Value *other)
+static RhoValue int_imul(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY(*)
 }
 
-static Value int_idiv(Value *this, Value *other)
+static RhoValue int_idiv(RhoValue *this, RhoValue *other)
 {
-	if (isint(other) && !intvalue(other)) {
-		return makedbz();
+	if (rho_isint(other) && !rho_intvalue(other)) {
+		return rho_makedbz();
 	}
 	INT_IBINOP_FUNC_BODY(/)
 }
 
-static Value int_imod(Value *this, Value *other)
+static RhoValue int_imod(RhoValue *this, RhoValue *other)
 {
-	if (isint(other) && !intvalue(other)) {
-		return makedbz();
+	if (rho_isint(other) && !rho_intvalue(other)) {
+		return rho_makedbz();
 	}
 	INT_IBINOP_FUNC_BODY_NOFLOAT(%)
 }
 
-static Value int_ipow(Value *this, Value *other)
+static RhoValue int_ipow(RhoValue *this, RhoValue *other)
 {
-	if (isint(other)) {
-		intvalue(this) = pow(intvalue(this), intvalue(other));
+	if (rho_isint(other)) {
+		rho_intvalue(this) = pow(rho_intvalue(this), rho_intvalue(other));
 		return *this;
-	} else if (isfloat(other)) {
-		this->type = VAL_TYPE_FLOAT;
-		floatvalue(this) = pow(intvalue(this), floatvalue(other));
+	} else if (rho_isfloat(other)) {
+		this->type = RHO_VAL_TYPE_FLOAT;
+		rho_floatvalue(this) = pow(rho_intvalue(this), rho_floatvalue(other));
 		return *this;
 	} else {
-		return makeut();
+		return rho_makeut();
 	}
 }
 
-static Value int_ibitand(Value *this, Value *other)
+static RhoValue int_ibitand(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY_NOFLOAT(&)
 }
 
-static Value int_ibitor(Value *this, Value *other)
+static RhoValue int_ibitor(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY_NOFLOAT(|)
 }
 
-static Value int_ixor(Value *this, Value *other)
+static RhoValue int_ixor(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY_NOFLOAT(^)
 }
 
-static Value int_ishiftl(Value *this, Value *other)
+static RhoValue int_ishiftl(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY_NOFLOAT(<<)
 }
 
-static Value int_ishiftr(Value *this, Value *other)
+static RhoValue int_ishiftr(RhoValue *this, RhoValue *other)
 {
 	INT_IBINOP_FUNC_BODY_NOFLOAT(>>)
 }
 
-static bool int_nonzero(Value *this)
+static bool int_nonzero(RhoValue *this)
 {
-	return intvalue(this) != 0;
+	return rho_intvalue(this) != 0;
 }
 
-static Value int_to_int(Value *this)
+static RhoValue int_to_int(RhoValue *this)
 {
 	return *this;
 }
 
-static Value int_to_float(Value *this)
+static RhoValue int_to_float(RhoValue *this)
 {
-	return makefloat(intvalue(this));
+	return rho_makefloat(rho_intvalue(this));
 }
 
-static StrObject *int_str(Value *this)
+static RhoStrObject *int_str(RhoValue *this)
 {
 	char buf[32];
-	const long n = intvalue(this);
+	const long n = rho_intvalue(this);
 	int len = snprintf(buf, sizeof(buf), "%ld", n);
 	assert(0 < len && (size_t)len < sizeof(buf));
 
-	Value res = strobj_make_direct(buf, len);
-	return (StrObject *)objvalue(&res);
+	RhoValue res = rho_strobj_make_direct(buf, len);
+	return (RhoStrObject *)rho_objvalue(&res);
 }
 
-struct num_methods int_num_methods = {
+struct rho_num_methods rho_int_num_methods = {
 	int_plus,    /* plus */
 	int_minus,    /* minus */
 	int_abs,    /* abs */
@@ -311,8 +311,8 @@ struct num_methods int_num_methods = {
 	int_to_float,    /* to_float */
 };
 
-Class int_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_int_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Int",
 	.super = &obj_class,
 
@@ -332,8 +332,8 @@ Class int_class = {
 	.iter = NULL,
 	.iternext = NULL,
 
-	.num_methods = &int_num_methods,
-	.seq_methods  = NULL,
+	.num_methods = &rho_int_num_methods,
+	.seq_methods = NULL,
 
 	.members = NULL,
 	.methods = NULL,

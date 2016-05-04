@@ -1,22 +1,22 @@
-#ifndef FUNCOBJECT_H
-#define FUNCOBJECT_H
+#ifndef RHO_FUNCOBJECT_H
+#define RHO_FUNCOBJECT_H
 
 #include <stdlib.h>
 #include "object.h"
 #include "codeobject.h"
 
-extern Class fn_class;
+extern RhoClass rho_fn_class;
 
 typedef struct {
-	Object base;
-	CodeObject *co;
+	RhoObject base;
+	RhoCodeObject *co;
 
 	/* default arguments */
-	struct value_array defaults;
-} FuncObject;
+	struct rho_value_array defaults;
+} RhoFuncObject;
 
-Value funcobj_make(CodeObject *co);
+RhoValue rho_funcobj_make(RhoCodeObject *co);
 
-void funcobj_init_defaults(FuncObject *co, Value *defaults, const size_t n_defaults);
+void rho_funcobj_init_defaults(RhoFuncObject *co, RhoValue *defaults, const size_t n_defaults);
 
-#endif /* FUNCOBJECT_H */
+#endif /* RHO_FUNCOBJECT_H */

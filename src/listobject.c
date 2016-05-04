@@ -9,282 +9,291 @@
 #include "util.h"
 #include "listobject.h"
 
-static Value iter_make(ListObject *list);
+static RhoValue iter_make(RhoListObject *list);
 
 #define INDEX_CHECK(index, count) \
 	if ((index) < 0 || ((size_t)(index)) >= (count)) { \
-		return INDEX_EXC("list index out of range (index = %li, len = %lu)", (index), (count)); \
+		return RHO_INDEX_EXC("list index out of range (index = %li, len = %lu)", (index), (count)); \
 	}
 
-static void list_ensure_capacity(ListObject *list, const size_t min_capacity);
+static void list_ensure_capacity(RhoListObject *list, const size_t min_capacity);
 
 /* Does not retain elements; direct transfer from value stack. */
-Value list_make(Value *elements, const size_t count)
+RhoValue rho_list_make(RhoValue *elements, const size_t count)
 {
-	ListObject *list = obj_alloc(&list_class);
+	RhoListObject *list = rho_obj_alloc(&rho_list_class);
 
-	const size_t size = count * sizeof(Value);
+	const size_t size = count * sizeof(RhoValue);
 	list->elements = rho_malloc(size);
 	memcpy(list->elements, elements, size);
 
 	list->count = count;
 	list->capacity = count;
 
-	return makeobj(list);
+	return rho_makeobj(list);
 }
 
-static StrObject *list_str(Value *this)
+static RhoStrObject *list_str(RhoValue *this)
 {
-	ListObject *list = objvalue(this);
+	RhoListObject *list = rho_objvalue(this);
 	const size_t count = list->count;
 
 	if (count == 0) {
-		Value ret = strobj_make_direct("[]", 2);
-		return (StrObject *)objvalue(&ret);
+		RhoValue ret = rho_strobj_make_direct("[]", 2);
+		return (RhoStrObject *)rho_objvalue(&ret);
 	}
 
-	StrBuf sb;
-	strbuf_init(&sb, 16);
-	strbuf_append(&sb, "[", 1);
+	RhoStrBuf sb;
+	rho_strbuf_init(&sb, 16);
+	rho_strbuf_append(&sb, "[", 1);
 
-	Value *elements = list->elements;
+	RhoValue *elements = list->elements;
 
 	for (size_t i = 0; i < count; i++) {
-		Value *v = &elements[i];
-		if (isobject(v) && objvalue(v) == list) {
-			strbuf_append(&sb, "[...]", 5);
+		RhoValue *v = &elements[i];
+		if (rho_isobject(v) && rho_objvalue(v) == list) {
+			rho_strbuf_append(&sb, "[...]", 5);
 		} else {
-			StrObject *str = op_str(v);
-			strbuf_append(&sb, str->str.value, str->str.len);
-			releaseo(str);
+			RhoStrObject *str = rho_op_str(v);
+			rho_strbuf_append(&sb, str->str.value, str->str.len);
+			rho_releaseo(str);
 		}
 
 		if (i < count - 1) {
-			strbuf_append(&sb, ", ", 2);
+			rho_strbuf_append(&sb, ", ", 2);
 		} else {
-			strbuf_append(&sb, "]", 1);
+			rho_strbuf_append(&sb, "]", 1);
 			break;
 		}
 	}
 
-	Str dest;
-	strbuf_to_str(&sb, &dest);
+	RhoStr dest;
+	rho_strbuf_to_str(&sb, &dest);
 	dest.freeable = 1;
 
-	Value ret = strobj_make(dest);
-	return (StrObject *)objvalue(&ret);
+	RhoValue ret = rho_strobj_make(dest);
+	return (RhoStrObject *)rho_objvalue(&ret);
 }
 
-static void list_free(Value *this)
+static void list_free(RhoValue *this)
 {
-	ListObject *list = objvalue(this);
-	Value *elements = list->elements;
+	RhoListObject *list = rho_objvalue(this);
+	RhoValue *elements = list->elements;
 	const size_t count = list->count;
 
 	for (size_t i = 0; i < count; i++) {
-		release(&elements[i]);
+		rho_release(&elements[i]);
 	}
 
 	free(elements);
 	obj_class.del(this);
 }
 
-static size_t list_len(Value *this)
+static size_t list_len(RhoValue *this)
 {
-	ListObject *list = objvalue(this);
+	RhoListObject *list = rho_objvalue(this);
 	return list->count;
 }
 
-static Value list_get(Value *this, Value *idx)
+RhoValue rho_list_get(RhoListObject *list, const size_t idx)
 {
-	if (!isint(idx)) {
-		Class *class = getclass(idx);
-		return TYPE_EXC("list indices must be integers, not %s instances", class->name);
-	}
-
-	ListObject *list = objvalue(this);
-	const size_t count = list->count;
-	const long idx_raw = intvalue(idx);
-
-	INDEX_CHECK(idx_raw, count);
-
-	retain(&list->elements[idx_raw]);
-	return list->elements[idx_raw];
+	RhoValue v = list->elements[idx];
+	rho_retain(&v);
+	return v;
 }
 
-static Value list_set(Value *this, Value *idx, Value *v)
+static RhoValue list_get(RhoValue *this, RhoValue *idx)
 {
-	if (!isint(idx)) {
-		Class *class = getclass(idx);
-		return TYPE_EXC("list indices must be integers, not %s instances", class->name);
+	if (!rho_isint(idx)) {
+		RhoClass *class = rho_getclass(idx);
+		return RHO_TYPE_EXC("list indices must be integers, not %s instances", class->name);
 	}
 
-	ListObject *list = objvalue(this);
+	RhoListObject *list = rho_objvalue(this);
 	const size_t count = list->count;
-	const long idx_raw = intvalue(idx);
+	const long idx_raw = rho_intvalue(idx);
 
 	INDEX_CHECK(idx_raw, count);
 
-	Value old = list->elements[idx_raw];
-	retain(v);
+	return rho_list_get(list, idx_raw);
+}
+
+static RhoValue list_set(RhoValue *this, RhoValue *idx, RhoValue *v)
+{
+	if (!rho_isint(idx)) {
+		RhoClass *class = rho_getclass(idx);
+		return RHO_TYPE_EXC("list indices must be integers, not %s instances", class->name);
+	}
+
+	RhoListObject *list = rho_objvalue(this);
+	const size_t count = list->count;
+	const long idx_raw = rho_intvalue(idx);
+
+	INDEX_CHECK(idx_raw, count);
+
+	RhoValue old = list->elements[idx_raw];
+	rho_retain(v);
 	list->elements[idx_raw] = *v;
 	return old;
 }
 
-static Value list_apply(Value *this, Value *fn)
+static RhoValue list_apply(RhoValue *this, RhoValue *fn)
 {
-	ListObject *list = objvalue(this);
-	CallFunc call = resolve_call(getclass(fn));  // this should've been checked already
+	RhoListObject *list = rho_objvalue(this);
+	CallFunc call = rho_resolve_call(rho_getclass(fn));  // this should've been checked already
 
-	Value list2_value = list_make(list->elements, list->count);
-	ListObject *list2 = objvalue(&list2_value);
-	Value *elements = list2->elements;
+	RhoValue list2_value = rho_list_make(list->elements, list->count);
+	RhoListObject *list2 = rho_objvalue(&list2_value);
+	RhoValue *elements = list2->elements;
 	const size_t count = list2->count;
 
 	for (size_t i = 0; i < count; i++) {
-		Value r = call(fn, &elements[i], NULL, 1, 0);
+		RhoValue r = call(fn, &elements[i], NULL, 1, 0);
 
-		if (iserror(&r)) {
+		if (rho_iserror(&r)) {
 			list2->count = i;
-			list_free(&makeobj(list2));
+			list_free(&rho_makeobj(list2));
 			return r;
 		}
 
 		elements[i] = r;
 	}
 
-	return makeobj(list2);
+	return rho_makeobj(list2);
+}
+
+void rho_list_append(RhoListObject *list, RhoValue *v)
+{
+	const size_t count = list->count;
+	list_ensure_capacity(list, count + 1);
+	rho_retain(v);
+	list->elements[list->count++] = *v;
 }
 
 #define NAMED_ARGS_CHECK(name) \
-		if (nargs_named > 0) return TYPE_EXC(name "() takes no named arguments")
+		if (nargs_named > 0) return RHO_TYPE_EXC(name "() takes no named arguments")
 
-static Value list_append(Value *this,
-                         Value *args,
-                         Value *args_named,
+static RhoValue list_append(RhoValue *this,
+                         RhoValue *args,
+                         RhoValue *args_named,
                          size_t nargs,
                          size_t nargs_named)
 {
 #define NAME "append"
 
-	UNUSED(args_named);
+	RHO_UNUSED(args_named);
 	NAMED_ARGS_CHECK(NAME);
 
 	if (nargs != 1) {
-		return TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
+		return RHO_TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
 	}
 
-	ListObject *list = objvalue(this);
-	const size_t count = list->count;
-	list_ensure_capacity(list, count + 1);
-
-	retain(&args[0]);
-	list->elements[list->count++] = args[0];
-
-	return makeint(0);
+	RhoListObject *list = rho_objvalue(this);
+	rho_list_append(list, &args[0]);
+	return rho_makeint(0);
 
 #undef NAME
 }
 
-static Value list_pop(Value *this,
-                      Value *args,
-                      Value *args_named,
+static RhoValue list_pop(RhoValue *this,
+                      RhoValue *args,
+                      RhoValue *args_named,
                       size_t nargs,
                       size_t nargs_named)
 {
 #define NAME "pop"
 
-	UNUSED(args_named);
+	RHO_UNUSED(args_named);
 	NAMED_ARGS_CHECK(NAME);
 
 	if (nargs >= 2) {
-		return TYPE_EXC(NAME "() takes at most 1 argument (got %lu)", nargs);
+		return RHO_TYPE_EXC(NAME "() takes at most 1 argument (got %lu)", nargs);
 	}
 
-	ListObject *list = objvalue(this);
-	Value *elements = list->elements;
+	RhoListObject *list = rho_objvalue(this);
+	RhoValue *elements = list->elements;
 	const size_t count = list->count;
 
 	if (nargs == 0) {
 		if (count > 0) {
 			return elements[--list->count];
 		} else {
-			return INDEX_EXC("cannot invoke " NAME "() on an empty list");
+			return RHO_INDEX_EXC("cannot invoke " NAME "() on an empty list");
 		}
 	} else {
-		Value *idx = &args[0];
-		if (isint(idx)) {
-			const long idx_raw = intvalue(idx);
+		RhoValue *idx = &args[0];
+		if (rho_isint(idx)) {
+			const long idx_raw = rho_intvalue(idx);
 
 			INDEX_CHECK(idx_raw, count);
 
-			Value ret = elements[idx_raw];
+			RhoValue ret = elements[idx_raw];
 			memmove(&elements[idx_raw],
 			        &elements[idx_raw + 1],
-			        ((count - 1) - idx_raw) * sizeof(Value));
+			        ((count - 1) - idx_raw) * sizeof(RhoValue));
 			--list->count;
 			return ret;
 		} else {
-			Class *class = getclass(idx);
-			return TYPE_EXC(NAME "() requires an integer argument (got a %s)", class->name);
+			RhoClass *class = rho_getclass(idx);
+			return RHO_TYPE_EXC(NAME "() requires an integer argument (got a %s)", class->name);
 		}
 	}
 
 #undef NAME
 }
 
-static Value list_insert(Value *this,
-                         Value *args,
-                         Value *args_named,
+static RhoValue list_insert(RhoValue *this,
+                         RhoValue *args,
+                         RhoValue *args_named,
                          size_t nargs,
                          size_t nargs_named)
 {
 #define NAME "insert"
 
-	UNUSED(args_named);
+	RHO_UNUSED(args_named);
 	NAMED_ARGS_CHECK(NAME);
 
 	if (nargs != 2) {
-		return TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
+		return RHO_TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
 	}
 
-	ListObject *list = objvalue(this);
+	RhoListObject *list = rho_objvalue(this);
 	const size_t count = list->count;
 
-	Value *idx = &args[0];
-	Value *e = &args[1];
+	RhoValue *idx = &args[0];
+	RhoValue *e = &args[1];
 
-	if (!isint(idx)) {
-		Class *class = getclass(idx);
-		return TYPE_EXC(NAME "() requires an integer as its first argument (got a %s)", class->name);
+	if (!rho_isint(idx)) {
+		RhoClass *class = rho_getclass(idx);
+		return RHO_TYPE_EXC(NAME "() requires an integer as its first argument (got a %s)", class->name);
 	}
 
-	const long idx_raw = intvalue(idx);
+	const long idx_raw = rho_intvalue(idx);
 
 	INDEX_CHECK(idx_raw, count);
 
 	list_ensure_capacity(list, count + 1);
-	Value *elements = list->elements;
+	RhoValue *elements = list->elements;
 
 	memmove(&elements[idx_raw + 1],
 	        &elements[idx_raw],
-	        (count - idx_raw) * sizeof(Value));
+	        (count - idx_raw) * sizeof(RhoValue));
 
-	retain(e);
+	rho_retain(e);
 	elements[idx_raw] = *e;
 	++list->count;
-	return makeint(0);
+	return rho_makeint(0);
 
 #undef NAME
 }
 
-static Value list_iter(Value *this)
+static RhoValue list_iter(RhoValue *this)
 {
-	ListObject *list = objvalue(this);
+	RhoListObject *list = rho_objvalue(this);
 	return iter_make(list);
 }
 
-static void list_ensure_capacity(ListObject *list, const size_t min_capacity)
+static void list_ensure_capacity(RhoListObject *list, const size_t min_capacity)
 {
 	const size_t capacity = list->capacity;
 
@@ -295,12 +304,31 @@ static void list_ensure_capacity(ListObject *list, const size_t min_capacity)
 			new_capacity = min_capacity;
 		}
 
-		list->elements = rho_realloc(list->elements, new_capacity * sizeof(Value));
+		list->elements = rho_realloc(list->elements, new_capacity * sizeof(RhoValue));
 		list->capacity = new_capacity;
 	}
 }
 
-struct num_methods list_num_methods = {
+void rho_list_clear(RhoListObject *list)
+{
+	RhoValue *elements = list->elements;
+	const size_t count = list->count;
+
+	for (size_t i = 0; i < count; i++) {
+		rho_release(&elements[i]);
+	}
+
+	list->count = 0;
+}
+
+void rho_list_trim(RhoListObject *list)
+{
+	const size_t new_capacity = list->count;
+	list->capacity = new_capacity;
+	list->elements = rho_realloc(list->elements, new_capacity * sizeof(RhoValue));
+}
+
+struct rho_num_methods rho_list_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
 	NULL,    /* abs */
@@ -351,7 +379,7 @@ struct num_methods list_num_methods = {
 	NULL,    /* to_float */
 };
 
-struct seq_methods list_seq_methods = {
+struct rho_seq_methods rho_list_seq_methods = {
 	list_len,    /* len */
 	list_get,    /* get */
 	list_set,    /* set */
@@ -360,19 +388,19 @@ struct seq_methods list_seq_methods = {
 	NULL,    /* iapply */
 };
 
-struct attr_method list_methods[] = {
+struct rho_attr_method list_methods[] = {
 		{"append", list_append},
 		{"pop", list_pop},
 		{"insert", list_insert},
 		{NULL, NULL}
 };
 
-Class list_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_list_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "List",
 	.super = &obj_class,
 
-	.instance_size = sizeof(ListObject),
+	.instance_size = sizeof(RhoListObject),
 
 	.init = NULL,
 	.del = list_free,
@@ -388,8 +416,8 @@ Class list_class = {
 	.iter = list_iter,
 	.iternext = NULL,
 
-	.num_methods = &list_num_methods,
-	.seq_methods = &list_seq_methods,
+	.num_methods = &rho_list_num_methods,
+	.seq_methods = &rho_list_seq_methods,
 
 	.members = NULL,
 	.methods = list_methods,
@@ -401,35 +429,35 @@ Class list_class = {
 
 /* list iterator */
 
-static Value iter_make(ListObject *list)
+static RhoValue iter_make(RhoListObject *list)
 {
-	ListIter *iter = obj_alloc(&list_iter_class);
-	retaino(list);
+	RhoListIter *iter = rho_obj_alloc(&rho_list_iter_class);
+	rho_retaino(list);
 	iter->source = list;
 	iter->index = 0;
-	return makeobj(iter);
+	return rho_makeobj(iter);
 }
 
-static Value iter_next(Value *this)
+static RhoValue iter_next(RhoValue *this)
 {
-	ListIter *iter = objvalue(this);
+	RhoListIter *iter = rho_objvalue(this);
 	if (iter->index == iter->source->count) {
-		return get_iter_stop();
+		return rho_get_iter_stop();
 	} else {
-		Value v = iter->source->elements[iter->index++];
-		retain(&v);
+		RhoValue v = iter->source->elements[iter->index++];
+		rho_retain(&v);
 		return v;
 	}
 }
 
-static void iter_free(Value *this)
+static void iter_free(RhoValue *this)
 {
-	ListIter *iter = objvalue(this);
-	releaseo(iter->source);
-	iter_class.del(this);
+	RhoListIter *iter = rho_objvalue(this);
+	rho_releaseo(iter->source);
+	rho_iter_class.del(this);
 }
 
-struct seq_methods list_iter_seq_methods = {
+struct rho_seq_methods list_iter_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -438,12 +466,12 @@ struct seq_methods list_iter_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class list_iter_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_list_iter_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "ListIter",
-	.super = &iter_class,
+	.super = &rho_iter_class,
 
-	.instance_size = sizeof(ListIter),
+	.instance_size = sizeof(RhoListIter),
 
 	.init = NULL,
 	.del = iter_free,

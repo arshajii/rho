@@ -1,5 +1,5 @@
-#ifndef NATIVEFUNC_H
-#define NATIVEFUNC_H
+#ifndef RHO_NATIVEFUNC_H
+#define RHO_NATIVEFUNC_H
 
 #include "object.h"
 
@@ -7,13 +7,13 @@
  * Note: NativeFuncObjects should be statically allocated only.
  */
 
-extern Class native_func_class;
+extern RhoClass rho_native_func_class;
 
-typedef Value (*NativeFunc)(Value *args, size_t nargs);
+typedef RhoValue (*RhoNativeFunc)(RhoValue *args, size_t nargs);
 
 typedef struct {
-	Object base;
-	NativeFunc func;
-} NativeFuncObject;
+	RhoObject base;
+	RhoNativeFunc func;
+} RhoNativeFuncObject;
 
-#endif /* NATIVEFUNC_H */
+#endif /* RHO_NATIVEFUNC_H */

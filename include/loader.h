@@ -1,5 +1,5 @@
-#ifndef LOADER_H
-#define LOADER_H
+#ifndef RHO_LOADER_H
+#define RHO_LOADER_H
 
 #include "code.h"
 
@@ -7,11 +7,11 @@
 #define RHOC_EXT ".rhoc"
 
 enum {
-	LOAD_ERR_NONE,
-	LOAD_ERR_NOT_FOUND,
-	LOAD_ERR_INVALID_SIGNATURE
+	RHO_LOAD_ERR_NONE,
+	RHO_LOAD_ERR_NOT_FOUND,
+	RHO_LOAD_ERR_INVALID_SIGNATURE
 };
 
-int load_from_file(const char *name, const bool name_has_ext, Code *dest);
+int rho_load_from_file(const char *name, const bool name_has_ext, RhoCode *dest);
 
-#endif /* LOADER_H */
+#endif /* RHO_LOADER_H */

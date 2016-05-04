@@ -1,16 +1,16 @@
-#ifndef SYMTAB_H
-#define SYMTAB_H
+#ifndef RHO_SYMTAB_H
+#define RHO_SYMTAB_H
 
 #include <stdlib.h>
 #include "ast.h"
 #include "str.h"
 
-typedef struct st_symbol {
-	Str *key;
+typedef struct rho_st_symbol {
+	RhoStr *key;
 	unsigned int id;
 	int hash;
 
-	struct st_symbol *next;  /* used internally to form hash table buckets */
+	struct rho_st_symbol *next;  /* used internally to form hash table buckets */
 
 	/* variable flags */
 	unsigned bound_here : 1;
@@ -19,22 +19,22 @@ typedef struct st_symbol {
 	unsigned func_param : 1;
 	unsigned decl_const : 1;
 	unsigned attribute  : 1;
-} STSymbol;
+} RhoSTSymbol;
 
 typedef enum {
-	MODULE,    /* top-level code */
-	FUNCTION,  /* function body */
-	CLASS      /* class body */
-} STEContext;
+	RHO_MODULE,    /* top-level code */
+	RHO_FUNCTION,  /* function body */
+	RHO_CLASS      /* class body */
+} RhoSTEContext;
 
-struct sym_table;
+struct rho_rho_sym_table;
 
-typedef struct st_entry {
+typedef struct rho_st_entry {
 	const char *name;
-	STEContext context;
+	RhoSTEContext context;
 
 	/* name-to-symbol hash table */
-	STSymbol **table;
+	RhoSTSymbol **table;
 	size_t table_size;
 	size_t table_capacity;
 	size_t table_threshold;
@@ -43,7 +43,7 @@ typedef struct st_entry {
 	size_t n_locals;
 
 	/* attribute-to-symbol hash table */
-	STSymbol **attributes;
+	RhoSTSymbol **attributes;
 	size_t attr_size;
 	size_t attr_capacity;
 	size_t attr_threshold;
@@ -54,34 +54,34 @@ typedef struct st_entry {
 	/* used internally for assigning IDs to free variables */
 	unsigned int next_free_var_id;
 
-	struct st_entry *parent;
-	struct sym_table *sym_table;
+	struct rho_st_entry *parent;
+	struct rho_rho_sym_table *sym_table;
 
 	/* child vector */
-	struct st_entry **children;
+	struct rho_st_entry **children;
 	size_t n_children;
 	size_t children_capacity;
 
 	size_t child_pos;  /* used internally for traversing symbol tables */
-} STEntry;
+} RhoSTEntry;
 
-typedef struct sym_table {
+typedef struct rho_rho_sym_table {
 	const char *filename;
 
-	STEntry *ste_module;
-	STEntry *ste_current;
+	RhoSTEntry *ste_module;
+	RhoSTEntry *ste_current;
 
-	STEntry *ste_attributes;
-} SymTable;
+	RhoSTEntry *ste_attributes;
+} RhoSymTable;
 
-SymTable *st_new(const char *filename);
+RhoSymTable *rho_st_new(const char *filename);
 
-void populate_symtable(SymTable *st, Program *program);
+void rho_st_populate(RhoSymTable *st, RhoProgram *program);
 
-STSymbol *ste_get_symbol(STEntry *ste, Str *ident);
+RhoSTSymbol *rho_ste_get_symbol(RhoSTEntry *ste, RhoStr *ident);
 
-STSymbol *ste_get_attr_symbol(STEntry *ste, Str *ident);
+RhoSTSymbol *rho_ste_get_attr_symbol(RhoSTEntry *ste, RhoStr *ident);
 
-void st_free(SymTable *st);
+void rho_st_free(RhoSymTable *st);
 
-#endif /* SYMTAB_H */
+#endif /* RHO_SYMTAB_H */

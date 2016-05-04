@@ -11,34 +11,34 @@
 #include "err.h"
 
 #define X(a, b) b,
-const char *err_type_headers[] = {
-	ERR_TYPE_LIST
+const char *rho_err_type_headers[] = {
+	RHO_ERR_TYPE_LIST
 };
 #undef X
 
 #define TBM_INIT_CAPACITY 5
-void tb_manager_init(struct traceback_manager *tbm)
+void rho_tb_manager_init(struct rho_traceback_manager *tbm)
 {
-	tbm->tb = rho_malloc(TBM_INIT_CAPACITY * sizeof(struct traceback_stack_item));
+	tbm->tb = rho_malloc(TBM_INIT_CAPACITY * sizeof(struct rho_traceback_stack_item));
 	tbm->tb_count = 0;
 	tbm->tb_cap = TBM_INIT_CAPACITY;
 }
 
-void tb_manager_add(struct traceback_manager *tbm,
+void rho_tb_manager_add(struct rho_traceback_manager *tbm,
                     const char *fn,
                     const unsigned int lineno)
 {
 	const size_t cap = tbm->tb_cap;
 	if (tbm->tb_count == cap) {
 		const size_t new_cap = (cap * 3)/2 + 1;
-		tbm->tb = rho_realloc(tbm->tb, new_cap * sizeof(struct traceback_stack_item));
+		tbm->tb = rho_realloc(tbm->tb, new_cap * sizeof(struct rho_traceback_stack_item));
 		tbm->tb_cap = new_cap;
 	}
 
-	tbm->tb[tbm->tb_count++] = (struct traceback_stack_item){str_dup(fn), lineno};
+	tbm->tb[tbm->tb_count++] = (struct rho_traceback_stack_item){rho_util_str_dup(fn), lineno};
 }
 
-void tb_manager_print(struct traceback_manager *tbm, FILE *out)
+void rho_tb_manager_print(struct rho_traceback_manager *tbm, FILE *out)
 {
 	fprintf(out, "Traceback:\n");
 	const size_t count = tbm->tb_count;
@@ -48,16 +48,16 @@ void tb_manager_print(struct traceback_manager *tbm, FILE *out)
 	}
 }
 
-void tb_manager_dealloc(struct traceback_manager *tbm)
+void rho_tb_manager_dealloc(struct rho_traceback_manager *tbm)
 {
 	const size_t count = tbm->tb_count;
 	for (size_t i = 0; i < count; i++) {
-		FREE(tbm->tb[i].fn);
+		RHO_FREE(tbm->tb[i].fn);
 	}
 	free(tbm->tb);
 }
 
-Error *error_new(ErrorType type, const char *msg_format, ...)
+Error *rho_err_new(RhoErrorType type, const char *msg_format, ...)
 {
 	Error *error = rho_malloc(sizeof(Error));
 	error->type = type;
@@ -67,81 +67,81 @@ Error *error_new(ErrorType type, const char *msg_format, ...)
 	vsnprintf(error->msg, sizeof(error->msg), msg_format, args);
 	va_end(args);
 
-	tb_manager_init(&error->tbm);
+	rho_tb_manager_init(&error->tbm);
 	return error;
 }
 
-void error_free(Error *error)
+void rho_err_free(Error *error)
 {
-	tb_manager_dealloc(&error->tbm);
+	rho_tb_manager_dealloc(&error->tbm);
 	free(error);
 }
 
-void error_traceback_append(Error *error,
+void rho_err_traceback_append(Error *error,
                             const char *fn,
                             const unsigned int lineno)
 {
-	tb_manager_add(&error->tbm, fn, lineno);
+	rho_tb_manager_add(&error->tbm, fn, lineno);
 }
 
-void error_traceback_print(Error *error, FILE *out)
+void rho_err_traceback_print(Error *error, FILE *out)
 {
-	tb_manager_print(&error->tbm, out);
+	rho_tb_manager_print(&error->tbm, out);
 }
 
 #define FUNC_ERROR_HEADER "Function Error: "
 #define ATTR_ERROR_HEADER "Attribute Error: "
 #define FATAL_ERROR_HEADER "Fatal Error: "
 
-Error *invalid_file_signature_error(const char *module)
+Error *rho_err_invalid_file_signature_error(const char *module)
 {
-	return error_new(ERR_TYPE_FATAL,
-	                 "invalid file signature encountered when loading module '%s'",
-	                 module);
+	return rho_err_new(RHO_ERR_TYPE_FATAL,
+	                   "invalid file signature encountered when loading module '%s'",
+	                   module);
 }
 
-Error *unbound_error(const char *var)
+Error *rho_err_unbound(const char *var)
 {
-	return error_new(ERR_TYPE_NAME, "cannot reference unbound variable '%s'", var);
+	return rho_err_new(RHO_ERR_TYPE_NAME, "cannot reference unbound variable '%s'", var);
 }
 
-Error *type_error_invalid_cmp(const Class *c1)
+Error *rho_type_err_invalid_cmp(const RhoClass *c1)
 {
-	return error_new(ERR_TYPE_TYPE, "comparison of type '%s' did not return an int", c1->name);
+	return rho_err_new(RHO_ERR_TYPE_TYPE, "comparison of type '%s' did not return an int", c1->name);
 }
 
-Error *type_error_invalid_catch(const Class *c1)
+Error *rho_type_err_invalid_catch(const RhoClass *c1)
 {
-	if (c1 == &meta_class) {
-		return error_new(ERR_TYPE_TYPE,
-		                 "cannot catch non-subclass of Exception");
+	if (c1 == &rho_meta_class) {
+		return rho_err_new(RHO_ERR_TYPE_TYPE,
+		                   "cannot catch non-subclass of Exception");
 	} else {
-		return error_new(ERR_TYPE_TYPE,
-		                 "cannot catch instances of class %s",
-		                 c1->name);
+		return rho_err_new(RHO_ERR_TYPE_TYPE,
+		                   "cannot catch instances of class %s",
+		                   c1->name);
 	}
 }
 
-Error *type_error_invalid_throw(const Class *c1)
+Error *rho_type_err_invalid_throw(const RhoClass *c1)
 {
-	return error_new(ERR_TYPE_TYPE,
-	                 "can only throw instances of a subclass of Exception, not %s",
-	                 c1->name);
+	return rho_err_new(RHO_ERR_TYPE_TYPE,
+	                   "can only throw instances of a subclass of Exception, not %s",
+	                   c1->name);
 }
 
-Error *div_by_zero_error(void)
+Error *rho_err_div_by_zero(void)
 {
-	return error_new(ERR_TYPE_DIV_BY_ZERO, "division or modulo by zero");
+	return rho_err_new(RHO_ERR_TYPE_DIV_BY_ZERO, "division or modulo by zero");
 }
 
-void error_print_msg(Error *e, FILE *out)
+void rho_err_print_msg(Error *e, FILE *out)
 {
-	fprintf(out, "%s: %s\n", err_type_headers[e->type], e->msg);
+	fprintf(out, "%s: %s\n", rho_err_type_headers[e->type], e->msg);
 }
 
 /* compilation errors */
 
-const char *err_on_char(const char *culprit,
+const char *rho_err_on_char(const char *culprit,
                         const char *code,
                         const char *end,
                         unsigned int target_line)
@@ -188,7 +188,7 @@ const char *err_on_char(const char *culprit,
 		}
 	}
 
-	return str_format("%s\n%s\n", line_str, mark_str);
+	return rho_util_str_format("%s\n%s\n", line_str, mark_str);
 
 #undef MAX_LEN
 }

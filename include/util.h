@@ -1,36 +1,50 @@
-#ifndef UTIL_H
-#define UTIL_H
+#ifndef RHO_UTIL_H
+#define RHO_UTIL_H
 
+#include <stddef.h>
 #include <stdbool.h>
 
-#define getmember(instance, offset, type) (*(type *)((char *)instance + offset))
+#define RHO_VERSION "0.0.0"
 
-#define UNUSED(x) (void)(x)
+#define RHO_IS_POSIX (defined (__unix__) || (defined (__APPLE__) && defined (__MACH__)))
 
-#define DECL_MIN_FUNC(name, type) \
-	static inline type name(const type a, const type b) { return a < b ? a : b; }
+#define RHO_ANSI_CLR_RED     "\x1b[31m"
+#define RHO_ANSI_CLR_GREEN   "\x1b[32m"
+#define RHO_ANSI_CLR_YELLOW  "\x1b[33m"
+#define RHO_ANSI_CLR_BLUE    "\x1b[34m"
+#define RHO_ANSI_CLR_MAGENTA "\x1b[35m"
+#define RHO_ANSI_CLR_CYAN    "\x1b[36m"
+#define RHO_ANSI_CLR_INFO    "\x1b[1;36m"
+#define RHO_ANSI_CLR_WARNING "\x1b[1;33m"
+#define RHO_ANSI_CLR_ERROR   "\x1b[1;31m"
+#define RHO_ANSI_CLR_RESET   "\x1b[0m"
 
-#define DECL_MAX_FUNC(name, type) \
-	static inline type name(const type a, const type b) { return a > b ? a : b; }
+#define RHO_INFO_HEADER    RHO_ANSI_CLR_INFO    "info:    " RHO_ANSI_CLR_RESET
+#define RHO_WARNING_HEADER RHO_ANSI_CLR_WARNING "warning: " RHO_ANSI_CLR_RESET
+#define RHO_ERROR_HEADER   RHO_ANSI_CLR_ERROR   "error:   " RHO_ANSI_CLR_RESET
 
-int hash_int(const int i);
-int hash_long(const long l);
-int hash_double(const double d);
-int hash_float(const float f);
-int hash_bool(const bool b);
-int hash_ptr(const void *p);
-int hash_cstr(const char *str);
-int hash_cstr2(const char *str, const size_t len);
-int secondary_hash(int hash);
+#define rho_getmember(instance, offset, type) (*(type *)((char *)instance + offset))
 
-void write_int32_to_stream(unsigned char *stream, const int n);
-int read_int32_from_stream(unsigned char *stream);
-void write_uint16_to_stream(unsigned char *stream, const unsigned int n);
-unsigned int read_uint16_from_stream(unsigned char *stream);
-void write_double_to_stream(unsigned char *stream, const double d);
-double read_double_from_stream(unsigned char *stream);
+#define RHO_UNUSED(x) (void)(x)
 
-struct str_array {
+int rho_util_hash_int(const int i);
+int rho_util_hash_long(const long l);
+int rho_util_hash_double(const double d);
+int rho_util_hash_float(const float f);
+int rho_util_hash_bool(const bool b);
+int rho_util_hash_ptr(const void *p);
+int rho_util_hash_cstr(const char *str);
+int rho_util_hash_cstr2(const char *str, const size_t len);
+int rho_util_hash_secondary(int hash);
+
+void rho_util_write_int32_to_stream(unsigned char *stream, const int n);
+int rho_util_read_int32_from_stream(unsigned char *stream);
+void rho_util_write_uint16_to_stream(unsigned char *stream, const unsigned int n);
+unsigned int rho_util_read_uint16_from_stream(unsigned char *stream);
+void rho_util_write_double_to_stream(unsigned char *stream, const double d);
+double rho_util_read_double_from_stream(unsigned char *stream);
+
+struct rho_str_array {
 	/* bare-bones string array */
 	struct {
 		const char *str;
@@ -40,16 +54,16 @@ struct str_array {
 	size_t length;
 };
 
-void str_array_dup(struct str_array *src, struct str_array *dst);
+void rho_util_str_array_dup(struct rho_str_array *src, struct rho_str_array *dst);
 
 void *rho_malloc(size_t n);
 void *rho_calloc(size_t num, size_t size);
 void *rho_realloc(void *p, size_t n);
-#define FREE(ptr) free((void *)(ptr))
+#define RHO_FREE(ptr) free((void *)(ptr))
 
-const char *str_dup(const char *str);
-const char *str_format(const char *format, ...);
+const char *rho_util_str_dup(const char *str);
+const char *rho_util_str_format(const char *format, ...);
 
-char *file_to_str(const char *filename);
+char *rho_util_file_to_str(const char *filename);
 
-#endif /* UTIL_H */
+#endif /* RHO_UTIL_H */

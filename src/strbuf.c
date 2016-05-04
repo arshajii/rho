@@ -7,9 +7,9 @@
 
 #define STRBUF_DEFAULT_INIT_CAPACITY 16
 
-static void strbuf_grow(StrBuf *sb, const size_t min_cap);
+static void strbuf_grow(RhoStrBuf *sb, const size_t min_cap);
 
-void strbuf_init(StrBuf *sb, const size_t cap)
+void rho_strbuf_init(RhoStrBuf *sb, const size_t cap)
 {
 	assert(cap > 0);
 	sb->buf = rho_malloc(cap);
@@ -18,12 +18,12 @@ void strbuf_init(StrBuf *sb, const size_t cap)
 	sb->buf[0] = '\0';
 }
 
-void strbuf_init_default(StrBuf *sb)
+void rho_strbuf_init_default(RhoStrBuf *sb)
 {
-	strbuf_init(sb, STRBUF_DEFAULT_INIT_CAPACITY);
+	rho_strbuf_init(sb, STRBUF_DEFAULT_INIT_CAPACITY);
 }
 
-void strbuf_append(StrBuf *sb, const char *str, const size_t len)
+void rho_strbuf_append(RhoStrBuf *sb, const char *str, const size_t len)
 {
 	size_t new_len = sb->len + len;
 	if (new_len + 1 > sb->cap) {
@@ -34,17 +34,17 @@ void strbuf_append(StrBuf *sb, const char *str, const size_t len)
 	sb->buf[new_len] = '\0';
 }
 
-void strbuf_to_str(StrBuf *sb, Str *dest)
+void rho_strbuf_to_str(RhoStrBuf *sb, RhoStr *dest)
 {
-	*dest = STR_INIT(sb->buf, sb->len, 0);
+	*dest = RHO_STR_INIT(sb->buf, sb->len, 0);
 }
 
-void strbuf_dealloc(StrBuf *sb)
+void rho_strbuf_dealloc(RhoStrBuf *sb)
 {
 	free(sb->buf);
 }
 
-static void strbuf_grow(StrBuf *sb, const size_t min_cap)
+static void strbuf_grow(RhoStrBuf *sb, const size_t min_cap)
 {
 	size_t new_cap = (sb->cap + 1) * 2;
 	if (new_cap < min_cap) {

@@ -1,5 +1,5 @@
-#ifndef OBJECT_H
-#define OBJECT_H
+#ifndef RHO_OBJECT_H
+#define RHO_OBJECT_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,42 +8,73 @@
 #include "attr.h"
 #include "metaclass.h"
 
-typedef struct value Value;
+typedef struct rho_value  RhoValue;
+typedef struct rho_class  RhoClass;
+typedef struct rho_object RhoObject;
 
-struct class;
-typedef struct class Class;
+typedef RhoValue (*UnOp)(RhoValue *this);
+typedef RhoValue (*BinOp)(RhoValue *this, RhoValue *other);
+typedef int (*IntUnOp)(RhoValue *this);
+typedef bool (*BoolUnOp)(RhoValue *this);
+typedef bool (*BoolBinOp)(RhoValue *this, RhoValue *other);
+typedef struct rho_str_object *(*StrUnOp)(RhoValue *this);
 
-struct object {
-	struct class *class;
+typedef RhoValue (*InitFunc)(RhoValue *this, RhoValue *args, size_t nargs);
+typedef void (*DelFunc)(RhoValue *this);
+typedef RhoValue (*CallFunc)(RhoValue *this,
+                             RhoValue *args,
+                             RhoValue *args_named,
+                             size_t nargs,
+                             size_t nargs_named);
+typedef int (*PrintFunc)(RhoValue *this, FILE *out);
+typedef size_t (*LenFunc)(RhoValue *this);
+typedef RhoValue (*SeqSetFunc)(RhoValue *this, RhoValue *idx, RhoValue *v);
+
+typedef RhoValue (*AttrGetFunc)(RhoValue *this, const char *attr);
+typedef RhoValue (*AttrSetFunc)(RhoValue *this, const char *attr, RhoValue *v);
+
+struct rho_object {
+	struct rho_class *class;
 	unsigned int refcnt;
 };
 
-typedef struct object Object;
+struct rho_num_methods;
+struct rho_seq_methods;
 
-struct str_object;
+struct rho_class {
+	RhoObject base;
+	const char *name;
 
-typedef Value (*UnOp)(Value *this);
-typedef Value (*BinOp)(Value *this, Value *other);
-typedef int (*IntUnOp)(Value *this);
-typedef bool (*BoolUnOp)(Value *this);
-typedef bool (*BoolBinOp)(Value *this, Value *other);
-typedef struct str_object *(*StrUnOp)(Value *this);
+	struct rho_class *super;
 
-typedef Value (*InitFunc)(Value *this, Value *args, size_t nargs);
-typedef void (*DelFunc)(Value *this);
-typedef Value (*CallFunc)(Value *this,
-                          Value *args,
-                          Value *args_named,
-                          size_t nargs,
-                          size_t nargs_named);
-typedef int (*PrintFunc)(Value *this, FILE *out);
-typedef size_t (*LenFunc)(Value *this);
-typedef Value (*SeqSetFunc)(Value *this, Value *idx, Value *v);
+	const size_t instance_size;
 
-typedef Value (*AttrGetFunc)(Value *this, const char *attr);
-typedef Value (*AttrSetFunc)(Value *this, const char *attr, Value *v);
+	InitFunc init;
+	DelFunc del;  /* every class should implement this */
 
-struct num_methods {
+	BoolBinOp eq;
+	IntUnOp hash;
+	BinOp cmp;
+	StrUnOp str;
+	CallFunc call;
+
+	PrintFunc print;
+
+	UnOp iter;
+	UnOp iternext;
+
+	struct rho_num_methods *num_methods;
+	struct rho_seq_methods *seq_methods;
+
+	struct rho_attr_member *members;
+	struct rho_attr_method *methods;
+	RhoAttrDict attr_dict;
+
+	AttrGetFunc attr_get;
+	AttrSetFunc attr_set;
+};
+
+struct rho_num_methods {
 	UnOp plus;
 	UnOp minus;
 	UnOp abs;
@@ -94,7 +125,7 @@ struct num_methods {
 	UnOp to_float;
 };
 
-struct seq_methods {
+struct rho_seq_methods {
 	LenFunc len;
 	BinOp get;
 	SeqSetFunc set;
@@ -103,192 +134,159 @@ struct seq_methods {
 	BinOp iapply;
 };
 
-struct class {
-	Object base;
-	const char *name;
+extern struct rho_num_methods obj_num_methods;
+extern struct rho_seq_methods obj_seq_methods;
+extern RhoClass obj_class;
 
-	struct class *super;
+#define RHO_OBJ_INIT_STATIC(class_) { .class = (class_), .refcnt = -1 }
+#define RHO_CLASS_BASE_INIT()       RHO_OBJ_INIT_STATIC(&rho_meta_class)
 
-	const size_t instance_size;
+struct rho_error;
 
-	InitFunc init;
-	DelFunc del;  /* every class should implement this */
-
-	BoolBinOp eq;
-	IntUnOp hash;
-	BinOp cmp;
-	StrUnOp str;
-	CallFunc call;
-
-	PrintFunc print;
-
-	UnOp iter;
-	UnOp iternext;
-
-	struct num_methods *num_methods;
-	struct seq_methods *seq_methods;
-
-	struct attr_member *members;
-	struct attr_method *methods;
-	AttrDict attr_dict;
-
-	AttrGetFunc attr_get;
-	AttrSetFunc attr_set;
-};
-
-extern struct num_methods obj_num_methods;
-extern struct seq_methods obj_seq_methods;
-extern Class obj_class;
-
-#define OBJ_INIT_STATIC(class_) { .class = (class_), .refcnt = -1 }
-#define CLASS_BASE_INIT()      OBJ_INIT_STATIC(&meta_class)
-
-struct error;
-
-struct value {
+struct rho_value {
 	enum {
 		/* nonexistent value */
-		VAL_TYPE_EMPTY = 0,
+		RHO_VAL_TYPE_EMPTY = 0,
 
 		/* standard type classes */
-		VAL_TYPE_INT,
-		VAL_TYPE_FLOAT,
-		VAL_TYPE_OBJECT,
-		VAL_TYPE_EXC,
+		RHO_VAL_TYPE_INT,
+		RHO_VAL_TYPE_FLOAT,
+		RHO_VAL_TYPE_OBJECT,
+		RHO_VAL_TYPE_EXC,
 
 		/* flags */
-		VAL_TYPE_ERROR,
-		VAL_TYPE_UNSUPPORTED_TYPES,
-		VAL_TYPE_DIV_BY_ZERO
+		RHO_VAL_TYPE_ERROR,
+		RHO_VAL_TYPE_UNSUPPORTED_TYPES,
+		RHO_VAL_TYPE_DIV_BY_ZERO
 	} type;
 
 	union {
 		long i;
 		double f;
 		void *o;
-		struct error *e;
+		struct rho_error *e;
 	} data;
 };
 
-#define isempty(val)    ((val)->type == VAL_TYPE_EMPTY)
-#define isint(val)      ((val)->type == VAL_TYPE_INT)
-#define isfloat(val)    ((val)->type == VAL_TYPE_FLOAT)
-#define isobject(val)   ((val)->type == VAL_TYPE_OBJECT)
-#define isexc(val)      ((val)->type == VAL_TYPE_EXC)
+#define rho_isempty(val)    ((val)->type == RHO_VAL_TYPE_EMPTY)
+#define rho_isint(val)      ((val)->type == RHO_VAL_TYPE_INT)
+#define rho_isfloat(val)    ((val)->type == RHO_VAL_TYPE_FLOAT)
+#define rho_isobject(val)   ((val)->type == RHO_VAL_TYPE_OBJECT)
+#define rho_isexc(val)      ((val)->type == RHO_VAL_TYPE_EXC)
 
-#define iserror(val)    ((val)->type == VAL_TYPE_ERROR || (val)->type == VAL_TYPE_EXC)
-#define isut(val)       ((val)->type == VAL_TYPE_UNSUPPORTED_TYPES)
-#define isdbz(val)      ((val)->type == VAL_TYPE_DIV_BY_ZERO)
+#define rho_iserror(val)    ((val)->type == RHO_VAL_TYPE_ERROR || (val)->type == RHO_VAL_TYPE_EXC)
+#define rho_isut(val)       ((val)->type == RHO_VAL_TYPE_UNSUPPORTED_TYPES)
+#define rho_isdbz(val)      ((val)->type == RHO_VAL_TYPE_DIV_BY_ZERO)
 
-#define intvalue(val)   ((val)->data.i)
-#define floatvalue(val) ((val)->data.f)
-#define objvalue(val)   ((val)->data.o)
-#define errvalue(val)   ((val)->data.e)
+#define rho_intvalue(val)   ((val)->data.i)
+#define rho_floatvalue(val) ((val)->data.f)
+#define rho_objvalue(val)   ((val)->data.o)
+#define rho_errvalue(val)   ((val)->data.e)
 
-#define makeempty()     ((Value){.type = VAL_TYPE_EMPTY, .data = {.i = 0}})
-#define makeint(val)    ((Value){.type = VAL_TYPE_INT, .data = {.i = (val)}})
-#define makefloat(val)  ((Value){.type = VAL_TYPE_FLOAT, .data = {.f = (val)}})
-#define makeobj(val)    ((Value){.type = VAL_TYPE_OBJECT, .data = {.o = (val)}})
-#define makeexc(val)    ((Value){.type = VAL_TYPE_EXC, .data = {.o = (val)}})
+#define rho_makeempty()     ((RhoValue){.type = RHO_VAL_TYPE_EMPTY, .data = {.i = 0}})
+#define rho_makeint(val)    ((RhoValue){.type = RHO_VAL_TYPE_INT, .data = {.i = (val)}})
+#define rho_makefloat(val)  ((RhoValue){.type = RHO_VAL_TYPE_FLOAT, .data = {.f = (val)}})
+#define rho_makeobj(val)    ((RhoValue){.type = RHO_VAL_TYPE_OBJECT, .data = {.o = (val)}})
+#define rho_makeexc(val)    ((RhoValue){.type = RHO_VAL_TYPE_EXC, .data = {.o = (val)}})
 
-#define makeerr(val)    ((Value){.type = VAL_TYPE_ERROR, .data = {.e = (val)}})
-#define makeut()        ((Value){.type = VAL_TYPE_UNSUPPORTED_TYPES})
-#define makedbz()       ((Value){.type = VAL_TYPE_DIV_BY_ZERO})
+#define rho_makeerr(val)    ((RhoValue){.type = RHO_VAL_TYPE_ERROR, .data = {.e = (val)}})
+#define rho_makeut()        ((RhoValue){.type = RHO_VAL_TYPE_UNSUPPORTED_TYPES})
+#define rho_makedbz()       ((RhoValue){.type = RHO_VAL_TYPE_DIV_BY_ZERO})
 
-#define MAKE_EMPTY()     { .type = VAL_TYPE_EMPTY, .data = { .i = 0 } }
-#define MAKE_INT(val)    { .type = VAL_TYPE_INT, .data = { .i = (val) } }
-#define MAKE_FLOAT(val)  { .type = VAL_TYPE_FLOAT, .data = { .f = (val) } }
-#define MAKE_OBJ(val)    { .type = VAL_TYPE_OBJECT, .data = { .o = (val) } }
-#define MAKE_EXC(val)    { .type = VAL_TYPE_EXC, .data = { .o = (val) } }
+#define RHO_MAKE_EMPTY()     { .type = RHO_VAL_TYPE_EMPTY, .data = { .i = 0 } }
+#define RHO_MAKE_INT(val)    { .type = RHO_VAL_TYPE_INT, .data = { .i = (val) } }
+#define RHO_MAKE_FLOAT(val)  { .type = RHO_VAL_TYPE_FLOAT, .data = { .f = (val) } }
+#define RHO_MAKE_OBJ(val)    { .type = RHO_VAL_TYPE_OBJECT, .data = { .o = (val) } }
+#define RHO_MAKE_EXC(val)    { .type = RHO_VAL_TYPE_EXC, .data = { .o = (val) } }
 
-#define MAKE_ERR(val)    { .type = VAL_TYPE_ERROR, .data = { .e = (val) } }
-#define MAKE_UT()        { .type = VAL_TYPE_UNSUPPORTED_TYPES}
-#define MAKE_DBZ()       { .type = VAL_TYPE_DIV_BY_ZERO}
+#define RHO_MAKE_ERR(val)    { .type = RHO_VAL_TYPE_ERROR, .data = { .e = (val) } }
+#define RHO_MAKE_UT()        { .type = RHO_VAL_TYPE_UNSUPPORTED_TYPES }
+#define RHO_MAKE_DBZ()       { .type = RHO_VAL_TYPE_DIV_BY_ZERO }
 
-Class *getclass(Value *v);
+RhoClass *rho_getclass(RhoValue *v);
 
-bool is_a(Value *v, Class *class);
-bool is_subclass(Class *child, Class *parent);
+bool rho_is_a(RhoValue *v, RhoClass *class);
+bool rho_is_subclass(RhoClass *child, RhoClass *parent);
 
-InitFunc resolve_init(Class *class);
-DelFunc resolve_del(Class *class);
-BoolBinOp resolve_eq(Class *class);
-IntUnOp resolve_hash(Class *class);
-BinOp resolve_cmp(Class *class);
-StrUnOp resolve_str(Class *class);
-CallFunc resolve_call(Class *class);
-PrintFunc resolve_print(Class *class);
-UnOp resolve_iter(Class *class);
-UnOp resolve_iternext(Class *class);
-AttrGetFunc resolve_attr_get(Class *class);
-AttrSetFunc resolve_attr_set(Class *class);
+InitFunc rho_resolve_init(RhoClass *class);
+DelFunc rho_resolve_del(RhoClass *class);
+BoolBinOp rho_resolve_eq(RhoClass *class);
+IntUnOp rho_resolve_hash(RhoClass *class);
+BinOp rho_resolve_cmp(RhoClass *class);
+StrUnOp rho_resolve_str(RhoClass *class);
+CallFunc rho_resolve_call(RhoClass *class);
+PrintFunc rho_resolve_print(RhoClass *class);
+UnOp rho_resolve_iter(RhoClass *class);
+UnOp rho_resolve_iternext(RhoClass *class);
+AttrGetFunc rho_resolve_attr_get(RhoClass *class);
+AttrSetFunc rho_resolve_attr_set(RhoClass *class);
 
-UnOp resolve_plus(Class *class);
-UnOp resolve_minus(Class *class);
-UnOp resolve_abs(Class *class);
-BinOp resolve_add(Class *class);
-BinOp resolve_sub(Class *class);
-BinOp resolve_mul(Class *class);
-BinOp resolve_div(Class *class);
-BinOp resolve_mod(Class *class);
-BinOp resolve_pow(Class *class);
-UnOp resolve_bitnot(Class *class);
-BinOp resolve_bitand(Class *class);
-BinOp resolve_bitor(Class *class);
-BinOp resolve_xor(Class *class);
-BinOp resolve_shiftl(Class *class);
-BinOp resolve_shiftr(Class *class);
-BinOp resolve_iadd(Class *class);
-BinOp resolve_isub(Class *class);
-BinOp resolve_imul(Class *class);
-BinOp resolve_idiv(Class *class);
-BinOp resolve_imod(Class *class);
-BinOp resolve_ipow(Class *class);
-BinOp resolve_ibitand(Class *class);
-BinOp resolve_ibitor(Class *class);
-BinOp resolve_ixor(Class *class);
-BinOp resolve_ishiftl(Class *class);
-BinOp resolve_ishiftr(Class *class);
-BinOp resolve_radd(Class *class);
-BinOp resolve_rsub(Class *class);
-BinOp resolve_rmul(Class *class);
-BinOp resolve_rdiv(Class *class);
-BinOp resolve_rmod(Class *class);
-BinOp resolve_rpow(Class *class);
-BinOp resolve_rbitand(Class *class);
-BinOp resolve_rbitor(Class *class);
-BinOp resolve_rxor(Class *class);
-BinOp resolve_rshiftl(Class *class);
-BinOp resolve_rshiftr(Class *class);
-BoolUnOp resolve_nonzero(Class *class);
-UnOp resolve_to_int(Class *class);
-UnOp resolve_to_float(Class *class);
+UnOp rho_resolve_plus(RhoClass *class);
+UnOp rho_resolve_minus(RhoClass *class);
+UnOp rho_resolve_abs(RhoClass *class);
+BinOp rho_resolve_add(RhoClass *class);
+BinOp rho_resolve_sub(RhoClass *class);
+BinOp rho_resolve_mul(RhoClass *class);
+BinOp rho_resolve_div(RhoClass *class);
+BinOp rho_resolve_mod(RhoClass *class);
+BinOp rho_resolve_pow(RhoClass *class);
+UnOp rho_resolve_bitnot(RhoClass *class);
+BinOp rho_resolve_bitand(RhoClass *class);
+BinOp rho_resolve_bitor(RhoClass *class);
+BinOp rho_resolve_xor(RhoClass *class);
+BinOp rho_resolve_shiftl(RhoClass *class);
+BinOp rho_resolve_shiftr(RhoClass *class);
+BinOp rho_resolve_iadd(RhoClass *class);
+BinOp rho_resolve_isub(RhoClass *class);
+BinOp rho_resolve_imul(RhoClass *class);
+BinOp rho_resolve_idiv(RhoClass *class);
+BinOp rho_resolve_imod(RhoClass *class);
+BinOp rho_resolve_ipow(RhoClass *class);
+BinOp rho_resolve_ibitand(RhoClass *class);
+BinOp rho_resolve_ibitor(RhoClass *class);
+BinOp rho_resolve_ixor(RhoClass *class);
+BinOp rho_resolve_ishiftl(RhoClass *class);
+BinOp rho_resolve_ishiftr(RhoClass *class);
+BinOp rho_resolve_radd(RhoClass *class);
+BinOp rho_resolve_rsub(RhoClass *class);
+BinOp rho_resolve_rmul(RhoClass *class);
+BinOp rho_resolve_rdiv(RhoClass *class);
+BinOp rho_resolve_rmod(RhoClass *class);
+BinOp rho_resolve_rpow(RhoClass *class);
+BinOp rho_resolve_rbitand(RhoClass *class);
+BinOp rho_resolve_rbitor(RhoClass *class);
+BinOp rho_resolve_rxor(RhoClass *class);
+BinOp rho_resolve_rshiftl(RhoClass *class);
+BinOp rho_resolve_rshiftr(RhoClass *class);
+BoolUnOp rho_resolve_nonzero(RhoClass *class);
+UnOp rho_resolve_to_int(RhoClass *class);
+UnOp rho_resolve_to_float(RhoClass *class);
 
-LenFunc resolve_len(Class *class);
-BinOp resolve_get(Class *class);
-SeqSetFunc resolve_set(Class *class);
-BoolBinOp resolve_contains(Class *class);
-BinOp resolve_apply(Class *class);
-BinOp resolve_iapply(Class *class);
+LenFunc rho_resolve_len(RhoClass *class);
+BinOp rho_resolve_get(RhoClass *class);
+SeqSetFunc rho_resolve_set(RhoClass *class);
+BoolBinOp rho_resolve_contains(RhoClass *class);
+BinOp rho_resolve_apply(RhoClass *class);
+BinOp rho_resolve_iapply(RhoClass *class);
 
-void *obj_alloc(Class *class);
-void *obj_alloc_var(Class *class, size_t extra);
+void *rho_obj_alloc(RhoClass *class);
+void *rho_obj_alloc_var(RhoClass *class, size_t extra);
 
-Value instantiate(Class *class, Value *args, size_t nargs);
+RhoValue rho_class_instantiate(RhoClass *class, RhoValue *args, size_t nargs);
 
-void retaino(void *o);
-void releaseo(void *o);
-void destroyo(void *o);
+void rho_retaino(void *o);
+void rho_releaseo(void *o);
+void rho_destroyo(void *o);
 
-void retain(Value *v);
-void release(Value *v);
-void destroy(Value *v);
+void rho_retain(RhoValue *v);
+void rho_release(RhoValue *v);
+void rho_destroy(RhoValue *v);
 
-struct value_array {
-	Value *array;
+struct rho_value_array {
+	RhoValue *array;
 	size_t length;
 };
 
-void class_init(Class *class);
+void rho_class_init(RhoClass *class);
 
-#endif /* OBJECT_H */
+#endif /* RHO_OBJECT_H */

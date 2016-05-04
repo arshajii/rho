@@ -1,110 +1,110 @@
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef RHO_PARSER_H
+#define RHO_PARSER_H
 
 #include "ast.h"
 
 typedef enum {
-	TOK_NONE,           // indicates absent or unknown type
+	RHO_TOK_NONE,           // indicates absent or unknown type
 
 	/* literals */
-	TOK_INT,            // int literal
-	TOK_FLOAT,          // float literal
-	TOK_STR,            // quoted string: ".*" (escapes are allowed too)
-	TOK_IDENT,          // [a-zA-Z_][a-zA-Z_0-9]*
+	RHO_TOK_INT,            // int literal
+	RHO_TOK_FLOAT,          // float literal
+	RHO_TOK_STR,            // quoted string: ".*" (escapes are allowed too)
+	RHO_TOK_IDENT,          // [a-zA-Z_][a-zA-Z_0-9]*
 
 	/* operators */
-	TOK_OPS_START,  /* marker */
-	TOK_PLUS,
-	TOK_MINUS,
-	TOK_MUL,
-	TOK_DIV,
-	TOK_MOD,
-	TOK_POW,
-	TOK_BITAND,
-	TOK_BITOR,
-	TOK_XOR,
-	TOK_BITNOT,
-	TOK_SHIFTL,
-	TOK_SHIFTR,
-	TOK_AND,
-	TOK_OR,
-	TOK_NOT,
-	TOK_EQUAL,
-	TOK_NOTEQ,
-	TOK_LT,
-	TOK_GT,
-	TOK_LE,
-	TOK_GE,
-	TOK_AT,
-	TOK_DOT,
-	TOK_DOTDOT,
-	TOK_IN,  // really a keyword but treated as an operator in some contexts
+	RHO_TOK_OPS_START,  /* marker */
+	RHO_TOK_PLUS,
+	RHO_TOK_MINUS,
+	RHO_TOK_MUL,
+	RHO_TOK_DIV,
+	RHO_TOK_MOD,
+	RHO_TOK_POW,
+	RHO_TOK_BITAND,
+	RHO_TOK_BITOR,
+	RHO_TOK_XOR,
+	RHO_TOK_BITNOT,
+	RHO_TOK_SHIFTL,
+	RHO_TOK_SHIFTR,
+	RHO_TOK_AND,
+	RHO_TOK_OR,
+	RHO_TOK_NOT,
+	RHO_TOK_EQUAL,
+	RHO_TOK_NOTEQ,
+	RHO_TOK_LT,
+	RHO_TOK_GT,
+	RHO_TOK_LE,
+	RHO_TOK_GE,
+	RHO_TOK_AT,
+	RHO_TOK_DOT,
+	RHO_TOK_DOTDOT,
+	RHO_TOK_IN,  // really a keyword but treated as an operator in some contexts
 
 	/* assignments */
-	TOK_ASSIGNMENTS_START,
-	TOK_ASSIGN,
-	TOK_ASSIGN_ADD,
-	TOK_ASSIGN_SUB,
-	TOK_ASSIGN_MUL,
-	TOK_ASSIGN_DIV,
-	TOK_ASSIGN_MOD,
-	TOK_ASSIGN_POW,
-	TOK_ASSIGN_BITAND,
-	TOK_ASSIGN_BITOR,
-	TOK_ASSIGN_XOR,
-	TOK_ASSIGN_SHIFTL,
-	TOK_ASSIGN_SHIFTR,
-	TOK_ASSIGN_AT,
-	TOK_ASSIGNMENTS_END,
-	TOK_OPS_END,    /* marker */
+	RHO_TOK_ASSIGNMENTS_START,
+	RHO_TOK_ASSIGN,
+	RHO_TOK_ASSIGN_ADD,
+	RHO_TOK_ASSIGN_SUB,
+	RHO_TOK_ASSIGN_MUL,
+	RHO_TOK_ASSIGN_DIV,
+	RHO_TOK_ASSIGN_MOD,
+	RHO_TOK_ASSIGN_POW,
+	RHO_TOK_ASSIGN_BITAND,
+	RHO_TOK_ASSIGN_BITOR,
+	RHO_TOK_ASSIGN_XOR,
+	RHO_TOK_ASSIGN_SHIFTL,
+	RHO_TOK_ASSIGN_SHIFTR,
+	RHO_TOK_ASSIGN_AT,
+	RHO_TOK_ASSIGNMENTS_END,
+	RHO_TOK_OPS_END,    /* marker */
 
-	TOK_PAREN_OPEN,     // literal: (
-	TOK_PAREN_CLOSE,    // literal: )
-	TOK_BRACE_OPEN,     // literal: {
-	TOK_BRACE_CLOSE,    // literal: }
-	TOK_BRACK_OPEN,     // literal: [
-	TOK_BRACK_CLOSE,    // literal: ]
+	RHO_TOK_PAREN_OPEN,     // literal: (
+	RHO_TOK_PAREN_CLOSE,    // literal: )
+	RHO_TOK_BRACE_OPEN,     // literal: {
+	RHO_TOK_BRACE_CLOSE,    // literal: }
+	RHO_TOK_BRACK_OPEN,     // literal: [
+	RHO_TOK_BRACK_CLOSE,    // literal: ]
 
 	/* keywords */
-	TOK_PRINT,
-	TOK_IF,
-	TOK_ELIF,
-	TOK_ELSE,
-	TOK_WHILE,
-	TOK_FOR,
-	TOK_DEF,
-	TOK_BREAK,
-	TOK_CONTINUE,
-	TOK_RETURN,
-	TOK_THROW,
-	TOK_TRY,
-	TOK_CATCH,
-	TOK_IMPORT,
-	TOK_EXPORT,
+	RHO_TOK_PRINT,
+	RHO_TOK_IF,
+	RHO_TOK_ELIF,
+	RHO_TOK_ELSE,
+	RHO_TOK_WHILE,
+	RHO_TOK_FOR,
+	RHO_TOK_DEF,
+	RHO_TOK_BREAK,
+	RHO_TOK_CONTINUE,
+	RHO_TOK_RETURN,
+	RHO_TOK_THROW,
+	RHO_TOK_TRY,
+	RHO_TOK_CATCH,
+	RHO_TOK_IMPORT,
+	RHO_TOK_EXPORT,
 
 	/* miscellaneous tokens */
-	TOK_COMMA,
-	TOK_COLON,
-	TOK_DOLLAR,
+	RHO_TOK_COMMA,
+	RHO_TOK_COLON,
+	RHO_TOK_DOLLAR,
 
 	/* statement terminators */
-	TOK_SEMICOLON,
-	TOK_NEWLINE,
-	TOK_EOF             // should always be the last token
-} TokType;
+	RHO_TOK_SEMICOLON,
+	RHO_TOK_NEWLINE,
+	RHO_TOK_EOF             // should always be the last token
+} RhoTokType;
 
 
-#define IS_OP(type) ((TOK_OPS_START < (type) && (type) < TOK_OPS_END))
+#define RHO_TOK_TYPE_IS_OP(type) ((RHO_TOK_OPS_START < (type) && (type) < RHO_TOK_OPS_END))
 
-#define IS_ASSIGNMENT_TOK(type) \
-	(TOK_ASSIGNMENTS_START < (type) && (type) < TOK_ASSIGNMENTS_END)
+#define RHO_TOK_TYPE_IS_ASSIGNMENT_TOK(type) \
+	(RHO_TOK_ASSIGNMENTS_START < (type) && (type) < RHO_TOK_ASSIGNMENTS_END)
 
 typedef struct {
 	const char *value;    // not null-terminated
 	size_t length;
-	TokType type;
+	RhoTokType type;
 	unsigned int lineno;  // 1-based line number
-} Token;
+} RhoToken;
 
 typedef struct {
 	/* source code to parse */
@@ -120,13 +120,13 @@ typedef struct {
 	unsigned int mark;
 
 	/* tokens that have been read */
-	Token *tokens;
+	RhoToken *tokens;
 	size_t tok_count;
 	size_t tok_capacity;
 
 	/* the "peek-token" is somewhat complicated to
 	   compute, so we cache it */
-	Token *peek;
+	RhoToken *peek;
 
 	/* where we are in the tokens array */
 	size_t tok_pos;
@@ -148,36 +148,36 @@ typedef struct {
 	unsigned in_function : 1;
 	unsigned in_lambda   : 1;
 	unsigned in_loop     : 1;
-} Parser;
+} RhoParser;
 
 enum {
-	PARSE_ERR_NONE = 0,
-	PARSE_ERR_UNEXPECTED_CHAR,
-	PARSE_ERR_UNEXPECTED_TOKEN,
-	PARSE_ERR_NOT_A_STATEMENT,
-	PARSE_ERR_UNCLOSED,
-	PARSE_ERR_INVALID_ASSIGN,
-	PARSE_ERR_INVALID_BREAK,
-	PARSE_ERR_INVALID_CONTINUE,
-	PARSE_ERR_INVALID_RETURN,
-	PARSE_ERR_TOO_MANY_PARAMETERS,
-	PARSE_ERR_DUPLICATE_PARAMETERS,
-	PARSE_ERR_NON_DEFAULT_AFTER_DEFAULT_PARAMETERS,
-	PARSE_ERR_MALFORMED_PARAMETERS,
-	PARSE_ERR_TOO_MANY_ARGUMENTS,
-	PARSE_ERR_DUPLICATE_NAMED_ARGUMENTS,
-	PARSE_ERR_UNNAMED_AFTER_NAMED_ARGUMENTS,
-	PARSE_ERR_MALFORMED_ARGUMENTS,
-	PARSE_ERR_EMPTY_CATCH,
-	PARSE_ERR_MISPLACED_DOLLAR_IDENTIFIER
+	RHO_PARSE_ERR_NONE = 0,
+	RHO_PARSE_ERR_UNEXPECTED_CHAR,
+	RHO_PARSE_ERR_UNEXPECTED_TOKEN,
+	RHO_PARSE_ERR_NOT_A_STATEMENT,
+	RHO_PARSE_ERR_UNCLOSED,
+	RHO_PARSE_ERR_INVALID_ASSIGN,
+	RHO_PARSE_ERR_INVALID_BREAK,
+	RHO_PARSE_ERR_INVALID_CONTINUE,
+	RHO_PARSE_ERR_INVALID_RETURN,
+	RHO_PARSE_ERR_TOO_MANY_PARAMETERS,
+	RHO_PARSE_ERR_DUPLICATE_PARAMETERS,
+	RHO_PARSE_ERR_NON_DEFAULT_AFTER_DEFAULT_PARAMETERS,
+	RHO_PARSE_ERR_MALFORMED_PARAMETERS,
+	RHO_PARSE_ERR_TOO_MANY_ARGUMENTS,
+	RHO_PARSE_ERR_DUPLICATE_NAMED_ARGUMENTS,
+	RHO_PARSE_ERR_UNNAMED_AFTER_NAMED_ARGUMENTS,
+	RHO_PARSE_ERR_MALFORMED_ARGUMENTS,
+	RHO_PARSE_ERR_EMPTY_CATCH,
+	RHO_PARSE_ERR_MISPLACED_DOLLAR_IDENTIFIER
 };
 
-Parser *parser_new(char *str, const char *name);
-void parser_free(Parser *p);
-Program *parse(Parser *p);
+RhoParser *rho_parser_new(char *str, const char *name);
+void rho_parser_free(RhoParser *p);
+RhoProgram *rho_parse(RhoParser *p);
 
-#define PARSER_SET_ERROR_MSG(p, msg)   (p)->error_msg = (msg)
-#define PARSER_SET_ERROR_TYPE(p, type) (p)->error_type = (type)
-#define PARSER_ERROR(p)                ((p)->error_type != PARSE_ERR_NONE)
+#define RHO_PARSER_SET_ERROR_MSG(p, msg)   (p)->error_msg = (msg)
+#define RHO_PARSER_SET_ERROR_TYPE(p, type) (p)->error_type = (type)
+#define RHO_PARSER_ERROR(p)                ((p)->error_type != RHO_PARSE_ERR_NONE)
 
-#endif /* PARSER_H */
+#endif /* RHO_PARSER_H */

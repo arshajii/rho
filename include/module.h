@@ -1,31 +1,31 @@
-#ifndef MODULE_H
-#define MODULE_H
+#ifndef RHO_MODULE_H
+#define RHO_MODULE_H
 
 #include "object.h"
 #include "strdict.h"
 
-extern Class module_class;
+extern RhoClass rho_module_class;
 
 typedef struct {
-	Object base;
+	RhoObject base;
 	const char *name;
-	StrDict contents;
-} Module;
+	RhoStrDict contents;
+} RhoModule;
 
-Value module_make(const char *name, StrDict *contents);
+RhoValue rho_module_make(const char *name, RhoStrDict *contents);
 
-extern Class builtin_module_class;
+extern RhoClass rho_builtin_module_class;
 
-typedef struct built_in_module {
-	Module base;
-	void (*init_func)(struct built_in_module *mod);
+typedef struct rho_built_in_module {
+	RhoModule base;
+	void (*init_func)(struct rho_built_in_module *mod);
 	bool initialized;
-} BuiltInModule;
+} RhoBuiltInModule;
 
-#define BUILTIN_MODULE_INIT_STATIC(name_, init_func_) { \
-  .base = { .base = OBJ_INIT_STATIC(&builtin_module_class), .name = (name_) }, \
+#define RHO_BUILTIN_MODULE_INIT_STATIC(name_, init_func_) { \
+  .base = { .base = RHO_OBJ_INIT_STATIC(&rho_builtin_module_class), .name = (name_) }, \
   .init_func = (init_func_), \
   .initialized = false \
 }
 
-#endif /* MODULE_H */
+#endif /* RHO_MODULE_H */

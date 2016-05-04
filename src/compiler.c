@@ -21,16 +21,14 @@ struct metadata {
 
 #define LBI_INIT_CAPACITY 5
 
-static void write_byte(Compiler *compiler, const byte p)
+static void write_byte(RhoCompiler *compiler, const byte p)
 {
-	code_write_byte(&compiler->code, p);
+	rho_code_write_byte(&compiler->code, p);
 }
 
-DECL_MIN_FUNC(min, unsigned int)
-
-static void write_ins(Compiler *compiler, const Opcode p, unsigned int lineno)
+static void write_ins(RhoCompiler *compiler, const RhoOpcode p, unsigned int lineno)
 {
-#define WB(p) code_write_byte(&compiler->lno_table, p)
+#define WB(p) rho_code_write_byte(&compiler->lno_table, p)
 
 	const unsigned int curr_lineno = compiler->last_lineno;
 
@@ -40,8 +38,8 @@ static void write_ins(Compiler *compiler, const Opcode p, unsigned int lineno)
 		compiler->first_ins_on_line_idx = compiler->last_ins_idx;
 
 		while (lineno_delta || ins_delta) {
-			byte x = min(ins_delta, 0xFF);
-			byte y = min(lineno_delta, 0xFF);
+			byte x = ins_delta < 0xff ? ins_delta : 0xff;
+			byte y = lineno_delta < 0xff ? lineno_delta : 0xff;
 			WB(x);
 			WB(y);
 			ins_delta -= x;
@@ -57,62 +55,62 @@ static void write_ins(Compiler *compiler, const Opcode p, unsigned int lineno)
 #undef WB
 }
 
-static void write_int(Compiler *compiler, const int n)
+static void write_int(RhoCompiler *compiler, const int n)
 {
-	code_write_int(&compiler->code, n);
+	rho_code_write_int(&compiler->code, n);
 }
 
-static void write_uint16(Compiler *compiler, const size_t n)
+static void write_uint16(RhoCompiler *compiler, const size_t n)
 {
-	code_write_uint16(&compiler->code, n);
+	rho_code_write_uint16(&compiler->code, n);
 }
 
-static void write_uint16_at(Compiler *compiler, const size_t n, const size_t pos)
+static void write_uint16_at(RhoCompiler *compiler, const size_t n, const size_t pos)
 {
-	code_write_uint16_at(&compiler->code, n, pos);
+	rho_code_write_uint16_at(&compiler->code, n, pos);
 }
 
-static void write_double(Compiler *compiler, const double d)
+static void write_double(RhoCompiler *compiler, const double d)
 {
-	code_write_double(&compiler->code, d);
+	rho_code_write_double(&compiler->code, d);
 }
 
-static void write_str(Compiler *compiler, const Str *str)
+static void write_str(RhoCompiler *compiler, const RhoStr *str)
 {
-	code_write_str(&compiler->code, str);
+	rho_code_write_str(&compiler->code, str);
 }
 
-static void append(Compiler *compiler, const Code *code)
+static void append(RhoCompiler *compiler, const RhoCode *code)
 {
-	code_append(&compiler->code, code);
+	rho_code_append(&compiler->code, code);
 }
 
-const byte magic[] = {0xFE, 0xED, 0xF0, 0x0D};
-const size_t magic_size = sizeof(magic);
+const byte rho_magic[] = {0xFE, 0xED, 0xF0, 0x0D};
+const size_t rho_magic_size = sizeof(rho_magic);
 
 /*
  * Compilation
  */
-static void fill_ct(Compiler *compiler, Program *program);
-static void write_sym_table(Compiler *compiler);
-static void write_const_table(Compiler *compiler);
+static void fill_ct(RhoCompiler *compiler, RhoProgram *program);
+static void write_sym_table(RhoCompiler *compiler);
+static void write_const_table(RhoCompiler *compiler);
 
-static Opcode to_opcode(NodeType type);
+static RhoOpcode to_opcode(RhoNodeType type);
 
 #define DEFAULT_BC_CAPACITY        100
 #define DEFAULT_LNO_TABLE_CAPACITY 30
 
-static Compiler *compiler_new(const char *filename, unsigned int first_lineno, SymTable *st)
+static RhoCompiler *compiler_new(const char *filename, unsigned int first_lineno, RhoSymTable *st)
 {
-	Compiler *compiler = rho_malloc(sizeof(Compiler));
+	RhoCompiler *compiler = rho_malloc(sizeof(RhoCompiler));
 	compiler->filename = filename;
-	code_init(&compiler->code, DEFAULT_BC_CAPACITY);
+	rho_code_init(&compiler->code, DEFAULT_BC_CAPACITY);
 	compiler->lbi = NULL;
 	compiler->st = st;
-	compiler->ct = ct_new();
+	compiler->ct = rho_ct_new();
 	compiler->try_catch_depth = 0;
 	compiler->try_catch_depth_max = 0;
-	code_init(&compiler->lno_table, DEFAULT_LNO_TABLE_CAPACITY);
+	rho_code_init(&compiler->lno_table, DEFAULT_LNO_TABLE_CAPACITY);
 	compiler->first_lineno = first_lineno;
 	compiler->first_ins_on_line_idx = 0;
 	compiler->last_ins_idx = 0;
@@ -125,21 +123,21 @@ static Compiler *compiler_new(const char *filename, unsigned int first_lineno, S
  * Note: this does not deallocate the compiler's code
  * field.
  */
-static void compiler_free(Compiler *compiler, bool free_st)
+static void compiler_free(RhoCompiler *compiler, bool free_st)
 {
 	if (free_st) {
-		st_free(compiler->st);
+		rho_st_free(compiler->st);
 	}
-	ct_free(compiler->ct);
-	code_dealloc(&compiler->code);
-	code_dealloc(&compiler->lno_table);
+	rho_ct_free(compiler->ct);
+	rho_code_dealloc(&compiler->code);
+	rho_code_dealloc(&compiler->lno_table);
 	free(compiler);
 }
 
-static struct loop_block_info *lbi_new(size_t start_index,
-                                       struct loop_block_info *prev)
+static struct rho_loop_block_info *lbi_new(size_t start_index,
+                                       struct rho_loop_block_info *prev)
 {
-	struct loop_block_info *lbi = rho_malloc(sizeof(*lbi));
+	struct rho_loop_block_info *lbi = rho_malloc(sizeof(*lbi));
 	lbi->start_index = start_index;
 	lbi->break_indices = rho_malloc(LBI_INIT_CAPACITY * sizeof(size_t));
 	lbi->break_indices_size = 0;
@@ -148,7 +146,7 @@ static struct loop_block_info *lbi_new(size_t start_index,
 	return lbi;
 }
 
-static void lbi_add_break_index(struct loop_block_info *lbi, size_t break_index)
+static void lbi_add_break_index(struct rho_loop_block_info *lbi, size_t break_index)
 {
 	size_t bi_size = lbi->break_indices_size;
 	size_t bi_capacity = lbi->break_indices_capacity;
@@ -162,20 +160,20 @@ static void lbi_add_break_index(struct loop_block_info *lbi, size_t break_index)
 	lbi->break_indices[lbi->break_indices_size++] = break_index;
 }
 
-void lbi_free(struct loop_block_info *lbi)
+void lbi_free(struct rho_loop_block_info *lbi)
 {
 	free(lbi->break_indices);
 	free(lbi);
 }
 
-static void compiler_push_loop(Compiler *compiler, size_t start_index)
+static void compiler_push_loop(RhoCompiler *compiler, size_t start_index)
 {
 	compiler->lbi = lbi_new(start_index, compiler->lbi);
 }
 
-static void compiler_pop_loop(Compiler *compiler)
+static void compiler_pop_loop(RhoCompiler *compiler)
 {
-	struct loop_block_info *lbi = compiler->lbi;
+	struct rho_loop_block_info *lbi = compiler->lbi;
 	const size_t *break_indices = lbi->break_indices;
 	const size_t break_indices_size = lbi->break_indices_size;
 	const size_t end_index = compiler->code.size;
@@ -189,42 +187,42 @@ static void compiler_pop_loop(Compiler *compiler)
 	lbi_free(lbi);
 }
 
-static void compile_node(Compiler *compiler, AST *ast, bool toplevel);
-static struct metadata compile_program(Compiler *compiler, Program *program);
+static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel);
+static struct metadata compile_program(RhoCompiler *compiler, RhoProgram *program);
 
-static void compile_load(Compiler *compiler, AST *ast);
-static void compile_assignment(Compiler *compiler, AST *ast);
+static void compile_load(RhoCompiler *compiler, RhoAST *ast);
+static void compile_assignment(RhoCompiler *compiler, RhoAST *ast);
 
-static void compile_and(Compiler *compiler, AST *ast);
-static void compile_or(Compiler *compiler, AST *ast);
+static void compile_and(RhoCompiler *compiler, RhoAST *ast);
+static void compile_or(RhoCompiler *compiler, RhoAST *ast);
 
-static void compile_call(Compiler *compiler, AST *ast);
+static void compile_call(RhoCompiler *compiler, RhoAST *ast);
 
-static void compile_cond_expr(Compiler *compiler, AST *ast);
+static void compile_cond_expr(RhoCompiler *compiler, RhoAST *ast);
 
-static void compile_block(Compiler *compiler, AST *ast);
-static void compile_list(Compiler *compiler, AST *ast);
-static void compile_tuple(Compiler *compiler, AST *ast);
-static void compile_index(Compiler *compiler, AST *ast);
+static void compile_block(RhoCompiler *compiler, RhoAST *ast);
+static void compile_list(RhoCompiler *compiler, RhoAST *ast);
+static void compile_tuple(RhoCompiler *compiler, RhoAST *ast);
+static void compile_index(RhoCompiler *compiler, RhoAST *ast);
 
-static void compile_if(Compiler *compiler, AST *ast);
-static void compile_while(Compiler *compiler, AST *ast);
-static void compile_for(Compiler *compiler, AST *ast);
-static void compile_def(Compiler *compiler, AST *ast);
-static void compile_lambda(Compiler *compiler, AST *ast);
-static void compile_break(Compiler *compiler, AST *ast);
-static void compile_continue(Compiler *compiler, AST *ast);
-static void compile_return(Compiler *compiler, AST *ast);
-static void compile_throw(Compiler *compiler, AST *ast);
-static void compile_try_catch(Compiler *compiler, AST *ast);
-static void compile_import(Compiler *compiler, AST *ast);
-static void compile_export(Compiler *compiler, AST *ast);
+static void compile_if(RhoCompiler *compiler, RhoAST *ast);
+static void compile_while(RhoCompiler *compiler, RhoAST *ast);
+static void compile_for(RhoCompiler *compiler, RhoAST *ast);
+static void compile_def(RhoCompiler *compiler, RhoAST *ast);
+static void compile_lambda(RhoCompiler *compiler, RhoAST *ast);
+static void compile_break(RhoCompiler *compiler, RhoAST *ast);
+static void compile_continue(RhoCompiler *compiler, RhoAST *ast);
+static void compile_return(RhoCompiler *compiler, RhoAST *ast);
+static void compile_throw(RhoCompiler *compiler, RhoAST *ast);
+static void compile_try_catch(RhoCompiler *compiler, RhoAST *ast);
+static void compile_import(RhoCompiler *compiler, RhoAST *ast);
+static void compile_export(RhoCompiler *compiler, RhoAST *ast);
 
-static void compile_get_attr(Compiler *compiler, AST *ast);
+static void compile_get_attr(RhoCompiler *compiler, RhoAST *ast);
 
 static int max_stack_depth(byte *bc, size_t len);
 
-static struct metadata compile_raw(Compiler *compiler, Program *program, bool is_single_expr)
+static struct metadata compile_raw(RhoCompiler *compiler, RhoProgram *program, bool is_single_expr)
 {
 	if (is_single_expr) {
 		assert(program->next == NULL);
@@ -236,23 +234,23 @@ static struct metadata compile_raw(Compiler *compiler, Program *program, bool is
 
 	const size_t start_size = compiler->code.size;
 
-	for (struct ast_list *node = program; node != NULL; node = node->next) {
+	for (struct rho_ast_list *node = program; node != NULL; node = node->next) {
 		compile_node(compiler, node->ast, !is_single_expr);
 	}
 
 	if (is_single_expr) {
-		write_ins(compiler, INS_RETURN, 0);
+		write_ins(compiler, RHO_INS_RETURN, 0);
 	} else {
-		write_ins(compiler, INS_LOAD_NULL, 0);
-		write_ins(compiler, INS_RETURN, 0);
+		write_ins(compiler, RHO_INS_LOAD_NULL, 0);
+		write_ins(compiler, RHO_INS_RETURN, 0);
 	}
 
-	Code *code = &compiler->code;
-	Code *lno_table = &compiler->lno_table;
+	RhoCode *code = &compiler->code;
+	RhoCode *lno_table = &compiler->lno_table;
 
 	/* two zeros mark the end of the line number table */
-	code_write_byte(lno_table, 0);
-	code_write_byte(lno_table, 0);
+	rho_code_write_byte(lno_table, 0);
+	rho_code_write_byte(lno_table, 0);
 
 	const size_t final_size = code->size;
 	const size_t bc_size = final_size - start_size;
@@ -267,13 +265,13 @@ static struct metadata compile_raw(Compiler *compiler, Program *program, bool is
 	 * instance and use that as our finished product.
 	 */
 	const size_t lno_table_size = lno_table->size;
-	Code complete;
-	code_init(&complete, 2 + 2 + lno_table_size + final_size);
-	code_write_uint16(&complete, compiler->first_lineno);
-	code_write_uint16(&complete, lno_table_size);
-	code_append(&complete, lno_table);
-	code_append(&complete, code);
-	code_dealloc(code);
+	RhoCode complete;
+	rho_code_init(&complete, 2 + 2 + lno_table_size + final_size);
+	rho_code_write_uint16(&complete, compiler->first_lineno);
+	rho_code_write_uint16(&complete, lno_table_size);
+	rho_code_append(&complete, lno_table);
+	rho_code_append(&complete, code);
+	rho_code_dealloc(code);
 	compiler->code = complete;
 
 	/* return some data describing what we compiled */
@@ -285,80 +283,80 @@ static struct metadata compile_raw(Compiler *compiler, Program *program, bool is
 	return metadata;
 }
 
-static struct metadata compile_program(Compiler *compiler, Program *program)
+static struct metadata compile_program(RhoCompiler *compiler, RhoProgram *program)
 {
-	populate_symtable(compiler->st, program);
+	rho_st_populate(compiler->st, program);
 	return compile_raw(compiler, program, false);
 }
 
-static void compile_const(Compiler *compiler, AST *ast)
+static void compile_const(RhoCompiler *compiler, RhoAST *ast)
 {
 	const unsigned int lineno = ast->lineno;
-	CTConst value;
+	RhoCTConst value;
 
 	switch (ast->type) {
-	case NODE_INT:
-		value.type = CT_INT;
+	case RHO_NODE_INT:
+		value.type = RHO_CT_INT;
 		value.value.i = ast->v.int_val;
 		break;
-	case NODE_FLOAT:
-		value.type = CT_DOUBLE;
+	case RHO_NODE_FLOAT:
+		value.type = RHO_CT_DOUBLE;
 		value.value.d = ast->v.float_val;
 		break;
-	case NODE_STRING:
-		value.type = CT_STRING;
+	case RHO_NODE_STRING:
+		value.type = RHO_CT_STRING;
 		value.value.s = ast->v.str_val;
 		break;
-	case NODE_DEF:
-	case NODE_LAMBDA: {
-		const unsigned int const_id = ct_poll_codeobj(compiler->ct);
-		write_ins(compiler, INS_LOAD_CONST, lineno);
+	case RHO_NODE_DEF:
+	case RHO_NODE_LAMBDA: {
+		const unsigned int const_id = rho_ct_poll_codeobj(compiler->ct);
+		write_ins(compiler, RHO_INS_LOAD_CONST, lineno);
 		write_uint16(compiler, const_id);
 		return;
 	}
 	default:
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
-	const unsigned int const_id = ct_id_for_const(compiler->ct, value);
-	write_ins(compiler, INS_LOAD_CONST, lineno);
+	const unsigned int const_id = rho_ct_id_for_const(compiler->ct, value);
+	write_ins(compiler, RHO_INS_LOAD_CONST, lineno);
 	write_uint16(compiler, const_id);
 }
 
-static void compile_load(Compiler *compiler, AST *ast)
+static void compile_load(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_IDENT);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_IDENT);
 
 	const unsigned int lineno = ast->lineno;
-	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->v.ident);
+	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, ast->v.ident);
 
 	if (sym == NULL) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	if (sym->bound_here) {
-		write_ins(compiler, INS_LOAD, lineno);
+		write_ins(compiler, RHO_INS_LOAD, lineno);
 	} else if (sym->global_var) {
-		write_ins(compiler, INS_LOAD_GLOBAL, lineno);
+		write_ins(compiler, RHO_INS_LOAD_GLOBAL, lineno);
 	} else {
 		assert(sym->free_var);
-		write_ins(compiler, INS_LOAD_NAME, lineno);
+		write_ins(compiler, RHO_INS_LOAD_NAME, lineno);
 	}
 
 	write_uint16(compiler, sym->id);
 }
 
-static void compile_assignment(Compiler *compiler, AST *ast)
+static void compile_assignment(RhoCompiler *compiler, RhoAST *ast)
 {
-	const NodeType type = ast->type;
-	if (!IS_ASSIGNMENT(type)) {
-		INTERNAL_ERROR();
+	const RhoNodeType type = ast->type;
+	if (!RHO_NODE_TYPE_IS_ASSIGNMENT(type)) {
+		RHO_INTERNAL_ERROR();
 	}
 
 	const unsigned int lineno = ast->lineno;
 
-	AST *lhs = ast->left;
-	AST *rhs = ast->right;
+	RhoAST *lhs = ast->left;
+	RhoAST *rhs = ast->right;
 
 	/*
 	 *         (assign)
@@ -367,53 +365,53 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	 *      / \
 	 *    id  attr
 	 */
-	if (lhs->type == NODE_DOT) {
-		const STSymbol *sym = ste_get_attr_symbol(compiler->st->ste_current, lhs->right->v.ident);
+	if (lhs->type == RHO_NODE_DOT) {
+		const RhoSTSymbol *sym = rho_ste_get_attr_symbol(compiler->st->ste_current, lhs->right->v.ident);
 		const unsigned int sym_id = sym->id;
 
 		if (sym == NULL) {
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 		}
 
-		if (type == NODE_ASSIGN) {
+		if (type == RHO_NODE_ASSIGN) {
 			compile_node(compiler, rhs, false);
 			compile_node(compiler, lhs->left, false);
-			write_ins(compiler, INS_SET_ATTR, lineno);
+			write_ins(compiler, RHO_INS_SET_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 		} else {
 			/* compound assignment */
 			compile_node(compiler, lhs->left, false);
-			write_ins(compiler, INS_DUP, lineno);
-			write_ins(compiler, INS_LOAD_ATTR, lineno);
+			write_ins(compiler, RHO_INS_DUP, lineno);
+			write_ins(compiler, RHO_INS_LOAD_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 			compile_node(compiler, rhs, false);
 			write_ins(compiler, to_opcode(type), lineno);
-			write_ins(compiler, INS_ROT, lineno);
-			write_ins(compiler, INS_SET_ATTR, lineno);
+			write_ins(compiler, RHO_INS_ROT, lineno);
+			write_ins(compiler, RHO_INS_SET_ATTR, lineno);
 			write_uint16(compiler, sym_id);
 		}
-	} else if (lhs->type == NODE_INDEX) {
-		if (type == NODE_ASSIGN) {
+	} else if (lhs->type == RHO_NODE_INDEX) {
+		if (type == RHO_NODE_ASSIGN) {
 			compile_node(compiler, rhs, false);
 			compile_node(compiler, lhs->left, false);
 			compile_node(compiler, lhs->right, false);
-			write_ins(compiler, INS_SET_INDEX, lineno);
+			write_ins(compiler, RHO_INS_SET_INDEX, lineno);
 		} else {
 			/* compound assignment */
 			compile_node(compiler, lhs->left, false);
 			compile_node(compiler, lhs->right, false);
-			write_ins(compiler, INS_DUP_TWO, lineno);
-			write_ins(compiler, INS_LOAD_INDEX, lineno);
+			write_ins(compiler, RHO_INS_DUP_TWO, lineno);
+			write_ins(compiler, RHO_INS_LOAD_INDEX, lineno);
 			compile_node(compiler, rhs, false);
 			write_ins(compiler, to_opcode(type), lineno);
-			write_ins(compiler, INS_ROT_THREE, lineno);
-			write_ins(compiler, INS_SET_INDEX, lineno);
+			write_ins(compiler, RHO_INS_ROT_THREE, lineno);
+			write_ins(compiler, RHO_INS_SET_INDEX, lineno);
 		}
 	} else {
-		const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, lhs->v.ident);
+		const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, lhs->v.ident);
 
 		if (sym == NULL) {
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 		}
 
 		const unsigned int sym_id = sym->id;
@@ -425,7 +423,7 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 			assert(0);
 		}
 
-		if (type == NODE_ASSIGN) {
+		if (type == RHO_NODE_ASSIGN) {
 			compile_node(compiler, rhs, false);
 		} else {
 			/* compound assignment */
@@ -436,11 +434,11 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 
 		byte store_ins;
 		if (sym->bound_here) {
-			store_ins = INS_STORE;
+			store_ins = RHO_INS_STORE;
 		} else if (sym->global_var) {
-			store_ins = INS_STORE_GLOBAL;
+			store_ins = RHO_INS_STORE_GLOBAL;
 		} else {
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 		}
 
 		write_ins(compiler, store_ins, lineno);
@@ -448,9 +446,9 @@ static void compile_assignment(Compiler *compiler, AST *ast)
 	}
 }
 
-static void compile_call(Compiler *compiler, AST *ast)
+static void compile_call(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_CALL);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_CALL);
 
 	const unsigned int lineno = ast->lineno;
 
@@ -458,18 +456,18 @@ static void compile_call(Compiler *compiler, AST *ast)
 	unsigned int named_args = 0;
 
 	bool flip = false;  // sanity check: no unnamed args after named ones
-	for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
-		if (IS_ASSIGNMENT(node->ast->type)) {
-			AST_TYPE_ASSERT(node->ast, NODE_ASSIGN);
-			AST_TYPE_ASSERT(node->ast->left, NODE_IDENT);
+	for (struct rho_ast_list *node = ast->v.params; node != NULL; node = node->next) {
+		if (RHO_NODE_TYPE_IS_ASSIGNMENT(node->ast->type)) {
+			RHO_AST_TYPE_ASSERT(node->ast, RHO_NODE_ASSIGN);
+			RHO_AST_TYPE_ASSERT(node->ast->left, RHO_NODE_IDENT);
 			flip = true;
 
-			CTConst name;
-			name.type = CT_STRING;
+			RhoCTConst name;
+			name.type = RHO_CT_STRING;
 			name.value.s = node->ast->left->v.ident;
-			const unsigned int id = ct_id_for_const(compiler->ct, name);
+			const unsigned int id = rho_ct_id_for_const(compiler->ct, name);
 
-			write_ins(compiler, INS_LOAD_CONST, lineno);
+			write_ins(compiler, RHO_INS_LOAD_CONST, lineno);
 			write_uint16(compiler, id);
 			compile_node(compiler, node->ast->right, false);
 
@@ -485,23 +483,23 @@ static void compile_call(Compiler *compiler, AST *ast)
 	assert(unnamed_args <= 0xff && named_args <= 0xff);
 
 	compile_node(compiler, ast->left, false);  // callable
-	write_ins(compiler, INS_CALL, lineno);
+	write_ins(compiler, RHO_INS_CALL, lineno);
 	write_uint16(compiler, (named_args << 8) | unnamed_args);
 }
 
-static void compile_cond_expr(Compiler *compiler, AST *ast)
+static void compile_cond_expr(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_COND_EXPR);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_COND_EXPR);
 
 	const unsigned int lineno = ast->lineno;
 
 	compile_node(compiler, ast->v.middle, false);  // condition
-	write_ins(compiler, INS_JMP_IF_FALSE, lineno);
+	write_ins(compiler, RHO_INS_JMP_IF_FALSE, lineno);
 	const size_t jmp_to_false_index = compiler->code.size;
 	write_uint16(compiler, 0);
 
 	compile_node(compiler, ast->left, false);  // true branch
-	write_ins(compiler, INS_JMP, lineno);
+	write_ins(compiler, RHO_INS_JMP, lineno);
 	const size_t jmp_out_index = compiler->code.size;
 	write_uint16(compiler, 0);
 
@@ -512,22 +510,22 @@ static void compile_cond_expr(Compiler *compiler, AST *ast)
 	write_uint16_at(compiler, compiler->code.size - jmp_out_index - 2, jmp_out_index);
 }
 
-static void compile_and(Compiler *compiler, AST *ast)
+static void compile_and(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_AND);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_AND);
 	compile_node(compiler, ast->left, false);
-	write_ins(compiler, INS_JMP_IF_FALSE_ELSE_POP, ast->left->lineno);
+	write_ins(compiler, RHO_INS_JMP_IF_FALSE_ELSE_POP, ast->left->lineno);
 	size_t jump_index = compiler->code.size;
 	write_uint16(compiler, 0);  // placeholder for jump offset
 	compile_node(compiler, ast->right, false);
 	write_uint16_at(compiler, compiler->code.size - jump_index - 2, jump_index);
 }
 
-static void compile_or(Compiler *compiler, AST *ast)
+static void compile_or(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_OR);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_OR);
 	compile_node(compiler, ast->left, false);
-	write_ins(compiler, INS_JMP_IF_TRUE_ELSE_POP, ast->left->lineno);
+	write_ins(compiler, RHO_INS_JMP_IF_TRUE_ELSE_POP, ast->left->lineno);
 	size_t jump_index = compiler->code.size;
 	write_uint16(compiler, 0);  // placeholder for jump offset
 	compile_node(compiler, ast->right, false);
@@ -535,63 +533,63 @@ static void compile_or(Compiler *compiler, AST *ast)
 }
 
 
-static void compile_block(Compiler *compiler, AST *ast)
+static void compile_block(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_BLOCK);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_BLOCK);
 
-	for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
+	for (struct rho_ast_list *node = ast->v.block; node != NULL; node = node->next) {
 		compile_node(compiler, node->ast, true);
 	}
 }
 
-static void compile_list(Compiler *compiler, AST *ast)
+static void compile_list(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_LIST);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_LIST);
 
 	size_t len = 0;
-	for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+	for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
 		compile_node(compiler, node->ast, false);
 		++len;
 	}
 
-	write_ins(compiler, INS_MAKE_LIST, ast->lineno);
+	write_ins(compiler, RHO_INS_MAKE_LIST, ast->lineno);
 	write_uint16(compiler, len);
 }
 
-static void compile_tuple(Compiler *compiler, AST *ast)
+static void compile_tuple(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_TUPLE);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_TUPLE);
 
 	size_t len = 0;
-	for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+	for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
 		compile_node(compiler, node->ast, false);
 		++len;
 	}
 
-	write_ins(compiler, INS_MAKE_TUPLE, ast->lineno);
+	write_ins(compiler, RHO_INS_MAKE_TUPLE, ast->lineno);
 	write_uint16(compiler, len);
 }
 
-static void compile_index(Compiler *compiler, AST *ast)
+static void compile_index(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_INDEX);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_INDEX);
 	compile_node(compiler, ast->left, false);
 	compile_node(compiler, ast->right, false);
-	write_ins(compiler, INS_LOAD_INDEX, ast->lineno);
+	write_ins(compiler, RHO_INS_LOAD_INDEX, ast->lineno);
 }
 
-static void compile_if(Compiler *compiler, AST *ast)
+static void compile_if(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_IF);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_IF);
 
-	AST *else_chain_base = ast->v.middle;
+	RhoAST *else_chain_base = ast->v.middle;
 	unsigned int n_elifs = 0;
 
-	for (AST *node = else_chain_base; node != NULL; node = node->v.middle) {
-		if (node->type == NODE_ELSE) {
+	for (RhoAST *node = else_chain_base; node != NULL; node = node->v.middle) {
+		if (node->type == RHO_NODE_ELSE) {
 			assert(node->v.middle == NULL);   // this'd better be the last node
 		} else {
-			assert(node->type == NODE_ELIF);  // only ELSE and ELIF nodes allowed here
+			assert(node->type == RHO_NODE_ELIF);  // only ELSE and ELIF nodes allowed here
 			++n_elifs;
 		}
 	}
@@ -602,20 +600,20 @@ static void compile_if(Compiler *compiler, AST *ast)
 	size_t *jmp_placeholder_indices = rho_malloc((1 + n_elifs) * sizeof(size_t));
 	size_t node_index = 0;
 
-	for (AST *node = ast; node != NULL; node = node->v.middle) {
-		NodeType type = node->type;
+	for (RhoAST *node = ast; node != NULL; node = node->v.middle) {
+		RhoNodeType type = node->type;
 		const unsigned int lineno = node->lineno;
 
 		switch (type) {
-		case NODE_IF:
-		case NODE_ELIF: {
+		case RHO_NODE_IF:
+		case RHO_NODE_ELIF: {
 			compile_node(compiler, node->left, false);  // condition
-			write_ins(compiler, INS_JMP_IF_FALSE, lineno);
+			write_ins(compiler, RHO_INS_JMP_IF_FALSE, lineno);
 			const size_t jmp_to_next_index = compiler->code.size;
 			write_uint16(compiler, 0);
 
 			compile_node(compiler, node->right, true);  // body
-			write_ins(compiler, INS_JMP, lineno);
+			write_ins(compiler, RHO_INS_JMP, lineno);
 			const size_t jmp_out_index = compiler->code.size;
 			write_uint16(compiler, 0);
 
@@ -623,12 +621,12 @@ static void compile_if(Compiler *compiler, AST *ast)
 			write_uint16_at(compiler, compiler->code.size - jmp_to_next_index - 2, jmp_to_next_index);
 			break;
 		}
-		case NODE_ELSE: {
+		case RHO_NODE_ELSE: {
 			compile_node(compiler, node->left, true);  // body
 			break;
 		}
 		default:
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 		}
 	}
 
@@ -642,13 +640,13 @@ static void compile_if(Compiler *compiler, AST *ast)
 	free(jmp_placeholder_indices);
 }
 
-static void compile_while(Compiler *compiler, AST *ast)
+static void compile_while(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_WHILE);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_WHILE);
 
 	const size_t loop_start_index = compiler->code.size;
 	compile_node(compiler, ast->left, false);  // condition
-	write_ins(compiler, INS_JMP_IF_FALSE, 0);
+	write_ins(compiler, RHO_INS_JMP_IF_FALSE, 0);
 
 	// jump placeholder:
 	const size_t jump_index = compiler->code.size;
@@ -657,7 +655,7 @@ static void compile_while(Compiler *compiler, AST *ast)
 	compiler_push_loop(compiler, loop_start_index);
 	compile_node(compiler, ast->right, true);  // body
 
-	write_ins(compiler, INS_JMP_BACK, 0);
+	write_ins(compiler, RHO_INS_JMP_BACK, 0);
 	write_uint16(compiler, compiler->code.size - loop_start_index + 2);
 
 	// fill in placeholder:
@@ -666,38 +664,38 @@ static void compile_while(Compiler *compiler, AST *ast)
 	compiler_pop_loop(compiler);
 }
 
-static void compile_for(Compiler *compiler, AST *ast)
+static void compile_for(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_FOR);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_FOR);
 	const unsigned int lineno = ast->lineno;
 
-	AST *lcv = ast->left;  // loop control variable
-	AST *iter = ast->right;
-	AST *body = ast->v.middle;
+	RhoAST *lcv = ast->left;  // loop control variable
+	RhoAST *iter = ast->right;
+	RhoAST *body = ast->v.middle;
 
-	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, lcv->v.ident);
+	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, lcv->v.ident);
 
 	if (sym == NULL) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	compile_node(compiler, iter, true);
-	write_ins(compiler, INS_GET_ITER, lineno);
+	write_ins(compiler, RHO_INS_GET_ITER, lineno);
 
 	const size_t loop_start_index = compiler->code.size;
 	compiler_push_loop(compiler, loop_start_index);
-	write_ins(compiler, INS_LOOP_ITER, iter->lineno);
+	write_ins(compiler, RHO_INS_LOOP_ITER, iter->lineno);
 
 	// jump placeholder:
 	const size_t jump_index = compiler->code.size;
 	write_uint16(compiler, 0);
 
-	write_ins(compiler, INS_STORE, lineno);
+	write_ins(compiler, RHO_INS_STORE, lineno);
 	write_uint16(compiler, sym->id);
 
 	compile_node(compiler, body, true);
 
-	write_ins(compiler, INS_JMP_BACK, 0);
+	write_ins(compiler, RHO_INS_JMP_BACK, 0);
 	write_uint16(compiler, compiler->code.size - loop_start_index + 2);
 
 	// fill in placeholder:
@@ -705,29 +703,29 @@ static void compile_for(Compiler *compiler, AST *ast)
 
 	compiler_pop_loop(compiler);
 
-	write_ins(compiler, INS_POP, 0);  // pop the iterator left behind by GET_ITER
+	write_ins(compiler, RHO_INS_POP, 0);  // pop the iterator left behind by GET_ITER
 }
 
-static void compile_def(Compiler *compiler, AST *ast)
+static void compile_def(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_DEF);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_DEF);
 	const unsigned int lineno = ast->lineno;
 
 	/* A function definition is essentially the assignment of a CodeObject to a variable. */
-	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
+	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
 
 	if (sym == NULL) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	compile_const(compiler, ast);
 
 	bool flip = false;  // sanity check: no non-default args after default ones
 	unsigned int num_default = 0;
-	for (struct ast_list *param = ast->v.params; param != NULL; param = param->next) {
-		if (param->ast->type == NODE_ASSIGN) {
+	for (struct rho_ast_list *param = ast->v.params; param != NULL; param = param->next) {
+		if (param->ast->type == RHO_NODE_ASSIGN) {
 			flip = true;
-			AST_TYPE_ASSERT(param->ast->left, NODE_IDENT);
+			RHO_AST_TYPE_ASSERT(param->ast->left, RHO_NODE_IDENT);
 			compile_node(compiler, param->ast->right, false);
 			++num_default;
 		} else {
@@ -737,31 +735,31 @@ static void compile_def(Compiler *compiler, AST *ast)
 
 	assert(num_default <= 0xffff);
 
-	write_ins(compiler, INS_MAKE_FUNCOBJ, lineno);
+	write_ins(compiler, RHO_INS_MAKE_FUNCOBJ, lineno);
 	write_uint16(compiler, num_default);
 
-	write_ins(compiler, INS_STORE, lineno);
+	write_ins(compiler, RHO_INS_STORE, lineno);
 	write_uint16(compiler, sym->id);
 }
 
-static void compile_lambda(Compiler *compiler, AST *ast)
+static void compile_lambda(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_LAMBDA);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_LAMBDA);
 	compile_const(compiler, ast);
-	write_ins(compiler, INS_MAKE_FUNCOBJ, ast->lineno);
+	write_ins(compiler, RHO_INS_MAKE_FUNCOBJ, ast->lineno);
 	write_uint16(compiler, 0);
 }
 
-static void compile_break(Compiler *compiler, AST *ast)
+static void compile_break(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_BREAK);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_BREAK);
 	const unsigned int lineno = ast->lineno;
 
 	if (compiler->lbi == NULL) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
-	write_ins(compiler, INS_JMP, lineno);
+	write_ins(compiler, RHO_INS_JMP, lineno);
 	const size_t break_index = compiler->code.size;
 	write_uint16(compiler, 0);
 
@@ -773,51 +771,51 @@ static void compile_break(Compiler *compiler, AST *ast)
 	lbi_add_break_index(compiler->lbi, break_index);
 }
 
-static void compile_continue(Compiler *compiler, AST *ast)
+static void compile_continue(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_CONTINUE);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_CONTINUE);
 	const unsigned int lineno = ast->lineno;
 
 	if (compiler->lbi == NULL) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
-	write_ins(compiler, INS_JMP_BACK, lineno);
+	write_ins(compiler, RHO_INS_JMP_BACK, lineno);
 	const size_t start_index = compiler->lbi->start_index;
 	write_uint16(compiler, compiler->code.size - start_index + 2);
 }
 
-static void compile_return(Compiler *compiler, AST *ast)
+static void compile_return(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_RETURN);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_RETURN);
 	const unsigned int lineno = ast->lineno;
 	compile_node(compiler, ast->left, false);
-	write_ins(compiler, INS_RETURN, lineno);
+	write_ins(compiler, RHO_INS_RETURN, lineno);
 }
 
-static void compile_throw(Compiler *compiler, AST *ast)
+static void compile_throw(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_THROW);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_THROW);
 	const unsigned int lineno = ast->lineno;
 	compile_node(compiler, ast->left, false);
-	write_ins(compiler, INS_THROW, lineno);
+	write_ins(compiler, RHO_INS_THROW, lineno);
 }
 
-static void compile_try_catch(Compiler *compiler, AST *ast)
+static void compile_try_catch(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_TRY_CATCH);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_TRY_CATCH);
 	const unsigned int try_lineno = ast->lineno;
 	const unsigned int catch_lineno = ast->right->lineno;
 
 	unsigned int exc_count = 0;
-	for (struct ast_list *node = ast->v.excs; node != NULL; node = node->next) {
+	for (struct rho_ast_list *node = ast->v.excs; node != NULL; node = node->next) {
 		++exc_count;
 	}
 	assert(exc_count > 0);
 	assert(exc_count == 1);  // TODO: handle 2+ exceptions (this is currently valid syntactically)
 
 	/* === Try Block === */
-	write_ins(compiler, INS_TRY_BEGIN, try_lineno);
+	write_ins(compiler, RHO_INS_TRY_BEGIN, try_lineno);
 	const size_t try_block_size_index = compiler->code.size;
 	write_uint16(compiler, 0);  /* placeholder for try-length */
 	const size_t handler_offset_index = compiler->code.size;
@@ -832,72 +830,72 @@ static void compile_try_catch(Compiler *compiler, AST *ast)
 	compile_node(compiler, ast->left, true);  /* try block */
 	compiler->try_catch_depth -= exc_count;
 
-	write_ins(compiler, INS_TRY_END, catch_lineno);
+	write_ins(compiler, RHO_INS_TRY_END, catch_lineno);
 	write_uint16_at(compiler, compiler->code.size - try_block_size_index - 4, try_block_size_index);
 
-	write_ins(compiler, INS_JMP, catch_lineno);  /* jump past exception handlers if no exception was thrown */
+	write_ins(compiler, RHO_INS_JMP, catch_lineno);  /* jump past exception handlers if no exception was thrown */
 	const size_t jmp_over_handlers_index = compiler->code.size;
 	write_uint16(compiler, 0);  /* placeholder for jump offset */
 
 	write_uint16_at(compiler, compiler->code.size - handler_offset_index - 2, handler_offset_index);
 
 	/* === Handler === */
-	write_ins(compiler, INS_DUP, catch_lineno);
+	write_ins(compiler, RHO_INS_DUP, catch_lineno);
 	compile_node(compiler, ast->v.excs->ast, false);
-	write_ins(compiler, INS_JMP_IF_EXC_MISMATCH, catch_lineno);
+	write_ins(compiler, RHO_INS_JMP_IF_EXC_MISMATCH, catch_lineno);
 	const size_t exc_mismatch_jmp_index = compiler->code.size;
 	write_uint16(compiler, 0);  /* placeholder for jump offset */
 
-	write_ins(compiler, INS_POP, catch_lineno);
+	write_ins(compiler, RHO_INS_POP, catch_lineno);
 	compile_node(compiler, ast->right, true);  /* catch */
 
 	/* jump over re-throw */
-	write_ins(compiler, INS_JMP, catch_lineno);
+	write_ins(compiler, RHO_INS_JMP, catch_lineno);
 	write_uint16(compiler, 1);
 
 	write_uint16_at(compiler, compiler->code.size - exc_mismatch_jmp_index - 2, exc_mismatch_jmp_index);
 
-	write_ins(compiler, INS_THROW, catch_lineno);
+	write_ins(compiler, RHO_INS_THROW, catch_lineno);
 
 	write_uint16_at(compiler, compiler->code.size - jmp_over_handlers_index - 2, jmp_over_handlers_index);
 }
 
-static void compile_import(Compiler *compiler, AST *ast)
+static void compile_import(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_IMPORT);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_IMPORT);
 
 	ast = ast->left;
 
 	const unsigned int lineno = ast->lineno;
-	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->v.ident);
+	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, ast->v.ident);
 
 	if (sym == NULL) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	const unsigned int sym_id = sym->id;
 
-	write_ins(compiler, INS_IMPORT, lineno);
+	write_ins(compiler, RHO_INS_IMPORT, lineno);
 	write_uint16(compiler, sym_id);
-	write_ins(compiler, INS_STORE, lineno);
+	write_ins(compiler, RHO_INS_STORE, lineno);
 	write_uint16(compiler, sym_id);
 }
 
-static void compile_export(Compiler *compiler, AST *ast)
+static void compile_export(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_EXPORT);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_EXPORT);
 
 	compile_load(compiler, ast->left);
 
 	ast = ast->left;
 
 	const unsigned int lineno = ast->lineno;
-	const STSymbol *sym = ste_get_symbol(compiler->st->ste_current, ast->v.ident);
+	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, ast->v.ident);
 
 	if (sym->bound_here) {
-		write_ins(compiler, INS_EXPORT, lineno);
+		write_ins(compiler, RHO_INS_EXPORT, lineno);
 	} else if (sym->global_var) {
-		write_ins(compiler, INS_EXPORT_GLOBAL, lineno);
+		write_ins(compiler, RHO_INS_EXPORT_GLOBAL, lineno);
 	} else {
 		fprintf(stderr,
 		        "%s:%d: cannot export free variable '%s'\n",
@@ -908,16 +906,16 @@ static void compile_export(Compiler *compiler, AST *ast)
 	write_uint16(compiler, sym->id);
 }
 
-static void compile_get_attr(Compiler *compiler, AST *ast)
+static void compile_get_attr(RhoCompiler *compiler, RhoAST *ast)
 {
-	AST_TYPE_ASSERT(ast, NODE_DOT);
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_DOT);
 	const unsigned int lineno = ast->lineno;
 
-	Str *attr = ast->right->v.ident;
-	STSymbol *attr_sym = ste_get_attr_symbol(compiler->st->ste_current, attr);
+	RhoStr *attr = ast->right->v.ident;
+	RhoSTSymbol *attr_sym = rho_ste_get_attr_symbol(compiler->st->ste_current, attr);
 
 	compile_node(compiler, ast->left, false);
-	write_ins(compiler, INS_LOAD_ATTR, lineno);
+	write_ins(compiler, RHO_INS_LOAD_ATTR, lineno);
 	write_uint16(compiler, attr_sym->id);
 }
 
@@ -926,94 +924,94 @@ static void compile_get_attr(Compiler *compiler, AST *ast)
  * For compound-assignment types, converts to the corresponding
  * in-place binary opcode.
  */
-static Opcode to_opcode(NodeType type)
+static RhoOpcode to_opcode(RhoNodeType type)
 {
 	switch (type) {
-	case NODE_ADD:
-		return INS_ADD;
-	case NODE_SUB:
-		return INS_SUB;
-	case NODE_MUL:
-		return INS_MUL;
-	case NODE_DIV:
-		return INS_DIV;
-	case NODE_MOD:
-		return INS_MOD;
-	case NODE_POW:
-		return INS_POW;
-	case NODE_BITAND:
-		return INS_BITAND;
-	case NODE_BITOR:
-		return INS_BITOR;
-	case NODE_XOR:
-		return INS_XOR;
-	case NODE_BITNOT:
-		return INS_BITNOT;
-	case NODE_SHIFTL:
-		return INS_SHIFTL;
-	case NODE_SHIFTR:
-		return INS_SHIFTR;
-	case NODE_AND:
-		return INS_AND;
-	case NODE_OR:
-		return INS_OR;
-	case NODE_NOT:
-		return INS_NOT;
-	case NODE_EQUAL:
-		return INS_EQUAL;
-	case NODE_NOTEQ:
-		return INS_NOTEQ;
-	case NODE_LT:
-		return INS_LT;
-	case NODE_GT:
-		return INS_GT;
-	case NODE_LE:
-		return INS_LE;
-	case NODE_GE:
-		return INS_GE;
-	case NODE_APPLY:
-		return INS_APPLY;
-	case NODE_UPLUS:
-		return INS_NOP;
-	case NODE_UMINUS:
-		return INS_UMINUS;
-	case NODE_ASSIGN:
-		return INS_STORE;
-	case NODE_ASSIGN_ADD:
-		return INS_IADD;
-	case NODE_ASSIGN_SUB:
-		return INS_ISUB;
-	case NODE_ASSIGN_MUL:
-		return INS_IMUL;
-	case NODE_ASSIGN_DIV:
-		return INS_IDIV;
-	case NODE_ASSIGN_MOD:
-		return INS_IMOD;
-	case NODE_ASSIGN_POW:
-		return INS_IPOW;
-	case NODE_ASSIGN_BITAND:
-		return INS_IBITAND;
-	case NODE_ASSIGN_BITOR:
-		return INS_IBITOR;
-	case NODE_ASSIGN_XOR:
-		return INS_IXOR;
-	case NODE_ASSIGN_SHIFTL:
-		return INS_ISHIFTL;
-	case NODE_ASSIGN_SHIFTR:
-		return INS_ISHIFTR;
-	case NODE_ASSIGN_APPLY:
-		return INS_IAPPLY;
-	case NODE_IN:
-		return INS_IN;
-	case NODE_DOTDOT:
-		return INS_MAKE_RANGE;
+	case RHO_NODE_ADD:
+		return RHO_INS_ADD;
+	case RHO_NODE_SUB:
+		return RHO_INS_SUB;
+	case RHO_NODE_MUL:
+		return RHO_INS_MUL;
+	case RHO_NODE_DIV:
+		return RHO_INS_DIV;
+	case RHO_NODE_MOD:
+		return RHO_INS_MOD;
+	case RHO_NODE_POW:
+		return RHO_INS_POW;
+	case RHO_NODE_BITAND:
+		return RHO_INS_BITAND;
+	case RHO_NODE_BITOR:
+		return RHO_INS_BITOR;
+	case RHO_NODE_XOR:
+		return RHO_INS_XOR;
+	case RHO_NODE_BITNOT:
+		return RHO_INS_BITNOT;
+	case RHO_NODE_SHIFTL:
+		return RHO_INS_SHIFTL;
+	case RHO_NODE_SHIFTR:
+		return RHO_INS_SHIFTR;
+	case RHO_NODE_AND:
+		return RHO_INS_AND;
+	case RHO_NODE_OR:
+		return RHO_INS_OR;
+	case RHO_NODE_NOT:
+		return RHO_INS_NOT;
+	case RHO_NODE_EQUAL:
+		return RHO_INS_EQUAL;
+	case RHO_NODE_NOTEQ:
+		return RHO_INS_NOTEQ;
+	case RHO_NODE_LT:
+		return RHO_INS_LT;
+	case RHO_NODE_GT:
+		return RHO_INS_GT;
+	case RHO_NODE_LE:
+		return RHO_INS_LE;
+	case RHO_NODE_GE:
+		return RHO_INS_GE;
+	case RHO_NODE_APPLY:
+		return RHO_INS_APPLY;
+	case RHO_NODE_UPLUS:
+		return RHO_INS_NOP;
+	case RHO_NODE_UMINUS:
+		return RHO_INS_UMINUS;
+	case RHO_NODE_ASSIGN:
+		return RHO_INS_STORE;
+	case RHO_NODE_ASSIGN_ADD:
+		return RHO_INS_IADD;
+	case RHO_NODE_ASSIGN_SUB:
+		return RHO_INS_ISUB;
+	case RHO_NODE_ASSIGN_MUL:
+		return RHO_INS_IMUL;
+	case RHO_NODE_ASSIGN_DIV:
+		return RHO_INS_IDIV;
+	case RHO_NODE_ASSIGN_MOD:
+		return RHO_INS_IMOD;
+	case RHO_NODE_ASSIGN_POW:
+		return RHO_INS_IPOW;
+	case RHO_NODE_ASSIGN_BITAND:
+		return RHO_INS_IBITAND;
+	case RHO_NODE_ASSIGN_BITOR:
+		return RHO_INS_IBITOR;
+	case RHO_NODE_ASSIGN_XOR:
+		return RHO_INS_IXOR;
+	case RHO_NODE_ASSIGN_SHIFTL:
+		return RHO_INS_ISHIFTL;
+	case RHO_NODE_ASSIGN_SHIFTR:
+		return RHO_INS_ISHIFTR;
+	case RHO_NODE_ASSIGN_APPLY:
+		return RHO_INS_IAPPLY;
+	case RHO_NODE_IN:
+		return RHO_INS_IN;
+	case RHO_NODE_DOTDOT:
+		return RHO_INS_MAKE_RANGE;
 	default:
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 		return 0;
 	}
 }
 
-static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
+static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel)
 {
 	if (ast == NULL) {
 		return;
@@ -1022,132 +1020,132 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
 	const unsigned int lineno = ast->lineno;
 
 	switch (ast->type) {
-	case NODE_INT:
-	case NODE_FLOAT:
-	case NODE_STRING:
+	case RHO_NODE_INT:
+	case RHO_NODE_FLOAT:
+	case RHO_NODE_STRING:
 		compile_const(compiler, ast);
 		break;
-	case NODE_IDENT:
+	case RHO_NODE_IDENT:
 		compile_load(compiler, ast);
 		break;
-	case NODE_ADD:
-	case NODE_SUB:
-	case NODE_MUL:
-	case NODE_DIV:
-	case NODE_MOD:
-	case NODE_POW:
-	case NODE_BITAND:
-	case NODE_BITOR:
-	case NODE_XOR:
-	case NODE_SHIFTL:
-	case NODE_SHIFTR:
-	case NODE_EQUAL:
-	case NODE_NOTEQ:
-	case NODE_LT:
-	case NODE_GT:
-	case NODE_LE:
-	case NODE_GE:
-	case NODE_APPLY:
-	case NODE_DOTDOT:
-	case NODE_IN:
+	case RHO_NODE_ADD:
+	case RHO_NODE_SUB:
+	case RHO_NODE_MUL:
+	case RHO_NODE_DIV:
+	case RHO_NODE_MOD:
+	case RHO_NODE_POW:
+	case RHO_NODE_BITAND:
+	case RHO_NODE_BITOR:
+	case RHO_NODE_XOR:
+	case RHO_NODE_SHIFTL:
+	case RHO_NODE_SHIFTR:
+	case RHO_NODE_EQUAL:
+	case RHO_NODE_NOTEQ:
+	case RHO_NODE_LT:
+	case RHO_NODE_GT:
+	case RHO_NODE_LE:
+	case RHO_NODE_GE:
+	case RHO_NODE_APPLY:
+	case RHO_NODE_DOTDOT:
+	case RHO_NODE_IN:
 		compile_node(compiler, ast->left, false);
 		compile_node(compiler, ast->right, false);
 		write_ins(compiler, to_opcode(ast->type), lineno);
 		break;
-	case NODE_AND:
+	case RHO_NODE_AND:
 		compile_and(compiler, ast);
 		break;
-	case NODE_OR:
+	case RHO_NODE_OR:
 		compile_or(compiler, ast);
 		break;
-	case NODE_DOT:
+	case RHO_NODE_DOT:
 		compile_get_attr(compiler, ast);
 		break;
-	case NODE_ASSIGN:
-	case NODE_ASSIGN_ADD:
-	case NODE_ASSIGN_SUB:
-	case NODE_ASSIGN_MUL:
-	case NODE_ASSIGN_DIV:
-	case NODE_ASSIGN_MOD:
-	case NODE_ASSIGN_POW:
-	case NODE_ASSIGN_BITAND:
-	case NODE_ASSIGN_BITOR:
-	case NODE_ASSIGN_XOR:
-	case NODE_ASSIGN_SHIFTL:
-	case NODE_ASSIGN_SHIFTR:
-	case NODE_ASSIGN_APPLY:
+	case RHO_NODE_ASSIGN:
+	case RHO_NODE_ASSIGN_ADD:
+	case RHO_NODE_ASSIGN_SUB:
+	case RHO_NODE_ASSIGN_MUL:
+	case RHO_NODE_ASSIGN_DIV:
+	case RHO_NODE_ASSIGN_MOD:
+	case RHO_NODE_ASSIGN_POW:
+	case RHO_NODE_ASSIGN_BITAND:
+	case RHO_NODE_ASSIGN_BITOR:
+	case RHO_NODE_ASSIGN_XOR:
+	case RHO_NODE_ASSIGN_SHIFTL:
+	case RHO_NODE_ASSIGN_SHIFTR:
+	case RHO_NODE_ASSIGN_APPLY:
 		compile_assignment(compiler, ast);
 		break;
-	case NODE_BITNOT:
-	case NODE_NOT:
-	case NODE_UPLUS:
-	case NODE_UMINUS:
+	case RHO_NODE_BITNOT:
+	case RHO_NODE_NOT:
+	case RHO_NODE_UPLUS:
+	case RHO_NODE_UMINUS:
 		compile_node(compiler, ast->left, false);
 		write_ins(compiler, to_opcode(ast->type), lineno);
 		break;
-	case NODE_COND_EXPR:
+	case RHO_NODE_COND_EXPR:
 		compile_cond_expr(compiler, ast);
 		break;
-	case NODE_PRINT:
+	case RHO_NODE_PRINT:
 		compile_node(compiler, ast->left, false);
-		write_ins(compiler, INS_PRINT, lineno);
+		write_ins(compiler, RHO_INS_PRINT, lineno);
 		break;
-	case NODE_IF:
+	case RHO_NODE_IF:
 		compile_if(compiler, ast);
 		break;
-	case NODE_WHILE:
+	case RHO_NODE_WHILE:
 		compile_while(compiler, ast);
 		break;
-	case NODE_FOR:
+	case RHO_NODE_FOR:
 		compile_for(compiler, ast);
 		break;
-	case NODE_DEF:
+	case RHO_NODE_DEF:
 		compile_def(compiler, ast);
 		break;
-	case NODE_LAMBDA:
+	case RHO_NODE_LAMBDA:
 		compile_lambda(compiler, ast);
 		break;
-	case NODE_BREAK:
+	case RHO_NODE_BREAK:
 		compile_break(compiler, ast);
 		break;
-	case NODE_CONTINUE:
+	case RHO_NODE_CONTINUE:
 		compile_continue(compiler, ast);
 		break;
-	case NODE_RETURN:
+	case RHO_NODE_RETURN:
 		compile_return(compiler, ast);
 		break;
-	case NODE_THROW:
+	case RHO_NODE_THROW:
 		compile_throw(compiler, ast);
 		break;
-	case NODE_TRY_CATCH:
+	case RHO_NODE_TRY_CATCH:
 		compile_try_catch(compiler, ast);
 		break;
-	case NODE_IMPORT:
+	case RHO_NODE_IMPORT:
 		compile_import(compiler, ast);
 		break;
-	case NODE_EXPORT:
+	case RHO_NODE_EXPORT:
 		compile_export(compiler, ast);
 		break;
-	case NODE_BLOCK:
+	case RHO_NODE_BLOCK:
 		compile_block(compiler, ast);
 		break;
-	case NODE_LIST:
+	case RHO_NODE_LIST:
 		compile_list(compiler, ast);
 		break;
-	case NODE_TUPLE:
+	case RHO_NODE_TUPLE:
 		compile_tuple(compiler, ast);
 		break;
-	case NODE_CALL:
+	case RHO_NODE_CALL:
 		compile_call(compiler, ast);
 		if (toplevel) {
-			write_ins(compiler, INS_POP, lineno);
+			write_ins(compiler, RHO_INS_POP, lineno);
 		}
 		break;
-	case NODE_INDEX:
+	case RHO_NODE_INDEX:
 		compile_index(compiler, ast);
 		break;
 	default:
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 }
 
@@ -1163,20 +1161,20 @@ static void compile_node(Compiler *compiler, AST *ast, bool toplevel)
  *   ...
  * - ST_ENTRY_END
  */
-static void write_sym_table(Compiler *compiler)
+static void write_sym_table(RhoCompiler *compiler)
 {
-	const STEntry *ste = compiler->st->ste_current;
+	const RhoSTEntry *ste = compiler->st->ste_current;
 	const size_t n_locals = ste->next_local_id;
 	const size_t n_attrs = ste->next_attr_id;
 	const size_t n_free = ste->next_free_var_id;
 
-	Str **locals_sorted = rho_malloc(n_locals * sizeof(Str *));
-	Str **frees_sorted = rho_malloc(n_free * sizeof(Str *));
+	RhoStr **locals_sorted = rho_malloc(n_locals * sizeof(RhoStr *));
+	RhoStr **frees_sorted = rho_malloc(n_free * sizeof(RhoStr *));
 
 	const size_t table_capacity = ste->table_capacity;
 
 	for (size_t i = 0; i < table_capacity; i++) {
-		for (STSymbol *e = ste->table[i]; e != NULL; e = e->next) {
+		for (RhoSTSymbol *e = ste->table[i]; e != NULL; e = e->next) {
 			if (e->bound_here) {
 				locals_sorted[e->id] = e->key;
 			} else if (e->free_var) {
@@ -1185,17 +1183,17 @@ static void write_sym_table(Compiler *compiler)
 		}
 	}
 
-	Str **attrs_sorted = rho_malloc(n_attrs * sizeof(Str *));
+	RhoStr **attrs_sorted = rho_malloc(n_attrs * sizeof(RhoStr *));
 
 	const size_t attr_capacity = ste->attr_capacity;
 
 	for (size_t i = 0; i < attr_capacity; i++) {
-		for (STSymbol *e = ste->attributes[i]; e != NULL; e = e->next) {
+		for (RhoSTSymbol *e = ste->attributes[i]; e != NULL; e = e->next) {
 			attrs_sorted[e->id] = e->key;
 		}
 	}
 
-	write_byte(compiler, ST_ENTRY_BEGIN);
+	write_byte(compiler, RHO_ST_ENTRY_BEGIN);
 
 	write_uint16(compiler, n_locals);
 	for (size_t i = 0; i < n_locals; i++) {
@@ -1212,52 +1210,52 @@ static void write_sym_table(Compiler *compiler)
 		write_str(compiler, frees_sorted[i]);
 	}
 
-	write_byte(compiler, ST_ENTRY_END);
+	write_byte(compiler, RHO_ST_ENTRY_END);
 
 	free(locals_sorted);
 	free(frees_sorted);
 	free(attrs_sorted);
 }
 
-static void write_const_table(Compiler *compiler)
+static void write_const_table(RhoCompiler *compiler)
 {
-	const ConstTable *ct = compiler->ct;
+	const RhoConstTable *ct = compiler->ct;
 	const size_t size = ct->table_size + ct->codeobjs_size;
 
-	write_byte(compiler, CT_ENTRY_BEGIN);
+	write_byte(compiler, RHO_CT_ENTRY_BEGIN);
 	write_uint16(compiler, size);
 
-	CTConst *sorted = rho_malloc(size * sizeof(CTConst));
+	RhoCTConst *sorted = rho_malloc(size * sizeof(RhoCTConst));
 
 	const size_t capacity = ct->capacity;
 	for (size_t i = 0; i < capacity; i++) {
-		for (CTEntry *e = ct->table[i]; e != NULL; e = e->next) {
+		for (RhoCTEntry *e = ct->table[i]; e != NULL; e = e->next) {
 			sorted[e->value] = e->key;
 		}
 	}
 
-	for (CTEntry *e = ct->codeobjs_head; e != NULL; e = e->next) {
+	for (RhoCTEntry *e = ct->codeobjs_head; e != NULL; e = e->next) {
 		sorted[e->value] = e->key;
 	}
 
 	for (size_t i = 0; i < size; i++) {
 		switch (sorted[i].type) {
-		case CT_INT:
-			write_byte(compiler, CT_ENTRY_INT);
+		case RHO_CT_INT:
+			write_byte(compiler, RHO_CT_ENTRY_INT);
 			write_int(compiler, sorted[i].value.i);
 			break;
-		case CT_DOUBLE:
-			write_byte(compiler, CT_ENTRY_FLOAT);
+		case RHO_CT_DOUBLE:
+			write_byte(compiler, RHO_CT_ENTRY_FLOAT);
 			write_double(compiler, sorted[i].value.d);
 			break;
-		case CT_STRING:
-			write_byte(compiler, CT_ENTRY_STRING);
+		case RHO_CT_STRING:
+			write_byte(compiler, RHO_CT_ENTRY_STRING);
 			write_str(compiler, sorted[i].value.s);
 			break;
-		case CT_CODEOBJ:
-			write_byte(compiler, CT_ENTRY_CODEOBJ);
+		case RHO_CT_CODEOBJ:
+			write_byte(compiler, RHO_CT_ENTRY_CODEOBJ);
 
-			Code *co_code = sorted[i].value.c;
+			RhoCode *co_code = sorted[i].value.c;
 
 			size_t name_len = 0;
 			while (co_code->bc[name_len] != '\0') {
@@ -1271,51 +1269,51 @@ static void write_const_table(Compiler *compiler)
 			write_uint16(compiler, co_code->size - (name_len + 1) - 2 - 2 - 2);
 
 			append(compiler, co_code);
-			code_dealloc(co_code);
+			rho_code_dealloc(co_code);
 			free(co_code);
 			break;
 		}
 	}
 	free(sorted);
 
-	write_byte(compiler, CT_ENTRY_END);
+	write_byte(compiler, RHO_CT_ENTRY_END);
 }
 
-static void fill_ct_from_ast(Compiler *compiler, AST *ast)
+static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 {
 	if (ast == NULL) {
 		return;
 	}
 
-	CTConst value;
+	RhoCTConst value;
 
 	switch (ast->type) {
-	case NODE_INT:
-		value.type = CT_INT;
+	case RHO_NODE_INT:
+		value.type = RHO_CT_INT;
 		value.value.i = ast->v.int_val;
 		break;
-	case NODE_FLOAT:
-		value.type = CT_DOUBLE;
+	case RHO_NODE_FLOAT:
+		value.type = RHO_CT_DOUBLE;
 		value.value.d = ast->v.float_val;
 		break;
-	case NODE_STRING:
-		value.type = CT_STRING;
+	case RHO_NODE_STRING:
+		value.type = RHO_CT_STRING;
 		value.value.s = ast->v.str_val;
 		break;
-	case NODE_DEF:
-	case NODE_LAMBDA: {
-		value.type = CT_CODEOBJ;
+	case RHO_NODE_DEF:
+	case RHO_NODE_LAMBDA: {
+		value.type = RHO_CT_CODEOBJ;
 
-		SymTable *st = compiler->st;
-		STEntry *parent = compiler->st->ste_current;
-		STEntry *child = parent->children[parent->child_pos++];
+		RhoSymTable *st = compiler->st;
+		RhoSTEntry *parent = compiler->st->ste_current;
+		RhoSTEntry *child = parent->children[parent->child_pos++];
 
 		unsigned int nargs;
 
-		if (ast->type == NODE_DEF) {
+		if (ast->type == RHO_NODE_DEF) {
 			nargs = 0;
-			for (struct ast_list *param = ast->v.params; param != NULL; param = param->next) {
-				if (param->ast->type == NODE_ASSIGN) {
+			for (struct rho_ast_list *param = ast->v.params; param != NULL; param = param->next) {
+				if (param->ast->type == RHO_NODE_ASSIGN) {
 					fill_ct_from_ast(compiler, param->ast->right);
 				}
 				++nargs;
@@ -1324,12 +1322,12 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 			nargs = ast->v.max_dollar_ident;
 		}
 
-		Block *body;
+		RhoBlock *body;
 
-		if (ast->type == NODE_DEF) {
+		if (ast->type == RHO_NODE_DEF) {
 			body = ast->right->v.block;
 		} else {
-			body = ast_list_new();
+			body = rho_ast_list_new();
 			body->ast = ast->left;
 		}
 
@@ -1341,87 +1339,87 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 		}
 
 		st->ste_current = child;
-		Compiler *sub = compiler_new(compiler->filename, lineno, st);
+		RhoCompiler *sub = compiler_new(compiler->filename, lineno, st);
 
-		struct metadata metadata = compile_raw(sub, body, (ast->type == NODE_LAMBDA));
+		struct metadata metadata = compile_raw(sub, body, (ast->type == RHO_NODE_LAMBDA));
 		st->ste_current = parent;
 
-		Code *subcode = &sub->code;
+		RhoCode *subcode = &sub->code;
 
 		const unsigned int max_vstack_depth = metadata.max_vstack_depth;
 		const unsigned int max_try_catch_depth = metadata.max_try_catch_depth;
 
-		Code *fncode = rho_malloc(sizeof(Code));
+		RhoCode *fncode = rho_malloc(sizeof(RhoCode));
 
 #define LAMBDA "<lambda>"
-		Str name = (ast->type == NODE_DEF) ? *ast->left->v.ident : STR_INIT(LAMBDA, strlen(LAMBDA), 0);
+		RhoStr name = (ast->type == RHO_NODE_DEF) ? *ast->left->v.ident : RHO_STR_INIT(LAMBDA, strlen(LAMBDA), 0);
 #undef LAMBDA
 
-		code_init(fncode, (name.len + 1) + 2 + 2 + 2 + subcode->size);  // total size
-		code_write_str(fncode, &name);                                  // name
-		code_write_uint16(fncode, nargs);                               // argument count
-		code_write_uint16(fncode, max_vstack_depth);                    // max stack depth
-		code_write_uint16(fncode, max_try_catch_depth);                 // max try-catch depth
-		code_append(fncode, subcode);
+		rho_code_init(fncode, (name.len + 1) + 2 + 2 + 2 + subcode->size);  // total size
+		rho_code_write_str(fncode, &name);                                  // name
+		rho_code_write_uint16(fncode, nargs);                               // argument count
+		rho_code_write_uint16(fncode, max_vstack_depth);                    // max stack depth
+		rho_code_write_uint16(fncode, max_try_catch_depth);                 // max try-catch depth
+		rho_code_append(fncode, subcode);
 
 		compiler_free(sub, false);
 		value.value.c = fncode;
 
-		if (ast->type != NODE_DEF) {
+		if (ast->type != RHO_NODE_DEF) {
 			free(body);
 		}
 
 		break;
 	}
-	case NODE_IF:
+	case RHO_NODE_IF:
 		fill_ct_from_ast(compiler, ast->left);
 		fill_ct_from_ast(compiler, ast->right);
 
-		for (AST *node = ast->v.middle; node != NULL; node = node->v.middle) {
+		for (RhoAST *node = ast->v.middle; node != NULL; node = node->v.middle) {
 			fill_ct_from_ast(compiler, node);
 		}
 		return;
-	case NODE_FOR:
+	case RHO_NODE_FOR:
 		fill_ct_from_ast(compiler, ast->v.middle);
 		goto end;
-	case NODE_BLOCK:
-		for (struct ast_list *node = ast->v.block; node != NULL; node = node->next) {
+	case RHO_NODE_BLOCK:
+		for (struct rho_ast_list *node = ast->v.block; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
 		goto end;
-	case NODE_LIST:
-	case NODE_TUPLE:
-		for (struct ast_list *node = ast->v.list; node != NULL; node = node->next) {
+	case RHO_NODE_LIST:
+	case RHO_NODE_TUPLE:
+		for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
 		goto end;
-	case NODE_CALL:
-		for (struct ast_list *node = ast->v.params; node != NULL; node = node->next) {
-			AST *ast = node->ast;
-			if (ast->type == NODE_ASSIGN) {
-				AST_TYPE_ASSERT(ast->left, NODE_IDENT);
-				value.type = CT_STRING;
+	case RHO_NODE_CALL:
+		for (struct rho_ast_list *node = ast->v.params; node != NULL; node = node->next) {
+			RhoAST *ast = node->ast;
+			if (ast->type == RHO_NODE_ASSIGN) {
+				RHO_AST_TYPE_ASSERT(ast->left, RHO_NODE_IDENT);
+				value.type = RHO_CT_STRING;
 				value.value.s = ast->left->v.ident;
-				ct_id_for_const(compiler->ct, value);
+				rho_ct_id_for_const(compiler->ct, value);
 				fill_ct_from_ast(compiler, ast->right);
 			} else {
 				fill_ct_from_ast(compiler, ast);
 			}
 		}
 		goto end;
-	case NODE_TRY_CATCH:
-		for (struct ast_list *node = ast->v.excs; node != NULL; node = node->next) {
+	case RHO_NODE_TRY_CATCH:
+		for (struct rho_ast_list *node = ast->v.excs; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
 		goto end;
-	case NODE_COND_EXPR:
+	case RHO_NODE_COND_EXPR:
 		fill_ct_from_ast(compiler, ast->v.middle);
 		goto end;
 	default:
 		goto end;
 	}
 
-	ct_id_for_const(compiler->ct, value);
+	rho_ct_id_for_const(compiler->ct, value);
 	return;
 
 	end:
@@ -1429,15 +1427,15 @@ static void fill_ct_from_ast(Compiler *compiler, AST *ast)
 	fill_ct_from_ast(compiler, ast->right);
 }
 
-static void fill_ct(Compiler *compiler, Program *program)
+static void fill_ct(RhoCompiler *compiler, RhoProgram *program)
 {
-	for (struct ast_list *node = program; node != NULL; node = node->next) {
+	for (struct rho_ast_list *node = program; node != NULL; node = node->next) {
 		fill_ct_from_ast(compiler, node->ast);
 	}
 }
 
-static int stack_delta(Opcode opcode, int arg);
-static int read_arg(Opcode opcode, byte **bc);
+static int stack_delta(RhoOpcode opcode, int arg);
+static int read_arg(RhoOpcode opcode, byte **bc);
 
 static int max_stack_depth(byte *bc, size_t len)
 {
@@ -1448,23 +1446,23 @@ static int max_stack_depth(byte *bc, size_t len)
 	 * constant table...
 	 */
 
-	if (*bc == ST_ENTRY_BEGIN) {
+	if (*bc == RHO_ST_ENTRY_BEGIN) {
 		++bc;  // ST_ENTRY_BEGIN
-		const size_t n_locals = read_uint16_from_stream(bc);
+		const size_t n_locals = rho_util_read_uint16_from_stream(bc);
 		bc += 2;
 
 		for (size_t i = 0; i < n_locals; i++) {
 			while (*bc++ != '\0');
 		}
 
-		const size_t n_attrs = read_uint16_from_stream(bc);
+		const size_t n_attrs = rho_util_read_uint16_from_stream(bc);
 		bc += 2;
 
 		for (size_t i = 0; i < n_attrs; i++) {
 			while (*bc++ != '\0');
 		}
 
-		const size_t n_frees = read_uint16_from_stream(bc);
+		const size_t n_frees = rho_util_read_uint16_from_stream(bc);
 		bc += 2;
 
 		for (size_t i = 0; i < n_frees; i++) {
@@ -1474,25 +1472,25 @@ static int max_stack_depth(byte *bc, size_t len)
 		++bc;  // ST_ENTRY_END
 	}
 
-	if (*bc == CT_ENTRY_BEGIN) {
+	if (*bc == RHO_CT_ENTRY_BEGIN) {
 		++bc;  // CT_ENTRY_BEGIN
-		const size_t ct_size = read_uint16_from_stream(bc);
+		const size_t ct_size = rho_util_read_uint16_from_stream(bc);
 		bc += 2;
 
 		for (size_t i = 0; i < ct_size; i++) {
 			switch (*bc++) {
-			case CT_ENTRY_INT:
-				bc += INT_SIZE;
+			case RHO_CT_ENTRY_INT:
+				bc += RHO_INT_SIZE;
 				break;
-			case CT_ENTRY_FLOAT:
-				bc += DOUBLE_SIZE;
+			case RHO_CT_ENTRY_FLOAT:
+				bc += RHO_DOUBLE_SIZE;
 				break;
-			case CT_ENTRY_STRING: {
+			case RHO_CT_ENTRY_STRING: {
 				while (*bc++ != '\0');
 				break;
 			}
-			case CT_ENTRY_CODEOBJ: {
-				size_t colen = read_uint16_from_stream(bc);
+			case RHO_CT_ENTRY_CODEOBJ: {
+				size_t colen = rho_util_read_uint16_from_stream(bc);
 				bc += 2;
 
 				while (*bc++ != '\0');  // name
@@ -1537,117 +1535,117 @@ static int max_stack_depth(byte *bc, size_t len)
 	return max_depth;
 }
 
-int arg_size(Opcode opcode)
+int rho_opcode_arg_size(RhoOpcode opcode)
 {
 	switch (opcode) {
-	case INS_NOP:
+	case RHO_INS_NOP:
 		return 0;
-	case INS_LOAD_CONST:
+	case RHO_INS_LOAD_CONST:
 		return 2;
-	case INS_LOAD_NULL:
+	case RHO_INS_LOAD_NULL:
 		return 0;
-	case INS_ADD:
-	case INS_SUB:
-	case INS_MUL:
-	case INS_DIV:
-	case INS_MOD:
-	case INS_POW:
-	case INS_BITAND:
-	case INS_BITOR:
-	case INS_XOR:
-	case INS_BITNOT:
-	case INS_SHIFTL:
-	case INS_SHIFTR:
-	case INS_AND:
-	case INS_OR:
-	case INS_NOT:
-	case INS_EQUAL:
-	case INS_NOTEQ:
-	case INS_LT:
-	case INS_GT:
-	case INS_LE:
-	case INS_GE:
-	case INS_UPLUS:
-	case INS_UMINUS:
-	case INS_IADD:
-	case INS_ISUB:
-	case INS_IMUL:
-	case INS_IDIV:
-	case INS_IMOD:
-	case INS_IPOW:
-	case INS_IBITAND:
-	case INS_IBITOR:
-	case INS_IXOR:
-	case INS_ISHIFTL:
-	case INS_ISHIFTR:
-	case INS_MAKE_RANGE:
-	case INS_IN:
+	case RHO_INS_ADD:
+	case RHO_INS_SUB:
+	case RHO_INS_MUL:
+	case RHO_INS_DIV:
+	case RHO_INS_MOD:
+	case RHO_INS_POW:
+	case RHO_INS_BITAND:
+	case RHO_INS_BITOR:
+	case RHO_INS_XOR:
+	case RHO_INS_BITNOT:
+	case RHO_INS_SHIFTL:
+	case RHO_INS_SHIFTR:
+	case RHO_INS_AND:
+	case RHO_INS_OR:
+	case RHO_INS_NOT:
+	case RHO_INS_EQUAL:
+	case RHO_INS_NOTEQ:
+	case RHO_INS_LT:
+	case RHO_INS_GT:
+	case RHO_INS_LE:
+	case RHO_INS_GE:
+	case RHO_INS_UPLUS:
+	case RHO_INS_UMINUS:
+	case RHO_INS_IADD:
+	case RHO_INS_ISUB:
+	case RHO_INS_IMUL:
+	case RHO_INS_IDIV:
+	case RHO_INS_IMOD:
+	case RHO_INS_IPOW:
+	case RHO_INS_IBITAND:
+	case RHO_INS_IBITOR:
+	case RHO_INS_IXOR:
+	case RHO_INS_ISHIFTL:
+	case RHO_INS_ISHIFTR:
+	case RHO_INS_MAKE_RANGE:
+	case RHO_INS_IN:
 		return 0;
-	case INS_STORE:
-	case INS_STORE_GLOBAL:
-	case INS_LOAD:
-	case INS_LOAD_GLOBAL:
-	case INS_LOAD_ATTR:
-	case INS_SET_ATTR:
+	case RHO_INS_STORE:
+	case RHO_INS_STORE_GLOBAL:
+	case RHO_INS_LOAD:
+	case RHO_INS_LOAD_GLOBAL:
+	case RHO_INS_LOAD_ATTR:
+	case RHO_INS_SET_ATTR:
 		return 2;
-	case INS_LOAD_INDEX:
-	case INS_SET_INDEX:
-	case INS_APPLY:
-	case INS_IAPPLY:
+	case RHO_INS_LOAD_INDEX:
+	case RHO_INS_SET_INDEX:
+	case RHO_INS_APPLY:
+	case RHO_INS_IAPPLY:
 		return 0;
-	case INS_LOAD_NAME:
+	case RHO_INS_LOAD_NAME:
 		return 2;
-	case INS_PRINT:
+	case RHO_INS_PRINT:
 		return 0;
-	case INS_JMP:
-	case INS_JMP_BACK:
-	case INS_JMP_IF_TRUE:
-	case INS_JMP_IF_FALSE:
-	case INS_JMP_BACK_IF_TRUE:
-	case INS_JMP_BACK_IF_FALSE:
-	case INS_JMP_IF_TRUE_ELSE_POP:
-	case INS_JMP_IF_FALSE_ELSE_POP:
-	case INS_CALL:
+	case RHO_INS_JMP:
+	case RHO_INS_JMP_BACK:
+	case RHO_INS_JMP_IF_TRUE:
+	case RHO_INS_JMP_IF_FALSE:
+	case RHO_INS_JMP_BACK_IF_TRUE:
+	case RHO_INS_JMP_BACK_IF_FALSE:
+	case RHO_INS_JMP_IF_TRUE_ELSE_POP:
+	case RHO_INS_JMP_IF_FALSE_ELSE_POP:
+	case RHO_INS_CALL:
 		return 2;
-	case INS_RETURN:
-	case INS_THROW:
+	case RHO_INS_RETURN:
+	case RHO_INS_THROW:
 		return 0;
-	case INS_TRY_BEGIN:
+	case RHO_INS_TRY_BEGIN:
 		return 4;
-	case INS_TRY_END:
+	case RHO_INS_TRY_END:
 		return 0;
-	case INS_JMP_IF_EXC_MISMATCH:
+	case RHO_INS_JMP_IF_EXC_MISMATCH:
 		return 2;
-	case INS_MAKE_LIST:
-	case INS_MAKE_TUPLE:
+	case RHO_INS_MAKE_LIST:
+	case RHO_INS_MAKE_TUPLE:
 		return 2;
-	case INS_IMPORT:
-	case INS_EXPORT:
-	case INS_EXPORT_GLOBAL:
+	case RHO_INS_IMPORT:
+	case RHO_INS_EXPORT:
+	case RHO_INS_EXPORT_GLOBAL:
 		return 2;
-	case INS_GET_ITER:
+	case RHO_INS_GET_ITER:
 		return 0;
-	case INS_LOOP_ITER:
+	case RHO_INS_LOOP_ITER:
 		return 2;
-	case INS_MAKE_FUNCOBJ:
+	case RHO_INS_MAKE_FUNCOBJ:
 		return 2;
-	case INS_POP:
-	case INS_DUP:
-	case INS_DUP_TWO:
-	case INS_ROT:
-	case INS_ROT_THREE:
+	case RHO_INS_POP:
+	case RHO_INS_DUP:
+	case RHO_INS_DUP_TWO:
+	case RHO_INS_ROT:
+	case RHO_INS_ROT_THREE:
 		return 0;
 	default:
 		return -1;
 	}
 }
 
-static int read_arg(Opcode opcode, byte **bc)
+static int read_arg(RhoOpcode opcode, byte **bc)
 {
-	int size = arg_size(opcode);
+	int size = rho_opcode_arg_size(opcode);
 
 	if (size < 0) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	int arg;
@@ -1661,11 +1659,11 @@ static int read_arg(Opcode opcode, byte **bc)
 		break;
 	case 2:
 	case 4:  /* only return the first 2 bytes */
-		arg = read_uint16_from_stream(*bc);
+		arg = rho_util_read_uint16_from_stream(*bc);
 		*bc += size;
 		break;
 	default:
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 		arg = 0;
 		break;
 	}
@@ -1681,132 +1679,132 @@ static int read_arg(Opcode opcode, byte **bc)
  * individual statements, upon completion, leave the stack
  * depth unchanged (i.e. at 0).
  */
-static int stack_delta(Opcode opcode, int arg)
+static int stack_delta(RhoOpcode opcode, int arg)
 {
 	switch (opcode) {
-	case INS_NOP:
+	case RHO_INS_NOP:
 		return 0;
-	case INS_LOAD_CONST:
-	case INS_LOAD_NULL:
+	case RHO_INS_LOAD_CONST:
+	case RHO_INS_LOAD_NULL:
 		return 1;
-	case INS_ADD:
-	case INS_SUB:
-	case INS_MUL:
-	case INS_DIV:
-	case INS_MOD:
-	case INS_POW:
-	case INS_BITAND:
-	case INS_BITOR:
-	case INS_XOR:
+	case RHO_INS_ADD:
+	case RHO_INS_SUB:
+	case RHO_INS_MUL:
+	case RHO_INS_DIV:
+	case RHO_INS_MOD:
+	case RHO_INS_POW:
+	case RHO_INS_BITAND:
+	case RHO_INS_BITOR:
+	case RHO_INS_XOR:
 		return -1;
-	case INS_BITNOT:
+	case RHO_INS_BITNOT:
 		return 0;
-	case INS_SHIFTL:
-	case INS_SHIFTR:
-	case INS_AND:
-	case INS_OR:
+	case RHO_INS_SHIFTL:
+	case RHO_INS_SHIFTR:
+	case RHO_INS_AND:
+	case RHO_INS_OR:
 		return -1;
-	case INS_NOT:
+	case RHO_INS_NOT:
 		return 0;
-	case INS_EQUAL:
-	case INS_NOTEQ:
-	case INS_LT:
-	case INS_GT:
-	case INS_LE:
-	case INS_GE:
+	case RHO_INS_EQUAL:
+	case RHO_INS_NOTEQ:
+	case RHO_INS_LT:
+	case RHO_INS_GT:
+	case RHO_INS_LE:
+	case RHO_INS_GE:
 		return -1;
-	case INS_UPLUS:
-	case INS_UMINUS:
+	case RHO_INS_UPLUS:
+	case RHO_INS_UMINUS:
 		return 0;
-	case INS_IADD:
-	case INS_ISUB:
-	case INS_IMUL:
-	case INS_IDIV:
-	case INS_IMOD:
-	case INS_IPOW:
-	case INS_IBITAND:
-	case INS_IBITOR:
-	case INS_IXOR:
-	case INS_ISHIFTL:
-	case INS_ISHIFTR:
-	case INS_MAKE_RANGE:
-	case INS_IN:
+	case RHO_INS_IADD:
+	case RHO_INS_ISUB:
+	case RHO_INS_IMUL:
+	case RHO_INS_IDIV:
+	case RHO_INS_IMOD:
+	case RHO_INS_IPOW:
+	case RHO_INS_IBITAND:
+	case RHO_INS_IBITOR:
+	case RHO_INS_IXOR:
+	case RHO_INS_ISHIFTL:
+	case RHO_INS_ISHIFTR:
+	case RHO_INS_MAKE_RANGE:
+	case RHO_INS_IN:
 		return -1;
-	case INS_STORE:
-	case INS_STORE_GLOBAL:
+	case RHO_INS_STORE:
+	case RHO_INS_STORE_GLOBAL:
 		return -1;
-	case INS_LOAD:
-	case INS_LOAD_GLOBAL:
+	case RHO_INS_LOAD:
+	case RHO_INS_LOAD_GLOBAL:
 		return 1;
-	case INS_LOAD_ATTR:
+	case RHO_INS_LOAD_ATTR:
 		return 0;
-	case INS_SET_ATTR:
+	case RHO_INS_SET_ATTR:
 		return -2;
-	case INS_LOAD_INDEX:
+	case RHO_INS_LOAD_INDEX:
 		return -1;
-	case INS_SET_INDEX:
+	case RHO_INS_SET_INDEX:
 		return -3;
-	case INS_APPLY:
-	case INS_IAPPLY:
+	case RHO_INS_APPLY:
+	case RHO_INS_IAPPLY:
 		return -1;
-	case INS_LOAD_NAME:
+	case RHO_INS_LOAD_NAME:
 		return 1;
-	case INS_PRINT:
+	case RHO_INS_PRINT:
 		return -1;
-	case INS_JMP:
-	case INS_JMP_BACK:
+	case RHO_INS_JMP:
+	case RHO_INS_JMP_BACK:
 		return 0;
-	case INS_JMP_IF_TRUE:
-	case INS_JMP_IF_FALSE:
-	case INS_JMP_BACK_IF_TRUE:
-	case INS_JMP_BACK_IF_FALSE:
+	case RHO_INS_JMP_IF_TRUE:
+	case RHO_INS_JMP_IF_FALSE:
+	case RHO_INS_JMP_BACK_IF_TRUE:
+	case RHO_INS_JMP_BACK_IF_FALSE:
 		return -1;
-	case INS_JMP_IF_TRUE_ELSE_POP:
-	case INS_JMP_IF_FALSE_ELSE_POP:
+	case RHO_INS_JMP_IF_TRUE_ELSE_POP:
+	case RHO_INS_JMP_IF_FALSE_ELSE_POP:
 		return 0;  // -1 if jump not taken
-	case INS_CALL:
+	case RHO_INS_CALL:
 		return -((arg & 0xff) + 2*(arg >> 8));
-	case INS_RETURN:
-	case INS_THROW:
+	case RHO_INS_RETURN:
+	case RHO_INS_THROW:
 		return -1;
-	case INS_TRY_BEGIN:
+	case RHO_INS_TRY_BEGIN:
 		return 0;
-	case INS_TRY_END:
+	case RHO_INS_TRY_END:
 		return 1;  // technically 0 but exception should be on stack before reaching handlers
-	case INS_JMP_IF_EXC_MISMATCH:
+	case RHO_INS_JMP_IF_EXC_MISMATCH:
 		return -2;
-	case INS_MAKE_LIST:
-	case INS_MAKE_TUPLE:
+	case RHO_INS_MAKE_LIST:
+	case RHO_INS_MAKE_TUPLE:
 		return -arg + 1;
-	case INS_IMPORT:
+	case RHO_INS_IMPORT:
 		return 1;
-	case INS_EXPORT:
-	case INS_EXPORT_GLOBAL:
+	case RHO_INS_EXPORT:
+	case RHO_INS_EXPORT_GLOBAL:
 		return -1;
-	case INS_GET_ITER:
+	case RHO_INS_GET_ITER:
 		return 0;
-	case INS_LOOP_ITER:
+	case RHO_INS_LOOP_ITER:
 		return 1;
-	case INS_MAKE_FUNCOBJ:
+	case RHO_INS_MAKE_FUNCOBJ:
 		return -arg;
-	case INS_POP:
+	case RHO_INS_POP:
 		return -1;
-	case INS_DUP:
+	case RHO_INS_DUP:
 		return 1;
-	case INS_DUP_TWO:
+	case RHO_INS_DUP_TWO:
 		return 2;
-	case INS_ROT:
-	case INS_ROT_THREE:
+	case RHO_INS_ROT:
+	case RHO_INS_ROT_THREE:
 		return 0;
 	}
 
-	INTERNAL_ERROR();
+	RHO_INTERNAL_ERROR();
 	return 0;
 }
 
-void compile(const char *name, Program *prog, FILE *out)
+void rho_compile(const char *name, RhoProgram *prog, FILE *out)
 {
-	Compiler *compiler = compiler_new(name, 1, st_new(name));
+	RhoCompiler *compiler = compiler_new(name, 1, rho_st_new(name));
 
 	struct metadata metadata = compile_program(compiler, prog);
 
@@ -1814,8 +1812,8 @@ void compile(const char *name, Program *prog, FILE *out)
 	 * Every rhoc file should start with the
 	 * "magic" bytes:
 	 */
-	for (size_t i = 0; i < magic_size; i++) {
-		fputc(magic[i], out);
+	for (size_t i = 0; i < rho_magic_size; i++) {
+		fputc(rho_magic[i], out);
 	}
 
 	/*
@@ -1826,12 +1824,12 @@ void compile(const char *name, Program *prog, FILE *out)
 	 */
 	byte buf[2];
 
-	write_uint16_to_stream(buf, metadata.max_vstack_depth);
+	rho_util_write_uint16_to_stream(buf, metadata.max_vstack_depth);
 	for (size_t i = 0; i < sizeof(buf); i++) {
 		fputc(buf[i], out);
 	}
 
-	write_uint16_to_stream(buf, metadata.max_try_catch_depth);
+	rho_util_write_uint16_to_stream(buf, metadata.max_try_catch_depth);
 	for (size_t i = 0; i < sizeof(buf); i++) {
 		fputc(buf[i], out);
 	}

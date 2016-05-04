@@ -10,42 +10,42 @@
  * Hash functions
  */
 
-int hash_int(const int i)
+int rho_util_hash_int(const int i)
 {
 	return i;
 }
 
-int hash_long(const long l)
+int rho_util_hash_long(const long l)
 {
 	return (int)(l ^ ((unsigned long)l >> 32));
 }
 
-int hash_double(const double d)
+int rho_util_hash_double(const double d)
 {
 	unsigned long long l = 0;
 	memcpy(&l, &d, sizeof(double));
 	return (int)(l ^ (l >> 32));
 }
 
-int hash_float(const float f)
+int rho_util_hash_float(const float f)
 {
 	unsigned long long l = 0;
 	memcpy(&l, &f, sizeof(float));
 	return (int)(l ^ (l >> 32));
 }
 
-int hash_bool(const bool b)
+int rho_util_hash_bool(const bool b)
 {
 	return b ? 1231 : 1237;
 }
 
-int hash_ptr(const void *p)
+int rho_util_hash_ptr(const void *p)
 {
 	uintptr_t ad = (uintptr_t)p;
 	return (int)((13*ad) ^ (ad >> 15));
 }
 
-int hash_cstr(const char *str)
+int rho_util_hash_cstr(const char *str)
 {
 	unsigned int h = 0;
 	char *p = (char *)str;
@@ -57,7 +57,7 @@ int hash_cstr(const char *str)
 	return h;
 }
 
-int hash_cstr2(const char *str, const size_t len)
+int rho_util_hash_cstr2(const char *str, const size_t len)
 {
 	unsigned int h = 0;
 
@@ -69,7 +69,7 @@ int hash_cstr2(const char *str, const size_t len)
 }
 
 /* Adapted from java.util.HashMap#hash */
-int secondary_hash(int h)
+int rho_util_hash_secondary(int h)
 {
 	h ^= ((unsigned)h >> 20) ^ ((unsigned)h >> 12);
 	return h ^ ((unsigned)h >> 7) ^ ((unsigned)h >> 4);
@@ -79,7 +79,7 @@ int secondary_hash(int h)
  * Serialization functions
  */
 
-void write_int32_to_stream(unsigned char *stream, const int n)
+void rho_util_write_int32_to_stream(unsigned char *stream, const int n)
 {
 	stream[0] = (n >> 0 ) & 0xFF;
 	stream[1] = (n >> 8 ) & 0xFF;
@@ -87,7 +87,7 @@ void write_int32_to_stream(unsigned char *stream, const int n)
 	stream[3] = (n >> 24) & 0xFF;
 }
 
-int read_int32_from_stream(unsigned char *stream)
+int rho_util_read_int32_from_stream(unsigned char *stream)
 {
 	const int n = (stream[3] << 24) |
 	              (stream[2] << 16) |
@@ -96,14 +96,14 @@ int read_int32_from_stream(unsigned char *stream)
 	return n;
 }
 
-void write_uint16_to_stream(unsigned char *stream, const unsigned int n)
+void rho_util_write_uint16_to_stream(unsigned char *stream, const unsigned int n)
 {
 	assert(n <= 0xFFFF);
 	stream[0] = (n >> 0) & 0xFF;
 	stream[1] = (n >> 8) & 0xFF;
 }
 
-unsigned int read_uint16_from_stream(unsigned char *stream)
+unsigned int rho_util_read_uint16_from_stream(unsigned char *stream)
 {
 	const unsigned int n = (stream[1] << 8) | (stream[0] << 0);
 	return n;
@@ -112,12 +112,12 @@ unsigned int read_uint16_from_stream(unsigned char *stream)
 /*
  * TODO: check endianness
  */
-void write_double_to_stream(unsigned char *stream, const double d)
+void rho_util_write_double_to_stream(unsigned char *stream, const double d)
 {
 	memcpy(stream, &d, sizeof(double));
 }
 
-double read_double_from_stream(unsigned char *stream)
+double rho_util_read_double_from_stream(unsigned char *stream)
 {
 	double d;
 	memcpy(&d, stream, sizeof(double));
@@ -128,7 +128,7 @@ double read_double_from_stream(unsigned char *stream)
  * String-array functions
  */
 
-void str_array_dup(struct str_array *src, struct str_array *dst)
+void rho_util_str_array_dup(struct rho_str_array *src, struct rho_str_array *dst)
 {
 	const size_t length = src->length;
 	const size_t size = length * sizeof(*(src->array));
@@ -146,7 +146,7 @@ void *rho_malloc(size_t n)
 	void *p = malloc(n);
 
 	if (p == NULL && n > 0) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	return p;
@@ -157,7 +157,7 @@ void *rho_calloc(size_t num, size_t size)
 	void *p = calloc(num, size);
 
 	if (p == NULL && num > 0 && size > 0) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	return p;
@@ -168,7 +168,7 @@ void *rho_realloc(void *p, size_t n)
 	void *new_p = realloc(p, n);
 
 	if (new_p == NULL && n > 0) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	return new_p;
@@ -178,7 +178,7 @@ void *rho_realloc(void *p, size_t n)
  * Miscellaneous functions
  */
 
-const char *str_dup(const char *str)
+const char *rho_util_str_dup(const char *str)
 {
 	const size_t len = strlen(str);
 	char *copy = rho_malloc(len + 1);
@@ -186,7 +186,7 @@ const char *str_dup(const char *str)
 	return copy;
 }
 
-const char *str_format(const char *format, ...)
+const char *rho_util_str_format(const char *format, ...)
 {
 	char buf[1000];
 
@@ -205,7 +205,7 @@ const char *str_format(const char *format, ...)
 	return str;
 }
 
-char *file_to_str(const char *filename)
+char *rho_util_file_to_str(const char *filename)
 {
 	FILE *file = fopen(filename, "r");
 

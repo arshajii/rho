@@ -10,85 +10,85 @@
 #include "util.h"
 #include "strobject.h"
 
-Value strobj_make(Str value)
+RhoValue rho_strobj_make(RhoStr value)
 {
-	StrObject *s = obj_alloc(&str_class);
+	RhoStrObject *s = rho_obj_alloc(&rho_str_class);
 	s->freeable = value.freeable;
 	value.freeable = 0;
 	s->str = value;
-	return makeobj(s);
+	return rho_makeobj(s);
 }
 
-Value strobj_make_direct(const char *value, const size_t len)
+RhoValue rho_strobj_make_direct(const char *value, const size_t len)
 {
-	StrObject *s = obj_alloc(&str_class);
+	RhoStrObject *s = rho_obj_alloc(&rho_str_class);
 	char *copy = rho_malloc(len + 1);
 	memcpy(copy, value, len);
 	copy[len] = '\0';
-	s->str = STR_INIT(copy, len, 0);
+	s->str = RHO_STR_INIT(copy, len, 0);
 	s->freeable = 1;
-	return makeobj(s);
+	return rho_makeobj(s);
 }
 
-static bool strobj_eq(Value *this, Value *other)
+static bool strobj_eq(RhoValue *this, RhoValue *other)
 {
-	if (!is_a(other, &str_class)) {
+	if (!rho_is_a(other, &rho_str_class)) {
 		return false;
 	}
 
-	StrObject *s1 = objvalue(this);
-	StrObject *s2 = objvalue(other);
-	return str_eq(&s1->str, &s2->str);
+	RhoStrObject *s1 = rho_objvalue(this);
+	RhoStrObject *s2 = rho_objvalue(other);
+	return rho_str_eq(&s1->str, &s2->str);
 }
 
-static Value strobj_cmp(Value *this, Value *other)
+static RhoValue strobj_cmp(RhoValue *this, RhoValue *other)
 {
-	if (!is_a(other, &str_class)) {
-		return makeut();
+	if (!rho_is_a(other, &rho_str_class)) {
+		return rho_makeut();
 	}
 
-	StrObject *s1 = objvalue(this);
-	StrObject *s2 = objvalue(other);
-	return makeint(str_cmp(&s1->str, &s2->str));
+	RhoStrObject *s1 = rho_objvalue(this);
+	RhoStrObject *s2 = rho_objvalue(other);
+	return rho_makeint(rho_str_cmp(&s1->str, &s2->str));
 }
 
-static int strobj_hash(Value *this)
+static int strobj_hash(RhoValue *this)
 {
-	StrObject *s = objvalue(this);
-	return str_hash(&s->str);
+	RhoStrObject *s = rho_objvalue(this);
+	return rho_str_hash(&s->str);
 }
 
-static bool strobj_nonzero(Value *this)
+static bool strobj_nonzero(RhoValue *this)
 {
-	StrObject *s = objvalue(this);
+	RhoStrObject *s = rho_objvalue(this);
 	return (s->str.len != 0);
 }
 
-static void strobj_free(Value *this)
+static void strobj_free(RhoValue *this)
 {
-	StrObject *s = objvalue(this);
+	RhoStrObject *s = rho_objvalue(this);
 	if (s->freeable) {
-		FREE(s->str.value);
+		RHO_FREE(s->str.value);
 	}
 
 	s->base.class->super->del(this);
 }
 
-static StrObject *strobj_str(Value *this)
+static RhoStrObject *strobj_str(RhoValue *this)
 {
-	StrObject *s = objvalue(this);
-	retaino(s);
+	RhoStrObject *s = rho_objvalue(this);
+	rho_retaino(s);
 	return s;
 }
 
-static Value strobj_cat(Value *this, Value *other)
+static RhoValue strobj_cat(RhoValue *this, RhoValue *other)
 {
-	if (!is_a(other, &str_class)) {
-		return makeut();
+	if (!rho_is_a(other, &rho_str_class)) {
+		return rho_makeut();
 	}
 
-	Str *s1 = &((StrObject *) objvalue(this))->str;
-	Str *s2 = &((StrObject *) objvalue(other))->str;
+	RhoStr *s1 = &((RhoStrObject *) rho_objvalue(this))->str;
+	RhoStr *s2 = &((RhoStrObject *) rho_objvalue(other))->str;
 
 	const size_t len1 = s1->len;
 	const size_t len2 = s2->len;
@@ -106,16 +106,16 @@ static Value strobj_cat(Value *this, Value *other)
 
 	cat[len_cat] = '\0';
 
-	return strobj_make(STR_INIT(cat, len_cat, 1));
+	return rho_strobj_make(RHO_STR_INIT(cat, len_cat, 1));
 }
 
-static size_t strobj_len(Value *this)
+static size_t strobj_len(RhoValue *this)
 {
-	StrObject *s = objvalue(this);
+	RhoStrObject *s = rho_objvalue(this);
 	return s->str.len;
 }
 
-struct num_methods str_num_methods = {
+struct rho_num_methods rho_str_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
 	NULL,    /* abs */
@@ -166,7 +166,7 @@ struct num_methods str_num_methods = {
 	NULL,    /* to_float */
 };
 
-struct seq_methods str_seq_methods = {
+struct rho_seq_methods rho_str_seq_methods = {
 	strobj_len,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -175,12 +175,12 @@ struct seq_methods str_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class str_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_str_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Str",
 	.super = &obj_class,
 
-	.instance_size = sizeof(StrObject),
+	.instance_size = sizeof(RhoStrObject),
 
 	.init = NULL,
 	.del = strobj_free,
@@ -191,8 +191,8 @@ Class str_class = {
 	.str = strobj_str,
 	.call = NULL,
 
-	.num_methods = &str_num_methods,
-	.seq_methods  = &str_seq_methods,
+	.num_methods = &rho_str_num_methods,
+	.seq_methods = &rho_str_seq_methods,
 
 	.print = NULL,
 

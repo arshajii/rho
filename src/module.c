@@ -6,44 +6,44 @@
 #include "util.h"
 #include "module.h"
 
-Value module_make(const char *name, StrDict *contents)
+RhoValue rho_module_make(const char *name, RhoStrDict *contents)
 {
-	Module *mod = obj_alloc(&module_class);
+	RhoModule *mod = rho_obj_alloc(&rho_module_class);
 	mod->name = name;
 	mod->contents = *contents;
-	return makeobj(mod);
+	return rho_makeobj(mod);
 }
 
-static void module_free(Value *this)
+static void module_free(RhoValue *this)
 {
-	Module *mod = objvalue(this);
-	strdict_dealloc(&mod->contents);
+	RhoModule *mod = rho_objvalue(this);
+	rho_strdict_dealloc(&mod->contents);
 	obj_class.del(this);
 }
 
-static Value module_attr_get(Value *this, const char *attr)
+static RhoValue module_attr_get(RhoValue *this, const char *attr)
 {
-	Module *mod = objvalue(this);
-	Str key = STR_INIT(attr, strlen(attr), 0);
-	Value v = strdict_get(&mod->contents, &key);
+	RhoModule *mod = rho_objvalue(this);
+	RhoStr key = RHO_STR_INIT(attr, strlen(attr), 0);
+	RhoValue v = rho_strdict_get(&mod->contents, &key);
 
-	if (isempty(&v)) {
-		return attr_exc_not_found(&module_class, attr);
+	if (rho_isempty(&v)) {
+		return rho_attr_exc_not_found(&rho_module_class, attr);
 	}
 
-	retain(&v);
+	rho_retain(&v);
 	return v;
 }
 
-static Value module_attr_set(Value *this, const char *attr, Value *v)
+static RhoValue module_attr_set(RhoValue *this, const char *attr, RhoValue *v)
 {
-	UNUSED(attr);
-	UNUSED(v);
-	Module *mod = objvalue(this);
-	return ATTR_EXC("cannot re-assign attributes of module '%s'", mod->name);
+	RHO_UNUSED(attr);
+	RHO_UNUSED(v);
+	RhoModule *mod = rho_objvalue(this);
+	return RHO_ATTR_EXC("cannot re-assign attributes of module '%s'", mod->name);
 }
 
-struct num_methods module_num_methods = {
+struct rho_num_methods module_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
 	NULL,    /* abs */
@@ -94,7 +94,7 @@ struct num_methods module_num_methods = {
 	NULL,    /* to_float */
 };
 
-struct seq_methods module_seq_methods = {
+struct rho_seq_methods module_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -103,12 +103,12 @@ struct seq_methods module_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class module_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_module_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Module",
 	.super = &obj_class,
 
-	.instance_size = sizeof(Module),
+	.instance_size = sizeof(RhoModule),
 
 	.init = NULL,
 	.del = module_free,
@@ -125,7 +125,7 @@ Class module_class = {
 	.iternext = NULL,
 
 	.num_methods = &module_num_methods,
-	.seq_methods  = &module_seq_methods,
+	.seq_methods = &module_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,
@@ -134,25 +134,25 @@ Class module_class = {
 	.attr_set = module_attr_set
 };
 
-static Value builtin_module_attr_get(Value *this, const char *attr)
+static RhoValue builtin_module_attr_get(RhoValue *this, const char *attr)
 {
-	BuiltInModule *mod = objvalue(this);
+	RhoBuiltInModule *mod = rho_objvalue(this);
 
 	if (!mod->initialized) {
-		strdict_init(&mod->base.contents);
+		rho_strdict_init(&mod->base.contents);
 		mod->init_func(mod);
 		mod->initialized = true;
 	}
 
-	return module_class.attr_get(this, attr);
+	return rho_module_class.attr_get(this, attr);
 }
 
-static void builtin_module_free(Value *this)
+static void builtin_module_free(RhoValue *this)
 {
-	module_class.del(this);
+	rho_module_class.del(this);
 }
 
-struct num_methods builtin_module_num_methods = {
+struct rho_num_methods builtin_module_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
 	NULL,    /* abs */
@@ -203,7 +203,7 @@ struct num_methods builtin_module_num_methods = {
 	NULL,    /* to_float */
 };
 
-struct seq_methods builtin_module_seq_methods = {
+struct rho_seq_methods builtin_module_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -212,12 +212,12 @@ struct seq_methods builtin_module_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class builtin_module_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_builtin_module_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "BuiltInModule",
-	.super = &module_class,
+	.super = &rho_module_class,
 
-	.instance_size = sizeof(BuiltInModule),
+	.instance_size = sizeof(RhoBuiltInModule),
 
 	.init = NULL,
 	.del = builtin_module_free,
@@ -234,7 +234,7 @@ Class builtin_module_class = {
 	.iternext = NULL,
 
 	.num_methods = &builtin_module_num_methods,
-	.seq_methods  = &builtin_module_seq_methods,
+	.seq_methods = &builtin_module_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,

@@ -5,24 +5,24 @@
 #include "iter.h"
 
 /* Base Iter */
-static void iter_free(Value *this)
+static void iter_free(RhoValue *this)
 {
 	obj_class.del(this);
 }
 
-static Value iter_iter(Value *this)
+static RhoValue iter_iter(RhoValue *this)
 {
-	retain(this);
+	rho_retain(this);
 	return *this;
 }
 
-static Value iter_apply(Value *this, Value *fn)
+static RhoValue iter_apply(RhoValue *this, RhoValue *fn)
 {
-	Iter *iter = objvalue(this);
-	return applied_iter_make(iter, fn);
+	RhoIter *iter = rho_objvalue(this);
+	return rho_applied_iter_make(iter, fn);
 }
 
-struct seq_methods iter_seq_methods = {
+struct rho_seq_methods iter_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -31,12 +31,12 @@ struct seq_methods iter_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class iter_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_iter_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Iter",
 	.super = &obj_class,
 
-	.instance_size = sizeof(Iter),
+	.instance_size = sizeof(RhoIter),
 
 	.init = NULL,
 	.del = iter_free,
@@ -63,23 +63,23 @@ Class iter_class = {
 };
 
 /* IterStop */
-Value get_iter_stop(void)
+RhoValue rho_get_iter_stop(void)
 {
-	static IterStop iter_stop = { .base = OBJ_INIT_STATIC(&iter_stop_class) };
-	return makeobj(&iter_stop);
+	static RhoIterStop iter_stop = { .base = RHO_OBJ_INIT_STATIC(&rho_iter_stop_class) };
+	return rho_makeobj(&iter_stop);
 }
 
-static void iter_stop_free(Value *this)
+static void iter_stop_free(RhoValue *this)
 {
 	obj_class.del(this);
 }
 
-Class iter_stop_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_iter_stop_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "IterStop",
 	.super = &obj_class,
 
-	.instance_size = sizeof(IterStop),
+	.instance_size = sizeof(RhoIterStop),
 
 	.init = NULL,
 	.del = iter_stop_free,
@@ -96,7 +96,7 @@ Class iter_stop_class = {
 	.iternext = NULL,
 
 	.num_methods = NULL,
-	.seq_methods  = NULL,
+	.seq_methods = NULL,
 
 	.members = NULL,
 	.methods = NULL,
@@ -106,55 +106,55 @@ Class iter_stop_class = {
 };
 
 /* AppliedIter -- result of for e.g. `function @ iter` */
-Value applied_iter_make(Iter *source, Value *fn)
+RhoValue rho_applied_iter_make(RhoIter *source, RhoValue *fn)
 {
-	AppliedIter *appiter = obj_alloc(&applied_iter_class);
-	retaino(source);
-	retain(fn);
+	RhoAppliedIter *appiter = rho_obj_alloc(&rho_applied_iter_class);
+	rho_retaino(source);
+	rho_retain(fn);
 	appiter->source = source;
 	appiter->fn = *fn;
-	return makeobj(appiter);
+	return rho_makeobj(appiter);
 }
 
-static void applied_iter_free(Value *this)
+static void applied_iter_free(RhoValue *this)
 {
-	AppliedIter *appiter = objvalue(this);
-	releaseo(appiter->source);
-	release(&appiter->fn);
-	iter_class.del(this);
+	RhoAppliedIter *appiter = rho_objvalue(this);
+	rho_releaseo(appiter->source);
+	rho_release(&appiter->fn);
+	rho_iter_class.del(this);
 }
 
-static Value applied_iter_iternext(Value *this)
+static RhoValue applied_iter_iternext(RhoValue *this)
 {
-	AppliedIter *appiter = objvalue(this);
-	Iter *source = appiter->source;
-	Class *source_class = source->base.class;
-	UnOp iternext = resolve_iternext(source_class);
+	RhoAppliedIter *appiter = rho_objvalue(this);
+	RhoIter *source = appiter->source;
+	RhoClass *source_class = source->base.class;
+	UnOp iternext = rho_resolve_iternext(source_class);
 
 	if (!iternext) {
-		return type_exc_not_iterator(source_class);
+		return rho_type_exc_not_iterator(source_class);
 	}
 
-	Value *fn = &appiter->fn;
-	Class *fn_class = getclass(fn);
-	CallFunc call = resolve_call(fn_class);
+	RhoValue *fn = &appiter->fn;
+	RhoClass *fn_class = rho_getclass(fn);
+	CallFunc call = rho_resolve_call(fn_class);
 
 	if (!call) {
-		return type_exc_not_callable(fn_class);
+		return rho_type_exc_not_callable(fn_class);
 	}
 
-	Value next = iternext(&makeobj(source));
+	RhoValue next = iternext(&rho_makeobj(source));
 
-	if (is_iter_stop(&next) || iserror(&next)) {
+	if (rho_is_iter_stop(&next) || rho_iserror(&next)) {
 		return next;
 	}
 
-	Value ret = call(fn, &next, NULL, 1, 0);
-	release(&next);
+	RhoValue ret = call(fn, &next, NULL, 1, 0);
+	rho_release(&next);
 	return ret;
 }
 
-struct seq_methods applied_iter_seq_methods = {
+struct rho_seq_methods applied_iter_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -163,12 +163,12 @@ struct seq_methods applied_iter_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class applied_iter_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_applied_iter_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "AppliedIter",
-	.super = &iter_class,
+	.super = &rho_iter_class,
 
-	.instance_size = sizeof(AppliedIter),
+	.instance_size = sizeof(RhoAppliedIter),
 
 	.init = NULL,
 	.del = applied_iter_free,
@@ -185,7 +185,7 @@ Class applied_iter_class = {
 	.iternext = applied_iter_iternext,
 
 	.num_methods = NULL,
-	.seq_methods  = &applied_iter_seq_methods,
+	.seq_methods = &applied_iter_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,
@@ -195,26 +195,26 @@ Class applied_iter_class = {
 };
 
 /* Range iterators */
-Value range_make(Value *from, Value *to)
+RhoValue rho_range_make(RhoValue *from, RhoValue *to)
 {
-	if (!(isint(from) && isint(to))) {
-		return type_exc_unsupported_2("..", getclass(from), getclass(to));
+	if (!(rho_isint(from) && rho_isint(to))) {
+		return rho_type_exc_unsupported_2("..", rho_getclass(from), rho_getclass(to));
 	}
 
-	Range *range = obj_alloc(&range_class);
-	range->from = range->i = intvalue(from);
-	range->to = intvalue(to);
-	return makeobj(range);
+	RhoRange *range = rho_obj_alloc(&rho_range_class);
+	range->from = range->i = rho_intvalue(from);
+	range->to = rho_intvalue(to);
+	return rho_makeobj(range);
 }
 
-static void range_free(Value *this)
+static void range_free(RhoValue *this)
 {
-	iter_class.del(this);
+	rho_iter_class.del(this);
 }
 
-static Value range_iternext(Value *this)
+static RhoValue range_iternext(RhoValue *this)
 {
-	Range *range = objvalue(this);
+	RhoRange *range = rho_objvalue(this);
 
 	const long from = range->from;
 	const long to = range->to;
@@ -223,28 +223,28 @@ static Value range_iternext(Value *this)
 	if (to >= from) {
 		if (i < to) {
 			++(range->i);
-			return makeint(i);
+			return rho_makeint(i);
 		} else {
-			return get_iter_stop();
+			return rho_get_iter_stop();
 		}
 	} else {
 		if (i >= to) {
 			--(range->i);
-			return makeint(i);
+			return rho_makeint(i);
 		} else {
-			return get_iter_stop();
+			return rho_get_iter_stop();
 		}
 	}
 }
 
-static bool range_contains(Value *this, Value *n)
+static bool range_contains(RhoValue *this, RhoValue *n)
 {
-	if (!isint(n)) {
+	if (!rho_isint(n)) {
 		return false;
 	}
 
-	Range *range = objvalue(this);
-	const long target = intvalue(n);
+	RhoRange *range = rho_objvalue(this);
+	const long target = rho_intvalue(n);
 	const long from = range->from;
 	const long to = range->to;
 
@@ -255,7 +255,7 @@ static bool range_contains(Value *this, Value *n)
 	}
 }
 
-struct seq_methods range_seq_methods = {
+struct rho_seq_methods range_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -264,12 +264,12 @@ struct seq_methods range_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class range_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_range_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Range",
-	.super = &iter_class,
+	.super = &rho_iter_class,
 
-	.instance_size = sizeof(Range),
+	.instance_size = sizeof(RhoRange),
 
 	.init = NULL,
 	.del = range_free,
@@ -286,7 +286,7 @@ Class range_class = {
 	.iternext = range_iternext,
 
 	.num_methods = NULL,
-	.seq_methods  = &range_seq_methods,
+	.seq_methods = &range_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,

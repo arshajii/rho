@@ -25,128 +25,139 @@
 #include "compiler.h"
 #include "builtins.h"
 #include "loader.h"
+#include "plugins.h"
 #include "util.h"
 #include "vmops.h"
 #include "vm.h"
 
-static VM *current_vm = NULL;
+static RhoVM *current_vm = NULL;
 
-VM *get_current_vm(void)
+RhoVM *rho_current_vm_get(void)
 {
 	return current_vm;
 }
 
-void set_current_vm(VM *vm)
+void rho_current_vm_set(RhoVM *vm)
 {
 	current_vm = vm;
 }
 
-static Class *classes[] = {
+static RhoClass *classes[] = {
 		&obj_class,
-		&int_class,
-		&float_class,
-		&str_class,
-		&list_class,
-		&tuple_class,
-		&co_class,
-		&fn_class,
-		&method_class,
-		&native_func_class,
-		&module_class,
-		&meta_class,
+		&rho_int_class,
+		&rho_float_class,
+		&rho_str_class,
+		&rho_list_class,
+		&rho_tuple_class,
+		&rho_co_class,
+		&rho_fn_class,
+		&rho_method_class,
+		&rho_native_func_class,
+		&rho_module_class,
+		&rho_meta_class,
 
 		/* exception classes */
-		&exception_class,
-		&index_exception_class,
-		&type_exception_class,
-		&attr_exception_class,
-		&import_exception_class,
+		&rho_exception_class,
+		&rho_index_exception_class,
+		&rho_type_exception_class,
+		&rho_attr_exception_class,
+		&rho_import_exception_class,
 		NULL
 };
 
-static StrDict builtins_dict;
-static StrDict builtin_modules_dict;
-static StrDict import_cache;
+static RhoStrDict builtins_dict;
+static RhoStrDict builtin_modules_dict;
+static RhoStrDict import_cache;
 
 static void builtins_dict_dealloc(void)
 {
-	strdict_dealloc(&builtins_dict);
+	rho_strdict_dealloc(&builtins_dict);
 }
 
 static void builtin_modules_dict_dealloc(void)
 {
-	strdict_dealloc(&builtin_modules_dict);
+	rho_strdict_dealloc(&builtin_modules_dict);
 }
 
 static void builtin_modules_dealloc(void)
 {
-	for (size_t i = 0; builtin_modules[i] != NULL; i++) {
-		strdict_dealloc((StrDict *)&builtin_modules[i]->contents);
+	for (size_t i = 0; rho_builtin_modules[i] != NULL; i++) {
+		rho_strdict_dealloc((RhoStrDict *)&rho_builtin_modules[i]->contents);
 	}
 }
 
 static void import_cache_dealloc(void)
 {
-	strdict_dealloc(&import_cache);
+	rho_strdict_dealloc(&import_cache);
 }
 
-static unsigned int get_lineno(Frame *frame);
+static unsigned int get_lineno(RhoFrame *frame);
 
-static void vm_push_module_frame(VM *vm, Code *code);
-static void vm_load_builtins(StrDict *builtins_dict);
-static void vm_load_builtin_modules(StrDict *builtin_modules_dict);
-static Value vm_import(VM *vm, const char *name);
+static void vm_push_module_frame(RhoVM *vm, RhoCode *code);
+static void vm_load_builtins(void);
+static void vm_load_builtin_modules(void);
+static RhoValue vm_import(RhoVM *vm, const char *name);
 
-VM *vm_new(void)
+RhoVM *rho_vm_new(void)
 {
 	static bool init = false;
 
 	if (!init) {
-		for (Class **class = &classes[0]; *class != NULL; class++) {
-			class_init(*class);
+		for (RhoClass **class = &classes[0]; *class != NULL; class++) {
+			rho_class_init(*class);
 		}
 
-		strdict_init(&builtins_dict);
-		strdict_init(&builtin_modules_dict);
-		strdict_init(&import_cache);
+		rho_strdict_init(&builtins_dict);
+		rho_strdict_init(&builtin_modules_dict);
+		rho_strdict_init(&import_cache);
 
-		vm_load_builtins(&builtins_dict);
-		vm_load_builtin_modules(&builtin_modules_dict);
+		vm_load_builtins();
+		vm_load_builtin_modules();
 
 		atexit(builtins_dict_dealloc);
 		atexit(builtin_modules_dict_dealloc);
 		atexit(builtin_modules_dealloc);
 		atexit(import_cache_dealloc);
 
+#if RHO_IS_POSIX
+		const char *path = getenv(RHO_PLUGIN_PATH_ENV);
+		if (path != NULL) {
+			rho_set_plugin_path(path);
+			if (rho_reload_plugins() != 0) {
+				fprintf(stderr, RHO_WARNING_HEADER "could not load plug-ins at %s\n", path);
+			}
+		}
+#endif
+
 		init = true;
 	}
 
-	VM *vm = rho_malloc(sizeof(VM));
+	RhoVM *vm = rho_malloc(sizeof(RhoVM));
 	vm->head = NULL;
 	vm->module = NULL;
 	vm->callstack = NULL;
-	vm->globals = (struct value_array){.array = NULL, .length = 0};
+	vm->globals = (struct rho_value_array){.array = NULL, .length = 0};
 	vm->children = NULL;
 	vm->sibling = NULL;
-	strdict_init(&vm->exports);
+	rho_strdict_init(&vm->exports);
 	return vm;
 }
 
-static void vm_free_helper(VM *vm)
+static void vm_free_helper(RhoVM *vm)
 {
 	free(vm->head);
 	const size_t n_globals = vm->globals.length;
-	Value *globals = vm->globals.array;
+	RhoValue *globals = vm->globals.array;
 
 	for (size_t i = 0; i < n_globals; i++) {
-		release(&globals[i]);
+		rho_release(&globals[i]);
 	}
 
 	free(globals);
 	free(vm->global_names.array);
 
-	for (VM *child = vm->children; child != NULL;) {
-		VM *temp = child;
+	for (RhoVM *child = vm->children; child != NULL;) {
+		RhoVM *temp = child;
 		child = child->sibling;
 		vm_free_helper(temp);
 	}
@@ -154,7 +165,7 @@ static void vm_free_helper(VM *vm)
 	free(vm);
 }
 
-void vm_free(VM *vm)
+void rho_vm_free(RhoVM *vm)
 {
 	/*
 	 * We only deallocate the export dictionary of the
@@ -162,73 +173,73 @@ void vm_free(VM *vm)
 	 * result of imports) will be deallocated when their
 	 * associated Module instances are deallocated.
 	 */
-	strdict_dealloc(&vm->exports);
+	rho_strdict_dealloc(&vm->exports);
 	vm_free_helper(vm);
 }
 
-static void vm_link(VM *parent, VM *child)
+static void vm_link(RhoVM *parent, RhoVM *child)
 {
 	child->sibling = parent->children;
 	parent->children = child;
 }
 
-int vm_exec_code(VM *vm, Code *code)
+int rho_vm_exec_code(RhoVM *vm, RhoCode *code)
 {
 	vm->head = code->bc;
 	vm_push_module_frame(vm, code);
-	vm_eval_frame(vm);
+	rho_vm_eval_frame(vm);
 
-	Value *ret = &vm->callstack->return_value;
+	RhoValue *ret = &vm->callstack->return_value;
 
 	int status = 0;
-	if (isexc(ret)) {
+	if (rho_isexc(ret)) {
 		status = 1;
-		Exception *e = (Exception *)objvalue(ret);
-		exc_traceback_print(e, stderr);
-		exc_print_msg(e, stderr);
-		release(ret);
-	} else if (iserror(ret)) {
+		RhoException *e = (RhoException *)rho_objvalue(ret);
+		rho_exc_traceback_print(e, stderr);
+		rho_exc_print_msg(e, stderr);
+		rho_release(ret);
+	} else if (rho_iserror(ret)) {
 		status = 1;
-		Error *e = errvalue(ret);
-		error_traceback_print(e, stderr);
-		error_print_msg(e, stderr);
-		error_free(e);
+		Error *e = rho_errvalue(ret);
+		rho_err_traceback_print(e, stderr);
+		rho_err_print_msg(e, stderr);
+		rho_err_free(e);
 	}
 
-	vm_popframe(vm);
+	rho_vm_popframe(vm);
 	return status;
 }
 
-void vm_pushframe(VM *vm, CodeObject *co)
+void rho_vm_pushframe(RhoVM *vm, RhoCodeObject *co)
 {
-	Frame *frame = rho_malloc(sizeof(Frame));
+	RhoFrame *frame = rho_malloc(sizeof(RhoFrame));
 	frame->co = co;
 
 	const size_t n_locals = co->names.length;
 	const size_t stack_depth = co->stack_depth;
 	const size_t try_catch_depth = co->try_catch_depth;
 
-	frame->locals = rho_calloc(n_locals + stack_depth, sizeof(Value));
+	frame->locals = rho_calloc(n_locals + stack_depth, sizeof(RhoValue));
 	frame->valuestack = frame->valuestack_base = frame->locals + n_locals;
 
 	const size_t frees_len = co->frees.length;
-	Str *frees = rho_malloc(frees_len * sizeof(Str));
+	RhoStr *frees = rho_malloc(frees_len * sizeof(RhoStr));
 	for (size_t i = 0; i < frees_len; i++) {
-		frees[i] = STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
+		frees[i] = RHO_STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
 	}
 	frame->frees = frees;
 
-	frame->exc_stack_base = frame->exc_stack = rho_malloc(try_catch_depth * sizeof(struct exc_stack_element));
+	frame->exc_stack_base = frame->exc_stack = rho_malloc(try_catch_depth * sizeof(struct rho_exc_stack_element));
 
 	frame->pos = 0;
 	frame->prev = vm->callstack;
-	frame->return_value = makeempty();
+	frame->return_value = rho_makeempty();
 	vm->callstack = frame;
 }
 
-void vm_popframe(VM *vm)
+void rho_vm_popframe(RhoVM *vm)
 {
-	Frame *frame = vm->callstack;
+	RhoFrame *frame = vm->callstack;
 	vm->callstack = frame->prev;
 
 	/*
@@ -239,11 +250,11 @@ void vm_popframe(VM *vm)
 	 * is freed.
 	 */
 	if (frame != vm->module) {
-		const size_t n_locals = CO_LOCALS_COUNT(frame->co);
-		Value *locals = frame->locals;
+		const size_t n_locals = RHO_CO_LOCALS_COUNT(frame->co);
+		RhoValue *locals = frame->locals;
 
 		for (size_t i = 0; i < n_locals; i++) {
-			release(&locals[i]);
+			rho_release(&locals[i]);
 		}
 
 		free(locals);
@@ -251,8 +262,8 @@ void vm_popframe(VM *vm)
 
 	free(frame->frees);
 	free(frame->exc_stack_base);
-	releaseo(frame->co);
-	release(&frame->return_value);
+	rho_releaseo(frame->co);
+	rho_release(&frame->return_value);
 	free(frame);
 
 	/*
@@ -265,18 +276,18 @@ void vm_popframe(VM *vm)
 /*
  * Assumes the symbol table and constant table have not yet been read.
  */
-static void vm_push_module_frame(VM *vm, Code *code)
+static void vm_push_module_frame(RhoVM *vm, RhoCode *code)
 {
 	assert(vm->module == NULL);
-	CodeObject *co = codeobj_make(code, "<module>", 0, -1, -1, vm);
-	vm_pushframe(vm, co);
+	RhoCodeObject *co = codeobj_make(code, "<module>", 0, -1, -1, vm);
+	rho_vm_pushframe(vm, co);
 	vm->module = vm->callstack;
-	vm->globals = (struct value_array){.array = vm->module->locals,
-	                                   .length = CO_LOCALS_COUNT(co)};
-	str_array_dup(&co->names, &vm->global_names);
+	vm->globals = (struct rho_value_array){.array = vm->module->locals,
+	                                   .length = RHO_CO_LOCALS_COUNT(co)};
+	rho_util_str_array_dup(&co->names, &vm->global_names);
 }
 
-void vm_eval_frame(VM *vm)
+void rho_vm_eval_frame(RhoVM *vm)
 {
 #define GET_BYTE()    (bc[pos++])
 #define GET_UINT16()  (pos += 2, ((bc[pos - 1] << 8) | bc[pos - 2]))
@@ -292,39 +303,39 @@ void vm_eval_frame(VM *vm)
 #define STACK_SET_TOP(v)     (stack[-1] = (v))
 #define STACK_SET_SECOND(v)  (stack[-2] = (v))
 #define STACK_SET_THIRD(v)   (stack[-3] = (v))
-#define STACK_PURGE(wall)    do { while (stack != wall) {release(STACK_POP());} } while (0)
+#define STACK_PURGE(wall)    do { while (stack != wall) {rho_release(STACK_POP());} } while (0)
 
 #define EXC_STACK_PUSH(start, end, handler, purge_wall) \
-	(*exc_stack++ = (struct exc_stack_element){(start), (end), (handler), (purge_wall)})
+	(*exc_stack++ = (struct rho_exc_stack_element){(start), (end), (handler), (purge_wall)})
 #define EXC_STACK_POP()       (--exc_stack)
 #define EXC_STACK_TOP()       (&exc_stack[-1])
 #define EXC_STACK_EMPTY()     (exc_stack == exc_stack_base)
 
-	Frame *frame = vm->callstack;
+	RhoFrame *frame = vm->callstack;
 
-	Value *locals = frame->locals;
-	Str *frees = frame->frees;
-	const CodeObject *co = frame->co;
-	const VM *co_vm = co->vm;
-	Value *globals = co_vm->globals.array;
+	RhoValue *locals = frame->locals;
+	RhoStr *frees = frame->frees;
+	const RhoCodeObject *co = frame->co;
+	const RhoVM *co_vm = co->vm;
+	RhoValue *globals = co_vm->globals.array;
 
-	struct str_array symbols = co->names;
-	struct str_array attrs = co->attrs;
-	struct str_array global_symbols = co_vm->global_names;
+	struct rho_str_array symbols = co->names;
+	struct rho_str_array attrs = co->attrs;
+	struct rho_str_array global_symbols = co_vm->global_names;
 
-	Value *constants = co->consts.array;
+	RhoValue *constants = co->consts.array;
 	byte *bc = co->bc;
-	Value *stack_base = frame->valuestack_base;
-	Value *stack = frame->valuestack;
+	RhoValue *stack_base = frame->valuestack_base;
+	RhoValue *stack = frame->valuestack;
 
-	struct exc_stack_element *exc_stack_base = frame->exc_stack_base;
-	struct exc_stack_element *exc_stack = frame->exc_stack;
+	struct rho_exc_stack_element *exc_stack_base = frame->exc_stack_base;
+	struct rho_exc_stack_element *exc_stack = frame->exc_stack;
 
 	/* position in the bytecode */
 	size_t pos = 0;
 
-	Value *v1, *v2, *v3;
-	Value res;
+	RhoValue *v1, *v2, *v3;
+	RhoValue res;
 
 	head:
 	while (true) {
@@ -337,17 +348,17 @@ void vm_eval_frame(VM *vm)
 		const byte opcode = GET_BYTE();
 
 		switch (opcode) {
-		case INS_NOP:
+		case RHO_INS_NOP:
 			break;
-		case INS_LOAD_CONST: {
+		case RHO_INS_LOAD_CONST: {
 			const unsigned int id = GET_UINT16();
 			v1 = &constants[id];
-			retain(v1);
+			rho_retain(v1);
 			STACK_PUSH(*v1);
 			break;
 		}
-		case INS_LOAD_NULL: {
-			STACK_PUSH(makeint(0));
+		case RHO_INS_LOAD_NULL: {
+			STACK_PUSH(rho_makeint(0));
 			break;
 		}
 		/*
@@ -362,760 +373,760 @@ void vm_eval_frame(VM *vm)
 		 *    releasing v1 before the error check would lead to an invalid
 		 *    double-release of v1 in the case of an error/exception.
 		 */
-		case INS_ADD: {
+		case RHO_INS_ADD: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_add(v1, v2);
+			res = rho_op_add(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_SUB: {
+		case RHO_INS_SUB: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_sub(v1, v2);
+			res = rho_op_sub(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_MUL: {
+		case RHO_INS_MUL: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_mul(v1, v2);
+			res = rho_op_mul(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_DIV: {
+		case RHO_INS_DIV: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_div(v1, v2);
+			res = rho_op_div(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_MOD: {
+		case RHO_INS_MOD: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_mod(v1, v2);
+			res = rho_op_mod(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_POW: {
+		case RHO_INS_POW: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_pow(v1, v2);
+			res = rho_op_pow(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_BITAND: {
+		case RHO_INS_BITAND: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_bitand(v1, v2);
+			res = rho_op_bitand(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_BITOR: {
+		case RHO_INS_BITOR: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_bitor(v1, v2);
+			res = rho_op_bitor(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_XOR: {
+		case RHO_INS_XOR: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_xor(v1, v2);
+			res = rho_op_xor(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_BITNOT: {
+		case RHO_INS_BITNOT: {
 			v1 = STACK_TOP();
-			res = op_bitnot(v1);
+			res = rho_op_bitnot(v1);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
-			release(v1);
+			rho_release(v1);
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_SHIFTL: {
+		case RHO_INS_SHIFTL: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_shiftl(v1, v2);
+			res = rho_op_shiftl(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_SHIFTR: {
+		case RHO_INS_SHIFTR: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_shiftr(v1, v2);
+			res = rho_op_shiftr(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_AND: {
+		case RHO_INS_AND: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_and(v1, v2);
+			res = rho_op_and(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_OR: {
+		case RHO_INS_OR: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_or(v1, v2);
+			res = rho_op_or(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_NOT: {
+		case RHO_INS_NOT: {
 			v1 = STACK_TOP();
-			res = op_not(v1);
+			res = rho_op_not(v1);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_EQUAL: {
+		case RHO_INS_EQUAL: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_eq(v1, v2);
+			res = rho_op_eq(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_NOTEQ: {
+		case RHO_INS_NOTEQ: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_neq(v1, v2);
+			res = rho_op_neq(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_LT: {
+		case RHO_INS_LT: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_lt(v1, v2);
+			res = rho_op_lt(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_GT: {
+		case RHO_INS_GT: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_gt(v1, v2);
+			res = rho_op_gt(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_LE: {
+		case RHO_INS_LE: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_le(v1, v2);
+			res = rho_op_le(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_GE: {
+		case RHO_INS_GE: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_ge(v1, v2);
+			res = rho_op_ge(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_UPLUS: {
+		case RHO_INS_UPLUS: {
 			v1 = STACK_TOP();
-			res = op_plus(v1);
+			res = rho_op_plus(v1);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
-			release(v1);
+			rho_release(v1);
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_UMINUS: {
+		case RHO_INS_UMINUS: {
 			v1 = STACK_TOP();
-			res = op_minus(v1);
+			res = rho_op_minus(v1);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
-			release(v1);
+			rho_release(v1);
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IADD: {
+		case RHO_INS_IADD: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_iadd(v1, v2);
+			res = rho_op_iadd(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_ISUB: {
+		case RHO_INS_ISUB: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_isub(v1, v2);
+			res = rho_op_isub(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IMUL: {
+		case RHO_INS_IMUL: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_imul(v1, v2);
+			res = rho_op_imul(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IDIV: {
+		case RHO_INS_IDIV: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_idiv(v1, v2);
+			res = rho_op_idiv(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IMOD: {
+		case RHO_INS_IMOD: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_imod(v1, v2);
+			res = rho_op_imod(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IPOW: {
+		case RHO_INS_IPOW: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_ipow(v1, v2);
+			res = rho_op_ipow(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IBITAND: {
+		case RHO_INS_IBITAND: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_ibitand(v1, v2);
+			res = rho_op_ibitand(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IBITOR: {
+		case RHO_INS_IBITOR: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_ibitor(v1, v2);
+			res = rho_op_ibitor(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IXOR: {
+		case RHO_INS_IXOR: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_ixor(v1, v2);
+			res = rho_op_ixor(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_ISHIFTL: {
+		case RHO_INS_ISHIFTL: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_ishiftl(v1, v2);
+			res = rho_op_ishiftl(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_ISHIFTR: {
+		case RHO_INS_ISHIFTR: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_ishiftr(v1, v2);
+			res = rho_op_ishiftr(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_MAKE_RANGE: {
+		case RHO_INS_MAKE_RANGE: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = range_make(v1, v2);
+			res = rho_range_make(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IN: {
+		case RHO_INS_IN: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_in(v1, v2);
+			res = rho_op_in(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_STORE: {
+		case RHO_INS_STORE: {
 			v1 = STACK_POP();
 			const unsigned int id = GET_UINT16();
-			Value old = locals[id];
+			RhoValue old = locals[id];
 			locals[id] = *v1;
-			release(&old);
+			rho_release(&old);
 			break;
 		}
-		case INS_STORE_GLOBAL: {
+		case RHO_INS_STORE_GLOBAL: {
 			v1 = STACK_POP();
 			const unsigned int id = GET_UINT16();
-			Value old = globals[id];
+			RhoValue old = globals[id];
 			globals[id] = *v1;
-			release(&old);
+			rho_release(&old);
 			break;
 		}
-		case INS_LOAD: {
+		case RHO_INS_LOAD: {
 			const unsigned int id = GET_UINT16();
 			v1 = &locals[id];
 
-			if (isempty(v1)) {
-				res = makeerr(unbound_error(symbols.array[id].str));
+			if (rho_isempty(v1)) {
+				res = rho_makeerr(rho_err_unbound(symbols.array[id].str));
 				goto error;
 			}
 
-			retain(v1);
+			rho_retain(v1);
 			STACK_PUSH(*v1);
 			break;
 		}
-		case INS_LOAD_GLOBAL: {
+		case RHO_INS_LOAD_GLOBAL: {
 			const unsigned int id = GET_UINT16();
 			v1 = &globals[id];
 
-			if (isempty(v1)) {
-				res = makeerr(unbound_error(global_symbols.array[id].str));
+			if (rho_isempty(v1)) {
+				res = rho_makeerr(rho_err_unbound(global_symbols.array[id].str));
 				goto error;
 			}
 
-			retain(v1);
+			rho_retain(v1);
 			STACK_PUSH(*v1);
 			break;
 		}
-		case INS_LOAD_ATTR: {
+		case RHO_INS_LOAD_ATTR: {
 			v1 = STACK_TOP();
 			const unsigned int id = GET_UINT16();
 			const char *attr = attrs.array[id].str;
-			res = op_get_attr(v1, attr);
+			res = rho_op_get_attr(v1, attr);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
-			release(v1);
+			rho_release(v1);
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_SET_ATTR: {
+		case RHO_INS_SET_ATTR: {
 			v1 = STACK_POP();
 			v2 = STACK_POP();
 			const unsigned int id = GET_UINT16();
 			const char *attr = attrs.array[id].str;
-			res = op_set_attr(v1, attr, v2);
+			res = rho_op_set_attr(v1, attr, v2);
 
-			release(v1);
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v1);
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			break;
 		}
-		case INS_LOAD_INDEX: {
+		case RHO_INS_LOAD_INDEX: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_get(v1, v2);
+			res = rho_op_get(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_SET_INDEX: {
+		case RHO_INS_SET_INDEX: {
 			/* X[N] = Y */
 			v3 = STACK_POP();  /* N */
 			v2 = STACK_POP();  /* X */
 			v1 = STACK_POP();  /* Y */
 
-			res = op_set(v2, v3, v1);
+			res = rho_op_set(v2, v3, v1);
 
-			release(v1);
-			release(v2);
-			release(v3);
+			rho_release(v1);
+			rho_release(v2);
+			rho_release(v3);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
-			release(&res);
+			rho_release(&res);
 			break;
 		}
-		case INS_APPLY: {
+		case RHO_INS_APPLY: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_apply(v2, v1);  // yes, the arguments are reversed
+			res = rho_op_apply(v2, v1);  // yes, the arguments are reversed
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
-			release(v1);
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_IAPPLY: {
+		case RHO_INS_IAPPLY: {
 			v2 = STACK_POP();
 			v1 = STACK_TOP();
-			res = op_iapply(v1, v2);
+			res = rho_op_iapply(v1, v2);
 
-			release(v2);
-			if (iserror(&res)) {
+			rho_release(v2);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_LOAD_NAME: {
+		case RHO_INS_LOAD_NAME: {
 			const unsigned int id = GET_UINT16();
-			Str *key = &frees[id];
-			res = strdict_get(&builtins_dict, key);
+			RhoStr *key = &frees[id];
+			res = rho_strdict_get(&builtins_dict, key);
 
-			if (!isempty(&res)) {
-				retain(&res);
+			if (!rho_isempty(&res)) {
+				rho_retain(&res);
 				STACK_PUSH(res);
 				break;
 			}
 
-			res = makeerr(unbound_error(key->value));
+			res = rho_makeerr(rho_err_unbound(key->value));
 			goto error;
 			break;
 		}
-		case INS_PRINT: {
+		case RHO_INS_PRINT: {
 			v1 = STACK_POP();
-			op_print(v1, stdout);
-			release(v1);
+			rho_op_print(v1, stdout);
+			rho_release(v1);
 			break;
 		}
-		case INS_JMP: {
+		case RHO_INS_JMP: {
 			const unsigned int jmp = GET_UINT16();
 			pos += jmp;
 			break;
 		}
-		case INS_JMP_BACK: {
+		case RHO_INS_JMP_BACK: {
 			const unsigned int jmp = GET_UINT16();
 			pos -= jmp;
 			break;
 		}
-		case INS_JMP_IF_TRUE: {
+		case RHO_INS_JMP_IF_TRUE: {
 			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
-			if (resolve_nonzero(getclass(v1))(v1)) {
+			if (rho_resolve_nonzero(rho_getclass(v1))(v1)) {
 				pos += jmp;
 			}
-			release(v1);
+			rho_release(v1);
 			break;
 		}
-		case INS_JMP_IF_FALSE: {
+		case RHO_INS_JMP_IF_FALSE: {
 			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
-			if (!resolve_nonzero(getclass(v1))(v1)) {
+			if (!rho_resolve_nonzero(rho_getclass(v1))(v1)) {
 				pos += jmp;
 			}
-			release(v1);
+			rho_release(v1);
 			break;
 		}
-		case INS_JMP_BACK_IF_TRUE: {
+		case RHO_INS_JMP_BACK_IF_TRUE: {
 			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
-			if (resolve_nonzero(getclass(v1))(v1)) {
+			if (rho_resolve_nonzero(rho_getclass(v1))(v1)) {
 				pos -= jmp;
 			}
-			release(v1);
+			rho_release(v1);
 			break;
 		}
-		case INS_JMP_BACK_IF_FALSE: {
+		case RHO_INS_JMP_BACK_IF_FALSE: {
 			v1 = STACK_POP();
 			const unsigned int jmp = GET_UINT16();
-			if (!resolve_nonzero(getclass(v1))(v1)) {
+			if (!rho_resolve_nonzero(rho_getclass(v1))(v1)) {
 				pos -= jmp;
 			}
-			release(v1);
+			rho_release(v1);
 			break;
 		}
-		case INS_JMP_IF_TRUE_ELSE_POP: {
+		case RHO_INS_JMP_IF_TRUE_ELSE_POP: {
 			v1 = STACK_TOP();
 			const unsigned int jmp = GET_UINT16();
-			if (resolve_nonzero(getclass(v1))(v1)) {
+			if (rho_resolve_nonzero(rho_getclass(v1))(v1)) {
 				pos += jmp;
 			} else {
 				STACK_POP();
-				release(v1);
+				rho_release(v1);
 			}
 			break;
 		}
-		case INS_JMP_IF_FALSE_ELSE_POP: {
+		case RHO_INS_JMP_IF_FALSE_ELSE_POP: {
 			v1 = STACK_TOP();
 			const unsigned int jmp = GET_UINT16();
-			if (!resolve_nonzero(getclass(v1))(v1)) {
+			if (!rho_resolve_nonzero(rho_getclass(v1))(v1)) {
 				pos += jmp;
 			} else {
 				STACK_POP();
-				release(v1);
+				rho_release(v1);
 			}
 			break;
 		}
-		case INS_CALL: {
+		case RHO_INS_CALL: {
 			const unsigned int x = GET_UINT16();
 			const unsigned int nargs = (x & 0xff);
 			const unsigned int nargs_named = (x >> 8);
 			v1 = STACK_POP();
-			res = op_call(v1,
+			res = rho_op_call(v1,
 			              stack - nargs_named*2 - nargs,
 			              stack - nargs_named*2,
 						  nargs,
 						  nargs_named);
 
-			release(v1);
-			if (iserror(&res)) {
+			rho_release(v1);
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			for (unsigned int i = 0; i < nargs_named; i++) {
-				release(STACK_POP());  // value
-				release(STACK_POP());  // name
+				rho_release(STACK_POP());  // value
+				rho_release(STACK_POP());  // name
 			}
 
 			for (unsigned int i = 0; i < nargs; i++) {
-				release(STACK_POP());
+				rho_release(STACK_POP());
 			}
 
 			STACK_PUSH(res);
 			break;
 		}
-		case INS_RETURN: {
+		case RHO_INS_RETURN: {
 			v1 = STACK_POP();
-			retain(v1);
+			rho_retain(v1);
 			frame->return_value = *v1;
 			STACK_PURGE(stack_base);
 			return;
 		}
-		case INS_THROW: {
+		case RHO_INS_THROW: {
 			v1 = STACK_POP();  // exception
-			Class *class = getclass(v1);
+			RhoClass *class = rho_getclass(v1);
 
-			if (!is_subclass(class, &exception_class)) {
-				res = makeerr(type_error_invalid_throw(class));
+			if (!rho_is_subclass(class, &rho_exception_class)) {
+				res = rho_makeerr(rho_type_err_invalid_throw(class));
 				goto error;
 			}
 
 			res = *v1;
-			res.type = VAL_TYPE_EXC;
+			res.type = RHO_VAL_TYPE_EXC;
 			goto error;
 		}
-		case INS_TRY_BEGIN: {
+		case RHO_INS_TRY_BEGIN: {
 			const unsigned int try_block_len = GET_UINT16();
 			const unsigned int handler_offset = GET_UINT16();
 
@@ -1123,74 +1134,74 @@ void vm_eval_frame(VM *vm)
 
 			break;
 		}
-		case INS_TRY_END: {
+		case RHO_INS_TRY_END: {
 			EXC_STACK_POP();
 			break;
 		}
-		case INS_JMP_IF_EXC_MISMATCH: {
+		case RHO_INS_JMP_IF_EXC_MISMATCH: {
 			const unsigned int jmp = GET_UINT16();
 
 			v1 = STACK_POP();  // exception type
 			v2 = STACK_POP();  // exception
 
-			Class *class = getclass(v1);
+			RhoClass *class = rho_getclass(v1);
 
-			if (class != &meta_class) {
-				res = makeerr(type_error_invalid_catch(class));
+			if (class != &rho_meta_class) {
+				res = rho_makeerr(rho_type_err_invalid_catch(class));
 				goto error;
 			}
 
-			Class *exc_type = (Class *)objvalue(v1);
+			RhoClass *exc_type = (RhoClass *)rho_objvalue(v1);
 
-			if (!is_a(v2, exc_type)) {
+			if (!rho_is_a(v2, exc_type)) {
 				pos += jmp;
 			}
 
-			release(v1);
-			release(v2);
+			rho_release(v1);
+			rho_release(v2);
 
 			break;
 		}
-		case INS_MAKE_LIST: {
+		case RHO_INS_MAKE_LIST: {
 			const unsigned int len = GET_UINT16();
-			Value list;
+			RhoValue list;
 
 			if (len > 0) {
-				list = list_make(stack - len, len);
+				list = rho_list_make(stack - len, len);
 			} else {
-				list = list_make(NULL, 0);
+				list = rho_list_make(NULL, 0);
 			}
 
 			STACK_POPN(len);
 			STACK_PUSH(list);
 			break;
 		}
-		case INS_MAKE_TUPLE: {
+		case RHO_INS_MAKE_TUPLE: {
 			const unsigned int len = GET_UINT16();
-			Value tup;
+			RhoValue tup;
 
 			if (len > 0) {
-				tup = tuple_make(stack - len, len);
+				tup = rho_tuple_make(stack - len, len);
 			} else {
-				tup = tuple_make(NULL, 0);
+				tup = rho_tuple_make(NULL, 0);
 			}
 
 			STACK_POPN(len);
 			STACK_PUSH(tup);
 			break;
 		}
-		case INS_IMPORT: {
+		case RHO_INS_IMPORT: {
 			const unsigned int id = GET_UINT16();
 			res = vm_import(vm, symbols.array[id].str);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
 			STACK_PUSH(res);
 			break;
 		}
-		case INS_EXPORT: {
+		case RHO_INS_EXPORT: {
 			const unsigned int id = GET_UINT16();
 
 			v1 = STACK_POP();
@@ -1199,13 +1210,13 @@ void vm_eval_frame(VM *vm)
 			 * the preceding INS_LOAD should do all such
 			 * checks
 			 */
-			strdict_put_copy(&vm->exports,
+			rho_strdict_put_copy(&vm->exports,
 			                 symbols.array[id].str,
 			                 symbols.array[id].length,
 			                 v1);
 			break;
 		}
-		case INS_EXPORT_GLOBAL: {
+		case RHO_INS_EXPORT_GLOBAL: {
 			const unsigned int id = GET_UINT16();
 
 			v1 = STACK_POP();
@@ -1216,32 +1227,32 @@ void vm_eval_frame(VM *vm)
 			 */
 			char *key = rho_malloc(global_symbols.array[id].length + 1);
 			strcpy(key, global_symbols.array[id].str);
-			strdict_put(&vm->exports, key, v1, true);
+			rho_strdict_put(&vm->exports, key, v1, true);
 			break;
 		}
-		case INS_GET_ITER: {
+		case RHO_INS_GET_ITER: {
 			v1 = STACK_TOP();
-			res = op_iter(v1);
+			res = rho_op_iter(v1);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
-			release(v1);
+			rho_release(v1);
 			STACK_SET_TOP(res);
 			break;
 		}
-		case INS_LOOP_ITER: {
+		case RHO_INS_LOOP_ITER: {
 			v1 = STACK_TOP();
 			const unsigned int jmp = GET_UINT16();
 
-			res = op_iternext(v1);
+			res = rho_op_iternext(v1);
 
-			if (iserror(&res)) {
+			if (rho_iserror(&res)) {
 				goto error;
 			}
 
-			if (is_iter_stop(&res)) {
+			if (rho_is_iter_stop(&res)) {
 				pos += jmp;
 			} else {
 				STACK_PUSH(res);
@@ -1249,58 +1260,58 @@ void vm_eval_frame(VM *vm)
 
 			break;
 		}
-		case INS_MAKE_FUNCOBJ: {
+		case RHO_INS_MAKE_FUNCOBJ: {
 			const unsigned int num_defaults = GET_UINT16();
 
-			CodeObject *co = objvalue(stack - num_defaults - 1);
-			Value fn = funcobj_make(co);
-			funcobj_init_defaults(objvalue(&fn), stack - num_defaults, num_defaults);
+			RhoCodeObject *co = rho_objvalue(stack - num_defaults - 1);
+			RhoValue fn = rho_funcobj_make(co);
+			rho_funcobj_init_defaults(rho_objvalue(&fn), stack - num_defaults, num_defaults);
 
 			for (unsigned i = 0; i < num_defaults; i++) {
-				release(STACK_POP());
+				rho_release(STACK_POP());
 			}
 
 			STACK_SET_TOP(fn);
-			releaseo(co);
+			rho_releaseo(co);
 
 			break;
 		}
-		case INS_POP: {
-			release(STACK_POP());
+		case RHO_INS_POP: {
+			rho_release(STACK_POP());
 			break;
 		}
-		case INS_DUP: {
+		case RHO_INS_DUP: {
 			v1 = STACK_TOP();
-			retain(v1);
+			rho_retain(v1);
 			STACK_PUSH(*v1);
 			break;
 		}
-		case INS_DUP_TWO: {
+		case RHO_INS_DUP_TWO: {
 			v1 = STACK_TOP();
 			v2 = STACK_SECOND();
-			retain(v1);
-			retain(v2);
+			rho_retain(v1);
+			rho_retain(v2);
 			STACK_PUSH(*v2);
 			STACK_PUSH(*v1);
 			break;
 		}
-		case INS_ROT: {
-			Value v1 = *STACK_SECOND();
+		case RHO_INS_ROT: {
+			RhoValue v1 = *STACK_SECOND();
 			STACK_SET_SECOND(*STACK_TOP());
 			STACK_SET_TOP(v1);
 			break;
 		}
-		case INS_ROT_THREE: {
-			Value v1 = *STACK_TOP();
-			Value v2 = *STACK_SECOND();
-			Value v3 = *STACK_THIRD();
+		case RHO_INS_ROT_THREE: {
+			RhoValue v1 = *STACK_TOP();
+			RhoValue v2 = *STACK_SECOND();
+			RhoValue v3 = *STACK_THIRD();
 			STACK_SET_TOP(v2);
 			STACK_SET_SECOND(v3);
 			STACK_SET_THIRD(v1);
 			break;
 		}
 		default: {
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 			break;
 		}
 		}
@@ -1308,16 +1319,16 @@ void vm_eval_frame(VM *vm)
 
 	error:
 	switch (res.type) {
-	case VAL_TYPE_EXC: {
+	case RHO_VAL_TYPE_EXC: {
 		if (EXC_STACK_EMPTY()) {
 			STACK_PURGE(stack_base);
-			retain(&res);
-			Exception *e = objvalue(&res);
-			exc_traceback_append(e, frame->co->name, get_lineno(frame));
+			rho_retain(&res);
+			RhoException *e = rho_objvalue(&res);
+			rho_exc_traceback_append(e, frame->co->name, get_lineno(frame));
 			frame->return_value = res;
 			return;
 		} else {
-			const struct exc_stack_element *exc = EXC_STACK_POP();
+			const struct rho_exc_stack_element *exc = EXC_STACK_POP();
 			STACK_PURGE(exc->purge_wall);
 			STACK_PUSH(res);
 			pos = exc->handler_pos;
@@ -1325,14 +1336,14 @@ void vm_eval_frame(VM *vm)
 		}
 		break;
 	}
-	case VAL_TYPE_ERROR: {
-		Error *e = errvalue(&res);
-		error_traceback_append(e, frame->co->name, get_lineno(frame));
+	case RHO_VAL_TYPE_ERROR: {
+		Error *e = rho_errvalue(&res);
+		rho_err_traceback_append(e, frame->co->name, get_lineno(frame));
 		frame->return_value = res;
 		return;
 	}
 	default:
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 #undef STACK_POP
@@ -1340,74 +1351,76 @@ void vm_eval_frame(VM *vm)
 #undef STACK_PUSH
 }
 
-static void vm_load_builtins(StrDict *builtins_dict)
+void rho_vm_register_module(const RhoModule *module)
 {
-	for (size_t i = 0; builtins[i].name != NULL; i++) {
-		strdict_put(builtins_dict, builtins[i].name, (Value *)&builtins[i].value, false);
+	RhoValue v = rho_makeobj((void *)module);
+	rho_strdict_put(&builtin_modules_dict, module->name, &v, false);
+}
+
+static void vm_load_builtins(void)
+{
+	for (size_t i = 0; rho_builtins[i].name != NULL; i++) {
+		rho_strdict_put(&builtins_dict, rho_builtins[i].name, (RhoValue *)&rho_builtins[i].value, false);
 	}
 
-	for (Class **class = &classes[0]; *class != NULL; class++) {
-		Value v = makeobj(*class);
-		strdict_put(builtins_dict, (*class)->name, &v, false);
+	for (RhoClass **class = &classes[0]; *class != NULL; class++) {
+		RhoValue v = rho_makeobj(*class);
+		rho_strdict_put(&builtins_dict, (*class)->name, &v, false);
 	}
 }
 
-static void vm_load_builtin_modules(StrDict *builtin_modules_dict)
+static void vm_load_builtin_modules(void)
 {
-	for (size_t i = 0; builtin_modules[i] != NULL; i++) {
-		Value mod = makeobj((void *)builtin_modules[i]);
-		strdict_put(builtin_modules_dict,
-		            builtin_modules[i]->name,
-		            &mod,
-		            false);
+	for (size_t i = 0; rho_builtin_modules[i] != NULL; i++) {
+		rho_vm_register_module(rho_builtin_modules[i]);
 	}
 }
 
-static Value vm_import(VM *vm, const char *name)
+static RhoValue vm_import(RhoVM *vm, const char *name)
 {
-	Value cached = strdict_get_cstr(&import_cache, name);
+	RhoValue cached = rho_strdict_get_cstr(&import_cache, name);
 
-	if (!isempty(&cached)) {
-		retain(&cached);
+	if (!rho_isempty(&cached)) {
+		rho_retain(&cached);
 		return cached;
 	}
 
-	Code code;
-	int error = load_from_file(name, false, &code);
+	RhoCode code;
+	int error = rho_load_from_file(name, false, &code);
 
 	switch (error) {
-	case LOAD_ERR_NONE:
+	case RHO_LOAD_ERR_NONE:
 		break;
-	case LOAD_ERR_NOT_FOUND: {
-		Value builtin_module = strdict_get_cstr(&builtin_modules_dict, name);
+	case RHO_LOAD_ERR_NOT_FOUND: {
+		RhoValue builtin_module = rho_strdict_get_cstr(&builtin_modules_dict, name);
 
-		if (isempty(&builtin_module)) {
-			return import_exc_not_found(name);
+		if (rho_isempty(&builtin_module)) {
+			return rho_import_exc_not_found(name);
 		}
 
 		return builtin_module;
 	}
-	case LOAD_ERR_INVALID_SIGNATURE:
-		return makeerr(invalid_file_signature_error(name));
+	case RHO_LOAD_ERR_INVALID_SIGNATURE:
+		return rho_makeerr(rho_err_invalid_file_signature_error(name));
 	}
 
-	VM *vm2 = vm_new();
-	set_current_vm(vm2);
-	vm_exec_code(vm2, &code);
-	StrDict *exports = &vm2->exports;
-	Value mod = module_make(name, exports);
-	strdict_put(&import_cache, name, &mod, false);
-	set_current_vm(vm);
+	RhoVM *vm2 = rho_vm_new();
+	rho_current_vm_set(vm2);
+	rho_vm_exec_code(vm2, &code);
+	RhoStrDict *exports = &vm2->exports;
+	RhoValue mod = rho_module_make(name, exports);
+	rho_strdict_put(&import_cache, name, &mod, false);
+	rho_current_vm_set(vm);
 	vm_link(vm, vm2);
 
-	retain(&mod);
+	rho_retain(&mod);
 	return mod;
 }
 
-static unsigned int get_lineno(Frame *frame)
+static unsigned int get_lineno(RhoFrame *frame)
 {
 	const size_t raw_pos = frame->pos;
-	CodeObject *co = frame->co;
+	RhoCodeObject *co = frame->co;
 
 	byte *bc = co->bc;
 	const byte *lno_table = co->lno_table;
@@ -1420,16 +1433,16 @@ static unsigned int get_lineno(Frame *frame)
 	/* translate raw position into actual instruction position */
 	while (p != dest) {
 		++ins_pos;
-		const int size = arg_size(*p);
+		const int size = rho_opcode_arg_size(*p);
 
 		if (size < 0) {
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 		}
 
 		p += size + 1;
 
 		if (p > dest) {
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 		}
 	}
 

@@ -39,7 +39,7 @@
  * consumed as part of the token.
  */
 
-static void lex_err_unexpected_char(Parser *p, const char *c);
+static void lex_err_unexpected_char(RhoParser *p, const char *c);
 
 static bool is_op_char(const char c)
 {
@@ -65,51 +65,51 @@ static bool is_op_char(const char c)
 	}
 }
 
-static TokType str_to_op_toktype(const char *str, const size_t len)
+static RhoTokType str_to_op_toktype(const char *str, const size_t len)
 {
 	if (len == 0)
-		return TOK_NONE;
+		return RHO_TOK_NONE;
 
 	switch (str[0]) {
 	case '+':
 		if (len == 1)
-			return TOK_PLUS;
+			return RHO_TOK_PLUS;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_ADD;
+				return RHO_TOK_ASSIGN_ADD;
 			break;
 		}
 		break;
 	case '-':
 		if (len == 1)
-			return TOK_MINUS;
+			return RHO_TOK_MINUS;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_SUB;
+				return RHO_TOK_ASSIGN_SUB;
 			break;
 		}
 		break;
 	case '*':
 		if (len == 1)
-			return TOK_MUL;
+			return RHO_TOK_MUL;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_MUL;
+				return RHO_TOK_ASSIGN_MUL;
 			break;
 		case '*':
 			if (len == 2)
-				return TOK_POW;
+				return RHO_TOK_POW;
 
 			switch (str[2]) {
 			case '=':
 				if (len == 3)
-					return TOK_ASSIGN_POW;
+					return RHO_TOK_ASSIGN_POW;
 				break;
 			}
 			break;
@@ -117,113 +117,113 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 		break;
 	case '/':
 		if (len == 1)
-			return TOK_DIV;
+			return RHO_TOK_DIV;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_DIV;
+				return RHO_TOK_ASSIGN_DIV;
 			break;
 		}
 		break;
 	case '%':
 		if (len == 1)
-			return TOK_MOD;
+			return RHO_TOK_MOD;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_MOD;
+				return RHO_TOK_ASSIGN_MOD;
 			break;
 		}
 		break;
 	case '&':
 		if (len == 1)
-			return TOK_BITAND;
+			return RHO_TOK_BITAND;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_BITAND;
+				return RHO_TOK_ASSIGN_BITAND;
 			break;
 		case '&':
 			if (len == 2)
-				return TOK_AND;
+				return RHO_TOK_AND;
 			break;
 		}
 		break;
 	case '|':
 		if (len == 1)
-			return TOK_BITOR;
+			return RHO_TOK_BITOR;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_BITOR;
+				return RHO_TOK_ASSIGN_BITOR;
 			break;
 		case '|':
 			if (len == 2)
-				return TOK_OR;
+				return RHO_TOK_OR;
 			break;
 		}
 		break;
 	case '^':
 		if (len == 1)
-			return TOK_XOR;
+			return RHO_TOK_XOR;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_XOR;
+				return RHO_TOK_ASSIGN_XOR;
 			break;
 		}
 		break;
 	case '!':
 		if (len == 1)
-			return TOK_NOT;
+			return RHO_TOK_NOT;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_NOTEQ;
+				return RHO_TOK_NOTEQ;
 			break;
 		}
 		break;
 	case '~':
 		if (len == 1)
-			return TOK_BITNOT;
+			return RHO_TOK_BITNOT;
 
 		switch (str[1]) {
 		}
 		break;
 	case '=':
 		if (len == 1)
-			return TOK_ASSIGN;
+			return RHO_TOK_ASSIGN;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_EQUAL;
+				return RHO_TOK_EQUAL;
 			break;
 		}
 		break;
 	case '<':
 		if (len == 1)
-			return TOK_LT;
+			return RHO_TOK_LT;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_LE;
+				return RHO_TOK_LE;
 			break;
 		case '<':
 			if (len == 2)
-				return TOK_SHIFTL;
+				return RHO_TOK_SHIFTL;
 
 			switch (str[2]) {
 			case '=':
 				if (len == 3)
-					return TOK_ASSIGN_SHIFTL;
+					return RHO_TOK_ASSIGN_SHIFTL;
 				break;
 			}
 			break;
@@ -231,21 +231,21 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 		break;
 	case '>':
 		if (len == 1)
-			return TOK_GT;
+			return RHO_TOK_GT;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_GE;
+				return RHO_TOK_GE;
 			break;
 		case '>':
 			if (len == 2)
-				return TOK_SHIFTR;
+				return RHO_TOK_SHIFTR;
 
 			switch (str[2]) {
 			case '=':
 				if (len == 3)
-					return TOK_ASSIGN_SHIFTR;
+					return RHO_TOK_ASSIGN_SHIFTR;
 				break;
 			}
 			break;
@@ -253,29 +253,29 @@ static TokType str_to_op_toktype(const char *str, const size_t len)
 		break;
 	case '.':
 		if (len == 1)
-			return TOK_DOT;
+			return RHO_TOK_DOT;
 
 		switch (str[1]) {
 		case '.':
 			if (len == 2)
-				return TOK_DOTDOT;
+				return RHO_TOK_DOTDOT;
 			break;
 		}
 		break;
 	case '@':
 		if (len == 1)
-			return TOK_AT;
+			return RHO_TOK_AT;
 
 		switch (str[1]) {
 		case '=':
 			if (len == 2)
-				return TOK_ASSIGN_AT;
+				return RHO_TOK_ASSIGN_AT;
 			break;
 		}
 		break;
 	}
 
-	return TOK_NONE;
+	return RHO_TOK_NONE;
 }
 
 static bool is_word_char(const char c)
@@ -298,7 +298,7 @@ static bool is_id_char(const char c)
  * Forwards the lexer to its current mark then
  * resets the mark.
  */
-static inline void fix(Parser *p)
+static inline void fix(RhoParser *p)
 {
 	p->pos += p->mark + 1;
 	p->mark = 0;
@@ -308,9 +308,9 @@ static inline void fix(Parser *p)
  * Returns the lexer's current token based on
  * its position and mark.
  */
-static Token get(Parser *p, TokType type)
+static RhoToken get(RhoParser *p, RhoTokType type)
 {
-	Token tok;
+	RhoToken tok;
 	tok.value = p->pos;
 	tok.length = p->mark + 1;
 	tok.type = type;
@@ -322,7 +322,7 @@ static Token get(Parser *p, TokType type)
 /*
  * Returns the lexer's current character.
  */
-static inline char currc(Parser *p)
+static inline char currc(RhoParser *p)
 {
 	return p->pos[p->mark];
 }
@@ -330,7 +330,7 @@ static inline char currc(Parser *p)
 /*
  * Returns the lexer's next character.
  */
-static inline char nextc(Parser *p)
+static inline char nextc(RhoParser *p)
 {
 	return p->pos[p->mark + 1];
 }
@@ -338,7 +338,7 @@ static inline char nextc(Parser *p)
 /*
  * Returns the lexer's next next character.
  */
-static inline char next_nextc(Parser *p)
+static inline char next_nextc(RhoParser *p)
 {
 	return p->pos[p->mark + 2];
 }
@@ -346,7 +346,7 @@ static inline char next_nextc(Parser *p)
 /*
  * Advances the lexer mark.
  */
-static inline void adv(Parser *p)
+static inline void adv(RhoParser *p)
 {
 	++p->mark;
 }
@@ -354,7 +354,7 @@ static inline void adv(Parser *p)
 /*
  * Forwards the lexer position.
  */
-static inline void fwd(Parser *p)
+static inline void fwd(RhoParser *p)
 {
 	++p->pos;
 }
@@ -362,7 +362,7 @@ static inline void fwd(Parser *p)
 /*
  * Rewinds the lexer mark.
  */
-static inline void rew(Parser *p)
+static inline void rew(RhoParser *p)
 {
 	--p->mark;
 }
@@ -372,39 +372,39 @@ static inline bool isspace_except_newline(int c)
 	return isspace(c) && c != '\n';
 }
 
-static void skip_spaces(Parser *p)
+static void skip_spaces(RhoParser *p)
 {
 	while (isspace_except_newline(p->pos[0])) {
 		fwd(p);
 	}
 }
 
-static void read_digits(Parser *p)
+static void read_digits(RhoParser *p)
 {
 	while (isdigit(nextc(p))) {
 		adv(p);
 	}
 }
 
-static Token next_number(Parser *p)
+static RhoToken next_number(RhoParser *p)
 {
 	assert(isdigit(currc(p)));
 
-	TokType type = TOK_INT;
+	RhoTokType type = RHO_TOK_INT;
 	read_digits(p);
 
 	if (nextc(p) == '.' && !is_op_char(next_nextc(p))) {
 		adv(p);
 		read_digits(p);
-		type = TOK_FLOAT;
+		type = RHO_TOK_FLOAT;
 	}
 
-	Token tok = get(p, type);
+	RhoToken tok = get(p, type);
 	fix(p);
 	return tok;
 }
 
-static Token next_string(Parser *p, const char delim)
+static RhoToken next_string(RhoParser *p, const char delim)
 {
 	assert(delim == '"' || delim == '\'');
 	assert(currc(p) == delim);
@@ -428,13 +428,13 @@ static Token next_string(Parser *p, const char delim)
 		adv(p);
 	} while (true);
 
-	Token tok = get(p, TOK_STR);
+	RhoToken tok = get(p, RHO_TOK_STR);
 
 	fix(p);
 	return tok;
 }
 
-static Token next_op(Parser *p)
+static RhoToken next_op(RhoParser *p)
 {
 	assert(is_op_char(currc(p)));
 
@@ -450,39 +450,39 @@ static Token next_op(Parser *p)
 	 * Back up until we reach a 'valid' operator,
 	 * in accordance with the maximal munch rule.
 	 */
-	TokType optype;
+	RhoTokType optype;
 
-	while ((optype = str_to_op_toktype(p->pos, p->mark + 1)) == TOK_NONE) {
+	while ((optype = str_to_op_toktype(p->pos, p->mark + 1)) == RHO_TOK_NONE) {
 		rew(p);
 	}
 
-	Token tok = get(p, optype);
+	RhoToken tok = get(p, optype);
 	fix(p);
 	return tok;
 }
 
-static Token next_word(Parser *p)
+static RhoToken next_word(RhoParser *p)
 {
 	static const struct {
 		const char *keyword;
-		TokType type;
+		RhoTokType type;
 	} keywords[] = {
-		{"print",    TOK_PRINT},
-		{"if",       TOK_IF},
-		{"elif",     TOK_ELIF},
-		{"else",     TOK_ELSE},
-		{"while",    TOK_WHILE},
-		{"for",      TOK_FOR},
-		{"in",       TOK_IN},
-		{"def",      TOK_DEF},
-		{"break",    TOK_BREAK},
-		{"continue", TOK_CONTINUE},
-		{"return",   TOK_RETURN},
-		{"throw",    TOK_THROW},
-		{"try",      TOK_TRY},
-		{"catch",    TOK_CATCH},
-		{"import",   TOK_IMPORT},
-		{"export",   TOK_EXPORT}
+		{"print",    RHO_TOK_PRINT},
+		{"if",       RHO_TOK_IF},
+		{"elif",     RHO_TOK_ELIF},
+		{"else",     RHO_TOK_ELSE},
+		{"while",    RHO_TOK_WHILE},
+		{"for",      RHO_TOK_FOR},
+		{"in",       RHO_TOK_IN},
+		{"def",      RHO_TOK_DEF},
+		{"break",    RHO_TOK_BREAK},
+		{"continue", RHO_TOK_CONTINUE},
+		{"return",   RHO_TOK_RETURN},
+		{"throw",    RHO_TOK_THROW},
+		{"try",      RHO_TOK_TRY},
+		{"catch",    RHO_TOK_CATCH},
+		{"import",   RHO_TOK_IMPORT},
+		{"export",   RHO_TOK_EXPORT}
 	};
 
 	assert(is_word_char(currc(p)));
@@ -491,7 +491,7 @@ static Token next_word(Parser *p)
 		adv(p);
 	}
 
-	Token tok = get(p, TOK_IDENT);
+	RhoToken tok = get(p, RHO_TOK_IDENT);
 	fix(p);
 
 	const size_t keywords_size = sizeof(keywords)/sizeof(keywords[0]);
@@ -510,115 +510,115 @@ static Token next_word(Parser *p)
 	return tok;
 }
 
-static Token next_paren_open(Parser *p)
+static RhoToken next_paren_open(RhoParser *p)
 {
 	assert(currc(p) == '(');
-	Token tok = get(p, TOK_PAREN_OPEN);
+	RhoToken tok = get(p, RHO_TOK_PAREN_OPEN);
 	fwd(p);
 	return tok;
 }
 
-static Token next_paren_close(Parser *p)
+static RhoToken next_paren_close(RhoParser *p)
 {
 	assert(currc(p) == ')');
-	Token tok = get(p, TOK_PAREN_CLOSE);
+	RhoToken tok = get(p, RHO_TOK_PAREN_CLOSE);
 	fwd(p);
 	return tok;
 }
 
-static Token next_brace_open(Parser *p)
+static RhoToken next_brace_open(RhoParser *p)
 {
 	assert(currc(p) == '{');
-	Token tok = get(p, TOK_BRACE_OPEN);
+	RhoToken tok = get(p, RHO_TOK_BRACE_OPEN);
 	fwd(p);
 	return tok;
 }
 
-static Token next_brace_close(Parser *p)
+static RhoToken next_brace_close(RhoParser *p)
 {
 	assert(currc(p) == '}');
-	Token tok = get(p, TOK_BRACE_CLOSE);
+	RhoToken tok = get(p, RHO_TOK_BRACE_CLOSE);
 	fwd(p);
 	return tok;
 }
 
-static Token next_bracket_open(Parser *p)
+static RhoToken next_bracket_open(RhoParser *p)
 {
 	assert(currc(p) == '[');
-	Token tok = get(p, TOK_BRACK_OPEN);
+	RhoToken tok = get(p, RHO_TOK_BRACK_OPEN);
 	fwd(p);
 	return tok;
 }
 
-static Token next_bracket_close(Parser *p)
+static RhoToken next_bracket_close(RhoParser *p)
 {
 	assert(currc(p) == ']');
-	Token tok = get(p, TOK_BRACK_CLOSE);
+	RhoToken tok = get(p, RHO_TOK_BRACK_CLOSE);
 	fwd(p);
 	return tok;
 }
 
-static Token next_comma(Parser *p)
+static RhoToken next_comma(RhoParser *p)
 {
 	assert(currc(p) == ',');
-	Token tok = get(p, TOK_COMMA);
+	RhoToken tok = get(p, RHO_TOK_COMMA);
 	fwd(p);
 	return tok;
 }
 
-static Token next_colon(Parser *p)
+static RhoToken next_colon(RhoParser *p)
 {
 	assert(currc(p) == ':');
-	Token tok = get(p, TOK_COLON);
+	RhoToken tok = get(p, RHO_TOK_COLON);
 	fwd(p);
 	return tok;
 }
 
-static Token next_dollar_ident(Parser *p)
+static RhoToken next_dollar_ident(RhoParser *p)
 {
 	assert(currc(p) == '$');
 
 	if (!isdigit(nextc(p)) || nextc(p) == '0') {
 		fwd(p);
-		PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNEXPECTED_CHAR);
-		Token x;
+		RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_UNEXPECTED_CHAR);
+		static RhoToken x;
 		return x;
 	}
 
 	read_digits(p);
-	Token tok = get(p, TOK_DOLLAR);
+	RhoToken tok = get(p, RHO_TOK_DOLLAR);
 	fix(p);
 	return tok;
 }
 
-static Token next_semicolon(Parser *p)
+static RhoToken next_semicolon(RhoParser *p)
 {
 	assert(currc(p) == ';');
-	Token tok = get(p, TOK_SEMICOLON);
+	RhoToken tok = get(p, RHO_TOK_SEMICOLON);
 	fwd(p);
 	return tok;
 }
 
-static Token next_newline(Parser *p)
+static RhoToken next_newline(RhoParser *p)
 {
 	assert(currc(p) == '\n');
-	Token tok = get(p, TOK_NEWLINE);
+	RhoToken tok = get(p, RHO_TOK_NEWLINE);
 	fwd(p);
 	++p->lineno;
 	return tok;
 }
 
-static Token eof_token(void)
+static RhoToken eof_token(void)
 {
-	Token tok;
+	RhoToken tok;
 	tok.value = NULL;
 	tok.length = 0;
-	tok.type = TOK_EOF;
+	tok.type = RHO_TOK_EOF;
 	tok.lineno = 0;
 	return tok;
 }
 
-static void pass_comment(Parser *p)
+static void pass_comment(RhoParser *p)
 {
 	assert(currc(p) == '#');
 	while (currc(p) != '\n' && currc(p) != '\0') {
@@ -626,7 +626,7 @@ static void pass_comment(Parser *p)
 	}
 }
 
-static void add_token(Parser *p, Token *tok)
+static void add_token(RhoParser *p, RhoToken *tok)
 {
 	const size_t size = p->tok_count;
 	const size_t capacity = p->tok_capacity;
@@ -634,17 +634,17 @@ static void add_token(Parser *p, Token *tok)
 	if (size == capacity) {
 		const size_t new_capacity = (capacity * 3) / 2 + 1;
 		p->tok_capacity = new_capacity;
-		p->tokens = rho_realloc(p->tokens, new_capacity * sizeof(Token));
+		p->tokens = rho_realloc(p->tokens, new_capacity * sizeof(RhoToken));
 	}
 
 	p->tokens[p->tok_count++] = *tok;
 }
 
-void parser_tokenize(Parser *p)
+void rho_parser_tokenize(RhoParser *p)
 {
 	while (true) {
 		skip_spaces(p);
-		Token tok;
+		RhoToken tok;
 		const char c = p->pos[0];
 
 		if (c == '\0') {
@@ -707,14 +707,14 @@ void parser_tokenize(Parser *p)
 			}
 		}
 
-		if (PARSER_ERROR(p)) {
+		if (RHO_PARSER_ERROR(p)) {
 			goto err;
 		}
 
 		add_token(p, &tok);
 	}
 
-	Token eof = eof_token();
+	RhoToken eof = eof_token();
 	eof.lineno = p->lineno;
 	add_token(p, &eof);
 	return;
@@ -736,42 +736,42 @@ void parser_tokenize(Parser *p)
  * `parser_peek_token` is analogous.
  */
 
-Token *parser_next_token(Parser *p)
+RhoToken *rho_parser_next_token(RhoParser *p)
 {
-	Token *tok;
+	RhoToken *tok;
 	do {
-		tok = parser_next_token_direct(p);
-	} while (tok->type == TOK_NEWLINE);
+		tok = rho_parser_next_token_direct(p);
+	} while (tok->type == RHO_TOK_NEWLINE);
 	return tok;
 }
 
-Token *parser_next_token_direct(Parser *p)
+RhoToken *rho_parser_next_token_direct(RhoParser *p)
 {
 	p->peek = NULL;
 
-	Token *next = &p->tokens[p->tok_pos];
+	RhoToken *next = &p->tokens[p->tok_pos];
 
-	if (next->type != TOK_EOF) {
+	if (next->type != RHO_TOK_EOF) {
 		++p->tok_pos;
 	}
 
 	return next;
 }
 
-Token *parser_peek_token(Parser *p)
+RhoToken *rho_parser_peek_token(RhoParser *p)
 {
 	if (p->peek != NULL) {
 		return p->peek;
 	}
 
-	Token *tokens = p->tokens;
+	RhoToken *tokens = p->tokens;
 
 	const size_t tok_count = p->tok_count;
 	const size_t tok_pos = p->tok_pos;
 	size_t offset = 0;
 
 	while (tok_pos + offset < tok_count &&
-	       tokens[tok_pos + offset].type == TOK_NEWLINE) {
+	       tokens[tok_pos + offset].type == RHO_TOK_NEWLINE) {
 
 		++offset;
 	}
@@ -783,22 +783,22 @@ Token *parser_peek_token(Parser *p)
 	return p->peek = &tokens[tok_pos + offset];
 }
 
-Token *parser_peek_token_direct(Parser *p)
+RhoToken *rho_parser_peek_token_direct(RhoParser *p)
 {
 	return &p->tokens[p->tok_pos];
 }
 
-bool parser_has_next_token(Parser *p)
+bool rho_parser_has_next_token(RhoParser *p)
 {
-	return p->tokens[p->tok_pos].type != TOK_EOF;
+	return p->tokens[p->tok_pos].type != RHO_TOK_EOF;
 }
 
-static void lex_err_unexpected_char(Parser *p, const char *c)
+static void lex_err_unexpected_char(RhoParser *p, const char *c)
 {
-	const char *tok_err = err_on_char(c, p->code, p->end, p->lineno);
-	PARSER_SET_ERROR_MSG(p,
-	                     str_format(SYNTAX_ERROR " unexpected character: %c\n\n%s",
-	                                p->name, p->lineno, *c, tok_err));
-	FREE(tok_err);
-	PARSER_SET_ERROR_TYPE(p, PARSE_ERR_UNEXPECTED_CHAR);
+	const char *tok_err = rho_err_on_char(c, p->code, p->end, p->lineno);
+	RHO_PARSER_SET_ERROR_MSG(p,
+	                         rho_util_str_format(RHO_SYNTAX_ERROR " unexpected character: %c\n\n%s",
+	                            p->name, p->lineno, *c, tok_err));
+	RHO_FREE(tok_err);
+	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_UNEXPECTED_CHAR);
 }

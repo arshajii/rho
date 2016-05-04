@@ -8,16 +8,16 @@
 #include "strobject.h"
 #include "metaclass.h"
 
-static void meta_class_del(Value *this)
+static void meta_class_del(RhoValue *this)
 {
-	UNUSED(this);
+	RHO_UNUSED(this);
 }
 
-static StrObject *meta_class_str(Value *this)
+static RhoStrObject *meta_class_str(RhoValue *this)
 {
 #define STR_MAX_LEN 50
 	char buf[STR_MAX_LEN];
-	Class *class = objvalue(this);
+	RhoClass *class = rho_objvalue(this);
 	size_t len = snprintf(buf, STR_MAX_LEN, "<class %s>", class->name);
 	assert(len > 0);
 
@@ -25,35 +25,35 @@ static StrObject *meta_class_str(Value *this)
 		len = STR_MAX_LEN;
 	}
 
-	Value ret = strobj_make_direct(buf, len);
-	return (StrObject *)objvalue(&ret);
+	RhoValue ret = rho_strobj_make_direct(buf, len);
+	return (RhoStrObject *)rho_objvalue(&ret);
 #undef STR_MAX_LEN
 }
 
-static Value meta_class_call(Value *this,
-                             Value *args,
-                             Value *args_named,
+static RhoValue meta_class_call(RhoValue *this,
+                             RhoValue *args,
+                             RhoValue *args_named,
                              size_t nargs,
                              size_t nargs_named)
 {
-	UNUSED(args_named);
+	RHO_UNUSED(args_named);
 
 	if (nargs_named > 0) {
-		return call_exc_constructor_named_args();
+		return rho_call_exc_constructor_named_args();
 	}
 
-	Class *class = objvalue(this);
-	InitFunc init = resolve_init(class);
+	RhoClass *class = rho_objvalue(this);
+	InitFunc init = rho_resolve_init(class);
 
 	if (!init) {
-		return type_exc_cannot_instantiate(class);
+		return rho_type_exc_cannot_instantiate(class);
 	}
 
-	Value instance = makeobj(obj_alloc(class));
-	Value init_result = init(&instance, args, nargs);
+	RhoValue instance = rho_makeobj(rho_obj_alloc(class));
+	RhoValue init_result = init(&instance, args, nargs);
 
-	if (iserror(&init_result)) {
-		free(objvalue(&instance));  /* straight-up free; no need to
+	if (rho_iserror(&init_result)) {
+		free(rho_objvalue(&instance));  /* straight-up free; no need to
 		                               go through `release` since we can
 		                               be sure nobody has a reference to
 		                               the newly created instance        */
@@ -63,12 +63,12 @@ static Value meta_class_call(Value *this,
 	}
 }
 
-Class meta_class = {
-	.base = CLASS_BASE_INIT(),
-	.name = "MetaClass",
-	.super = &meta_class,
+RhoClass rho_meta_class = {
+	.base = RHO_CLASS_BASE_INIT(),
+	.name = "MetaRhoClass",
+	.super = &rho_meta_class,
 
-	.instance_size = sizeof(Class),
+	.instance_size = sizeof(RhoClass),
 
 	.init = NULL,
 	.del = meta_class_del,

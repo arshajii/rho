@@ -1,109 +1,109 @@
-#ifndef VMOPS_H
-#define VMOPS_H
+#ifndef RHO_VMOPS_H
+#define RHO_VMOPS_H
 
 #include "strobject.h"
 #include "object.h"
 
-Value op_hash(Value *v);
+RhoValue rho_op_hash(RhoValue *v);
 
-StrObject *op_str(Value *v);
+RhoStrObject *rho_op_str(RhoValue *v);
 
-void op_print(Value *v, FILE *out);
+void rho_op_print(RhoValue *v, FILE *out);
 
-Value op_add(Value *a, Value *b);
+RhoValue rho_op_add(RhoValue *a, RhoValue *b);
 
-Value op_sub(Value *a, Value *b);
+RhoValue rho_op_sub(RhoValue *a, RhoValue *b);
 
-Value op_mul(Value *a, Value *b);
+RhoValue rho_op_mul(RhoValue *a, RhoValue *b);
 
-Value op_div(Value *a, Value *b);
+RhoValue rho_op_div(RhoValue *a, RhoValue *b);
 
-Value op_mod(Value *a, Value *b);
+RhoValue rho_op_mod(RhoValue *a, RhoValue *b);
 
-Value op_pow(Value *a, Value *b);
+RhoValue rho_op_pow(RhoValue *a, RhoValue *b);
 
-Value op_bitand(Value *a, Value *b);
+RhoValue rho_op_bitand(RhoValue *a, RhoValue *b);
 
-Value op_bitor(Value *a, Value *b);
+RhoValue rho_op_bitor(RhoValue *a, RhoValue *b);
 
-Value op_xor(Value *a, Value *b);
+RhoValue rho_op_xor(RhoValue *a, RhoValue *b);
 
-Value op_bitnot(Value *a);
+RhoValue rho_op_bitnot(RhoValue *a);
 
-Value op_shiftl(Value *a, Value *b);
+RhoValue rho_op_shiftl(RhoValue *a, RhoValue *b);
 
-Value op_shiftr(Value *a, Value *b);
+RhoValue rho_op_shiftr(RhoValue *a, RhoValue *b);
 
-Value op_and(Value *a, Value *b);
+RhoValue rho_op_and(RhoValue *a, RhoValue *b);
 
-Value op_or(Value *a, Value *b);
+RhoValue rho_op_or(RhoValue *a, RhoValue *b);
 
-Value op_not(Value *a);
+RhoValue rho_op_not(RhoValue *a);
 
-Value op_eq(Value *a, Value *b);
+RhoValue rho_op_eq(RhoValue *a, RhoValue *b);
 
-Value op_neq(Value *a, Value *b);
+RhoValue rho_op_neq(RhoValue *a, RhoValue *b);
 
-Value op_lt(Value *a, Value *b);
+RhoValue rho_op_lt(RhoValue *a, RhoValue *b);
 
-Value op_gt(Value *a, Value *b);
+RhoValue rho_op_gt(RhoValue *a, RhoValue *b);
 
-Value op_le(Value *a, Value *b);
+RhoValue rho_op_le(RhoValue *a, RhoValue *b);
 
-Value op_ge(Value *a, Value *b);
+RhoValue rho_op_ge(RhoValue *a, RhoValue *b);
 
-Value op_plus(Value *a);
+RhoValue rho_op_plus(RhoValue *a);
 
-Value op_minus(Value *a);
+RhoValue rho_op_minus(RhoValue *a);
 
-Value op_iadd(Value *a, Value *b);
+RhoValue rho_op_iadd(RhoValue *a, RhoValue *b);
 
-Value op_isub(Value *a, Value *b);
+RhoValue rho_op_isub(RhoValue *a, RhoValue *b);
 
-Value op_imul(Value *a, Value *b);
+RhoValue rho_op_imul(RhoValue *a, RhoValue *b);
 
-Value op_idiv(Value *a, Value *b);
+RhoValue rho_op_idiv(RhoValue *a, RhoValue *b);
 
-Value op_imod(Value *a, Value *b);
+RhoValue rho_op_imod(RhoValue *a, RhoValue *b);
 
-Value op_ipow(Value *a, Value *b);
+RhoValue rho_op_ipow(RhoValue *a, RhoValue *b);
 
-Value op_ibitand(Value *a, Value *b);
+RhoValue rho_op_ibitand(RhoValue *a, RhoValue *b);
 
-Value op_ibitor(Value *a, Value *b);
+RhoValue rho_op_ibitor(RhoValue *a, RhoValue *b);
 
-Value op_ixor(Value *a, Value *b);
+RhoValue rho_op_ixor(RhoValue *a, RhoValue *b);
 
-Value op_ishiftl(Value *a, Value *b);
+RhoValue rho_op_ishiftl(RhoValue *a, RhoValue *b);
 
-Value op_ishiftr(Value *a, Value *b);
+RhoValue rho_op_ishiftr(RhoValue *a, RhoValue *b);
 
-Value op_get(Value *v, Value *idx);
+RhoValue rho_op_get(RhoValue *v, RhoValue *idx);
 
-Value op_set(Value *v, Value *idx, Value *e);
+RhoValue rho_op_set(RhoValue *v, RhoValue *idx, RhoValue *e);
 
-Value op_apply(Value *v, Value *fn);
+RhoValue rho_op_apply(RhoValue *v, RhoValue *fn);
 
-Value op_iapply(Value *v, Value *fn);
+RhoValue rho_op_iapply(RhoValue *v, RhoValue *fn);
 
-Value op_get_attr(Value *v, const char *attr);
+RhoValue rho_op_get_attr(RhoValue *v, const char *attr);
 
-Value op_get_attr_default(Value *v, const char *attr);
+RhoValue rho_op_get_attr_default(RhoValue *v, const char *attr);
 
-Value op_set_attr(Value *v, const char *attr, Value *new);
+RhoValue rho_op_set_attr(RhoValue *v, const char *attr, RhoValue *new);
 
-Value op_set_attr_default(Value *v, const char *attr, Value *new);
+RhoValue rho_op_set_attr_default(RhoValue *v, const char *attr, RhoValue *new);
 
-Value op_call(Value *v,
-              Value *args,
-              Value *args_named,
-              const size_t nargs,
-              const size_t nargs_named);
+RhoValue rho_op_call(RhoValue *v,
+                 RhoValue *args,
+                 RhoValue *args_named,
+                 const size_t nargs,
+                 const size_t nargs_named);
 
-Value op_in(Value *element, Value *collection);
+RhoValue rho_op_in(RhoValue *element, RhoValue *collection);
 
-Value op_iter(Value *v);
+RhoValue rho_op_iter(RhoValue *v);
 
-Value op_iternext(Value *v);
+RhoValue rho_op_iternext(RhoValue *v);
 
-#endif /* VMOPS_H */
+#endif /* RHO_VMOPS_H */

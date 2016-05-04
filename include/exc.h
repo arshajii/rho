@@ -1,5 +1,5 @@
-#ifndef EXC_H
-#define EXC_H
+#ifndef RHO_EXC_H
+#define RHO_EXC_H
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -7,63 +7,63 @@
 #include "object.h"
 
 typedef struct {
-	Object base;
+	RhoObject base;
 	const char *msg;
-	struct traceback_manager tbm;
-} Exception;
+	struct rho_traceback_manager tbm;
+} RhoException;
 
 typedef struct {
-	Exception base;
-} IndexException;
+	RhoException base;
+} RhoIndexException;
 
 typedef struct {
-	Exception base;
-} TypeException;
+	RhoException base;
+} RhoTypeException;
 
 typedef struct {
-	Exception base;
-} AttributeException;
+	RhoException base;
+} RhoAttributeException;
 
 typedef struct {
-	Exception base;
-} ImportException;
+	RhoException base;
+} RhoImportException;
 
-extern Class exception_class;
-extern Class index_exception_class;
-extern Class type_exception_class;
-extern Class attr_exception_class;
-extern Class import_exception_class;
+extern RhoClass rho_exception_class;
+extern RhoClass rho_index_exception_class;
+extern RhoClass rho_type_exception_class;
+extern RhoClass rho_attr_exception_class;
+extern RhoClass rho_import_exception_class;
 
-Value exc_make(Class *exc_class, bool active, const char *msg_format, ...);
-void exc_traceback_append(Exception *e,
-                          const char *fn,
-                          const unsigned int lineno);
-void exc_traceback_print(Exception *e, FILE *out);
-void exc_print_msg(Exception *e, FILE *out);
+RhoValue rho_exc_make(RhoClass *exc_class, bool active, const char *msg_format, ...);
+void rho_exc_traceback_append(RhoException *e,
+                              const char *fn,
+                              const unsigned int lineno);
+void rho_exc_traceback_print(RhoException *e, FILE *out);
+void rho_exc_print_msg(RhoException *e, FILE *out);
 
-#define EXC(...)        exc_make(&exception_class, true, __VA_ARGS__)
-#define INDEX_EXC(...)  exc_make(&index_exception_class, true, __VA_ARGS__)
-#define TYPE_EXC(...)   exc_make(&type_exception_class, true, __VA_ARGS__)
-#define ATTR_EXC(...)   exc_make(&attr_exception_class, true, __VA_ARGS__)
-#define IMPORT_EXC(...) exc_make(&import_exception_class, true, __VA_ARGS__)
+#define RHO_EXC(...)        rho_exc_make(&rho_exception_class, true, __VA_ARGS__)
+#define RHO_INDEX_EXC(...)  rho_exc_make(&rho_index_exception_class, true, __VA_ARGS__)
+#define RHO_TYPE_EXC(...)   rho_exc_make(&rho_type_exception_class, true, __VA_ARGS__)
+#define RHO_ATTR_EXC(...)   rho_exc_make(&rho_attr_exception_class, true, __VA_ARGS__)
+#define RHO_IMPORT_EXC(...) rho_exc_make(&rho_import_exception_class, true, __VA_ARGS__)
 
-Value type_exc_unsupported_1(const char *op, const Class *c1);
-Value type_exc_unsupported_2(const char *op, const Class *c1, const Class *c2);
-Value type_exc_cannot_index(const Class *c1);
-Value type_exc_cannot_apply(const Class *c1);
-Value type_exc_cannot_instantiate(const Class *c1);
-Value type_exc_not_callable(const Class *c1);
-Value type_exc_not_iterable(const Class *c1);
-Value type_exc_not_iterator(const Class *c1);
-Value call_exc_num_args(const char *fn, unsigned int expected, unsigned int got);
-Value call_exc_dup_arg(const char *fn, const char *name);
-Value call_exc_unknown_arg(const char *fn, const char *name);
-Value call_exc_missing_arg(const char *fn, const char *name);
-Value call_exc_native_named_args(void);
-Value call_exc_constructor_named_args(void);
-Value attr_exc_not_found(const Class *type, const char *attr);
-Value attr_exc_readonly(const Class *type, const char *attr);
-Value attr_exc_mismatch(const Class *type, const char *attr, const Class *assign_type);
-Value import_exc_not_found(const char *name);
+RhoValue rho_type_exc_unsupported_1(const char *op, const RhoClass *c1);
+RhoValue rho_type_exc_unsupported_2(const char *op, const RhoClass *c1, const RhoClass *c2);
+RhoValue rho_type_exc_cannot_index(const RhoClass *c1);
+RhoValue rho_type_exc_cannot_apply(const RhoClass *c1);
+RhoValue rho_type_exc_cannot_instantiate(const RhoClass *c1);
+RhoValue rho_type_exc_not_callable(const RhoClass *c1);
+RhoValue rho_type_exc_not_iterable(const RhoClass *c1);
+RhoValue rho_type_exc_not_iterator(const RhoClass *c1);
+RhoValue rho_call_exc_num_args(const char *fn, unsigned int expected, unsigned int got);
+RhoValue rho_call_exc_dup_arg(const char *fn, const char *name);
+RhoValue rho_call_exc_unknown_arg(const char *fn, const char *name);
+RhoValue rho_call_exc_missing_arg(const char *fn, const char *name);
+RhoValue rho_call_exc_native_named_args(void);
+RhoValue rho_call_exc_constructor_named_args(void);
+RhoValue rho_attr_exc_not_found(const RhoClass *type, const char *attr);
+RhoValue rho_attr_exc_readonly(const RhoClass *type, const char *attr);
+RhoValue rho_attr_exc_mismatch(const RhoClass *type, const char *attr, const RhoClass *assign_type);
+RhoValue rho_import_exc_not_found(const char *name);
 
-#endif /* EXC_H */
+#endif /* RHO_EXC_H */

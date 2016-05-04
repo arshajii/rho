@@ -1,5 +1,5 @@
-#ifndef STRBUF_H
-#define STRBUF_H
+#ifndef RHO_STRBUF_H
+#define RHO_STRBUF_H
 
 #include <stdlib.h>
 #include "str.h"
@@ -8,12 +8,12 @@ typedef struct {
 	char *buf;
 	size_t len;
 	size_t cap;
-} StrBuf;
+} RhoStrBuf;
 
-void strbuf_init(StrBuf *sb, const size_t cap);
-void strbuf_init_default(StrBuf *sb);
-void strbuf_append(StrBuf *sb, const char *str, const size_t len);
-void strbuf_to_str(StrBuf *sb, Str *dest);
-void strbuf_dealloc(StrBuf *sb);
+void rho_strbuf_init(RhoStrBuf *sb, const size_t cap);
+void rho_strbuf_init_default(RhoStrBuf *sb);
+void rho_strbuf_append(RhoStrBuf *sb, const char *str, const size_t len);
+void rho_strbuf_to_str(RhoStrBuf *sb, RhoStr *dest);
+void rho_strbuf_dealloc(RhoStrBuf *sb);
 
-#endif /* STRBUF_H */
+#endif /* RHO_STRBUF_H */

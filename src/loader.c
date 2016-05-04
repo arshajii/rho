@@ -6,7 +6,7 @@
 #include "err.h"
 #include "loader.h"
 
-int load_from_file(const char *name, const bool name_has_ext, Code *dest)
+int rho_load_from_file(const char *name, const bool name_has_ext, RhoCode *dest)
 {
 	FILE *compiled;
 
@@ -21,24 +21,24 @@ int load_from_file(const char *name, const bool name_has_ext, Code *dest)
 	}
 
 	if (compiled == NULL) {
-		return LOAD_ERR_NOT_FOUND;
+		return RHO_LOAD_ERR_NOT_FOUND;
 	}
 
 	fseek(compiled, 0L, SEEK_END);
-	const size_t code_size = ftell(compiled) - magic_size;
+	const size_t code_size = ftell(compiled) - rho_magic_size;
 	fseek(compiled, 0L, SEEK_SET);
 
 	/* verify file signature */
-	for (size_t i = 0; i < magic_size; i++) {
+	for (size_t i = 0; i < rho_magic_size; i++) {
 		const byte c = fgetc(compiled);
-		if (c != magic[i]) {
-			return LOAD_ERR_INVALID_SIGNATURE;
+		if (c != rho_magic[i]) {
+			return RHO_LOAD_ERR_INVALID_SIGNATURE;
 		}
 	}
 
-	code_init(dest, code_size);
+	rho_code_init(dest, code_size);
 	fread(dest->bc, 1, code_size, compiled);
 	dest->size = code_size;
 	fclose(compiled);
-	return LOAD_ERR_NONE;
+	return RHO_LOAD_ERR_NONE;
 }

@@ -7,14 +7,14 @@
 #define STRDICT_INIT_TABLE_SIZE  32
 #define STRDICT_LOAD_FACTOR      0.75f
 
-#define HASH(key)  (secondary_hash(str_hash((key))))
+#define HASH(key)  (rho_util_hash_secondary(rho_str_hash((key))))
 
-typedef StrDictEntry Entry;
+typedef RhoStrDictEntry Entry;
 
 static Entry **make_empty_table(const size_t capacity);
-static void strdict_resize(StrDict *dict, const size_t new_capacity);
+static void strdict_resize(RhoStrDict *dict, const size_t new_capacity);
 
-void strdict_init(StrDict *dict)
+void rho_strdict_init(RhoStrDict *dict)
 {
 	dict->table = make_empty_table(STRDICT_INIT_TABLE_SIZE);
 	dict->count = 0;
@@ -22,7 +22,7 @@ void strdict_init(StrDict *dict)
 	dict->threshold = (size_t)(STRDICT_INIT_TABLE_SIZE * STRDICT_LOAD_FACTOR);
 }
 
-static Entry *make_entry(Str *key, const int hash, Value *value)
+static Entry *make_entry(RhoStr *key, const int hash, RhoValue *value)
 {
 	Entry *entry = rho_malloc(sizeof(Entry));
 	entry->key = *key;
@@ -32,30 +32,30 @@ static Entry *make_entry(Str *key, const int hash, Value *value)
 	return entry;
 }
 
-Value strdict_get(StrDict *dict, Str *key)
+RhoValue rho_strdict_get(RhoStrDict *dict, RhoStr *key)
 {
 	const int hash = HASH(key);
 	for (Entry *entry = dict->table[hash & (dict->capacity - 1)];
 	     entry != NULL;
 	     entry = entry->next) {
 
-		if (hash == entry->hash && str_eq(key, &entry->key)) {
+		if (hash == entry->hash && rho_str_eq(key, &entry->key)) {
 			return entry->value;
 		}
 	}
 
-	return makeempty();
+	return rho_makeempty();
 }
 
-Value strdict_get_cstr(StrDict *dict, const char *key)
+RhoValue rho_strdict_get_cstr(RhoStrDict *dict, const char *key)
 {
-	Str key_str = STR_INIT(key, strlen(key), 0);
-	return strdict_get(dict, &key_str);
+	RhoStr key_str = RHO_STR_INIT(key, strlen(key), 0);
+	return rho_strdict_get(dict, &key_str);
 }
 
-void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable)
+void rho_strdict_put(RhoStrDict *dict, const char *key, RhoValue *value, bool key_freeable)
 {
-	Str key_str = STR_INIT(key, strlen(key), (key_freeable ? 1 : 0));
+	RhoStr key_str = RHO_STR_INIT(key, strlen(key), (key_freeable ? 1 : 0));
 	Entry **table = dict->table;
 	const size_t capacity = dict->capacity;
 	const int hash = HASH(&key_str);
@@ -65,11 +65,11 @@ void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable
 	     entry != NULL;
 	     entry = entry->next) {
 
-		if (hash == entry->hash && str_eq(&key_str, &entry->key)) {
-			release(&entry->value);
+		if (hash == entry->hash && rho_str_eq(&key_str, &entry->key)) {
+			rho_release(&entry->value);
 
 			if (entry->key.freeable) {
-				str_dealloc(&entry->key);
+				rho_str_dealloc(&entry->key);
 			}
 
 			entry->key = key_str;
@@ -89,17 +89,17 @@ void strdict_put(StrDict *dict, const char *key, Value *value, bool key_freeable
 	}
 }
 
-void strdict_put_copy(StrDict *dict, const char *key, size_t len, Value *value)
+void rho_strdict_put_copy(RhoStrDict *dict, const char *key, size_t len, RhoValue *value)
 {
 	if (len == 0) {
 		len = strlen(key);
 	}
 	char *key_copy = rho_malloc(len + 1);
 	strcpy(key_copy, key);
-	strdict_put(dict, key_copy, value, true);
+	rho_strdict_put(dict, key_copy, value, true);
 }
 
-void strdict_dealloc(StrDict *dict)
+void rho_strdict_dealloc(RhoStrDict *dict)
 {
 	Entry **table = dict->table;
 	const size_t capacity = dict->capacity;
@@ -109,9 +109,9 @@ void strdict_dealloc(StrDict *dict)
 		while (entry != NULL) {
 			Entry *temp = entry;
 			entry = entry->next;
-			release(&temp->value);
+			rho_release(&temp->value);
 			if (temp->key.freeable) {
-				str_dealloc(&temp->key);
+				rho_str_dealloc(&temp->key);
 			}
 			free(temp);
 		}
@@ -129,7 +129,7 @@ static Entry **make_empty_table(const size_t capacity)
 	return table;
 }
 
-static void strdict_resize(StrDict *dict, const size_t new_capacity)
+static void strdict_resize(RhoStrDict *dict, const size_t new_capacity)
 {
 	const size_t old_capacity = dict->capacity;
 	Entry **old_table = dict->table;

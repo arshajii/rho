@@ -1,5 +1,5 @@
-#ifndef COMPILER_H
-#define COMPILER_H
+#ifndef RHO_COMPILER_H
+#define RHO_COMPILER_H
 
 #include <stdio.h>
 #include "code.h"
@@ -7,42 +7,42 @@
 #include "consttab.h"
 #include "opcodes.h"
 
-extern const byte magic[];
-extern const size_t magic_size;
+extern const byte rho_magic[];
+extern const size_t rho_magic_size;
 
 /*
  * The following structure is used for
  * continue/break bookkeeping.
  */
-struct loop_block_info {
+struct rho_loop_block_info {
 	size_t start_index;     // start of loop body
 
 	size_t *break_indices;  // indexes of break statements
 	size_t break_indices_size;
 	size_t break_indices_capacity;
 
-	struct loop_block_info *prev;
+	struct rho_loop_block_info *prev;
 };
 
 typedef struct {
 	const char *filename;
-	Code code;
-	struct loop_block_info *lbi;
-	SymTable *st;
-	ConstTable *ct;
+	RhoCode code;
+	struct rho_loop_block_info *lbi;
+	RhoSymTable *st;
+	RhoConstTable *ct;
 
 	unsigned int try_catch_depth;
 	unsigned int try_catch_depth_max;
 
-	Code lno_table;
+	RhoCode lno_table;
 	unsigned int first_lineno;
 	unsigned int first_ins_on_line_idx;
 	unsigned int last_ins_idx;
 	unsigned int last_lineno;
-} Compiler;
+} RhoCompiler;
 
-void compile(const char *name, Program *prog, FILE *out);
+void rho_compile(const char *name, RhoProgram *prog, FILE *out);
 
-int arg_size(Opcode opcode);
+int rho_opcode_arg_size(RhoOpcode opcode);
 
-#endif /* COMPILER_H */
+#endif /* RHO_COMPILER_H */

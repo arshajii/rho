@@ -9,14 +9,14 @@
 #include "err.h"
 #include "exc.h"
 
-Value exc_make(Class *exc_class, bool active, const char *msg_format, ...)
+RhoValue rho_exc_make(RhoClass *exc_class, bool active, const char *msg_format, ...)
 {
 #define EXC_MSG_BUF_SIZE 200
 
 	char msg_static[EXC_MSG_BUF_SIZE];
 
-	Exception *exc = obj_alloc(exc_class);
-	tb_manager_init(&exc->tbm);
+	RhoException *exc = rho_obj_alloc(exc_class);
+	rho_tb_manager_init(&exc->tbm);
 
 	va_list args;
 	va_start(args, msg_format);
@@ -31,24 +31,24 @@ Value exc_make(Class *exc_class, bool active, const char *msg_format, ...)
 	strcpy(msg, msg_static);
 	exc->msg = msg;
 
-	return active ? makeexc(exc) : makeobj(exc);
+	return active ? rho_makeexc(exc) : rho_makeobj(exc);
 
 #undef EXC_MSG_BUF_SIZE
 }
 
-void exc_traceback_append(Exception *e,
+void rho_exc_traceback_append(RhoException *e,
                           const char *fn,
                           const unsigned int lineno)
 {
-	tb_manager_add(&e->tbm, fn, lineno);
+	rho_tb_manager_add(&e->tbm, fn, lineno);
 }
 
-void exc_traceback_print(Exception *e, FILE *out)
+void rho_exc_traceback_print(RhoException *e, FILE *out)
 {
-	tb_manager_print(&e->tbm, out);
+	rho_tb_manager_print(&e->tbm, out);
 }
 
-void exc_print_msg(Exception *e, FILE *out)
+void rho_exc_print_msg(RhoException *e, FILE *out)
 {
 	if (e->msg != NULL) {
 		fprintf(out, "%s: %s\n", e->base.class->name, e->msg);
@@ -59,28 +59,28 @@ void exc_print_msg(Exception *e, FILE *out)
 
 /* Base Exception */
 
-static Value exc_init(Value *this, Value *args, size_t nargs)
+static RhoValue exc_init(RhoValue *this, RhoValue *args, size_t nargs)
 {
 	if (nargs > 1) {
-		return makeerr(error_new(ERR_TYPE_TYPE,
-		                         "Exception constructor takes at most 1 argument (got %lu)",
-		                         nargs));
+		return rho_makeerr(rho_err_new(RHO_ERR_TYPE_TYPE,
+		                               "Exception constructor takes at most 1 argument (got %lu)",
+		                               nargs));
 	}
 
-	Exception *e = objvalue(this);
-	tb_manager_init(&e->tbm);
+	RhoException *e = rho_objvalue(this);
+	rho_tb_manager_init(&e->tbm);
 
 	if (nargs == 0) {
 		e->msg = NULL;
 	} else {
-		if (!is_a(&args[0], &str_class)) {
-			Class *class = getclass(&args[0]);
-			return makeerr(error_new(ERR_TYPE_TYPE,
-			                         "Exception constructor takes a Str argument, not a %s",
-			                         class->name));
+		if (!rho_is_a(&args[0], &rho_str_class)) {
+			RhoClass *class = rho_getclass(&args[0]);
+			return rho_makeerr(rho_err_new(RHO_ERR_TYPE_TYPE,
+			                               "Exception constructor takes a Str argument, not a %s",
+			                               class->name));
 		}
 
-		StrObject *str = objvalue(&args[0]);
+		RhoStrObject *str = rho_objvalue(&args[0]);
 		char *str_copy = rho_malloc(str->str.len + 1);
 		strcpy(str_copy, str->str.value);
 		e->msg = str_copy;
@@ -89,20 +89,20 @@ static Value exc_init(Value *this, Value *args, size_t nargs)
 	return *this;
 }
 
-static void exc_free(Value *this)
+static void exc_free(RhoValue *this)
 {
-	Exception *exc = objvalue(this);
-	FREE(exc->msg);
-	tb_manager_dealloc(&exc->tbm);
+	RhoException *exc = rho_objvalue(this);
+	RHO_FREE(exc->msg);
+	rho_tb_manager_dealloc(&exc->tbm);
 	obj_class.del(this);
 }
 
-Class exception_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Exception",
 	.super = &obj_class,
 
-	.instance_size = sizeof(Exception),
+	.instance_size = sizeof(RhoException),
 
 	.init = exc_init,
 	.del = exc_free,
@@ -130,22 +130,22 @@ Class exception_class = {
 
 /* IndexException */
 
-static Value index_exc_init(Value *this, Value *args, size_t nargs)
+static RhoValue index_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
 {
 	return exc_init(this, args, nargs);
 }
 
-static void index_exc_free(Value *this)
+static void index_exc_free(RhoValue *this)
 {
-	exception_class.del(this);
+	rho_exception_class.del(this);
 }
 
-Class index_exception_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_index_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "IndexException",
-	.super = &exception_class,
+	.super = &rho_exception_class,
 
-	.instance_size = sizeof(IndexException),
+	.instance_size = sizeof(RhoIndexException),
 
 	.init = index_exc_init,
 	.del = index_exc_free,
@@ -173,22 +173,22 @@ Class index_exception_class = {
 
 /* TypeException */
 
-static Value type_exc_init(Value *this, Value *args, size_t nargs)
+static RhoValue type_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
 {
 	return exc_init(this, args, nargs);
 }
 
-static void type_exc_free(Value *this)
+static void type_exc_free(RhoValue *this)
 {
-	exception_class.del(this);
+	rho_exception_class.del(this);
 }
 
-Class type_exception_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_type_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "TypeException",
-	.super = &exception_class,
+	.super = &rho_exception_class,
 
-	.instance_size = sizeof(TypeException),
+	.instance_size = sizeof(RhoTypeException),
 
 	.init = type_exc_init,
 	.del = type_exc_free,
@@ -216,22 +216,22 @@ Class type_exception_class = {
 
 /* AttributeException */
 
-static Value attr_exc_init(Value *this, Value *args, size_t nargs)
+static RhoValue attr_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
 {
 	return exc_init(this, args, nargs);
 }
 
-static void attr_exc_free(Value *this)
+static void attr_exc_free(RhoValue *this)
 {
-	exception_class.del(this);
+	rho_exception_class.del(this);
 }
 
-Class attr_exception_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_attr_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "AttributeException",
-	.super = &exception_class,
+	.super = &rho_exception_class,
 
-	.instance_size = sizeof(AttributeException),
+	.instance_size = sizeof(RhoAttributeException),
 
 	.init = attr_exc_init,
 	.del = attr_exc_free,
@@ -259,22 +259,22 @@ Class attr_exception_class = {
 
 /* ImportException */
 
-static Value import_exc_init(Value *this, Value *args, size_t nargs)
+static RhoValue import_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
 {
 	return exc_init(this, args, nargs);
 }
 
-static void import_exc_free(Value *this)
+static void import_exc_free(RhoValue *this)
 {
-	exception_class.del(this);
+	rho_exception_class.del(this);
 }
 
-Class import_exception_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_import_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "ImportException",
-	.super = &exception_class,
+	.super = &rho_exception_class,
 
-	.instance_size = sizeof(ImportException),
+	.instance_size = sizeof(RhoImportException),
 
 	.init = import_exc_init,
 	.del = import_exc_free,
@@ -302,111 +302,111 @@ Class import_exception_class = {
 
 /* Common Exceptions */
 
-Value type_exc_unsupported_1(const char *op, const Class *c1)
+RhoValue rho_type_exc_unsupported_1(const char *op, const RhoClass *c1)
 {
-	return TYPE_EXC("unsupported operand type for %s: '%s'", op, c1->name);
+	return RHO_TYPE_EXC("unsupported operand type for %s: '%s'", op, c1->name);
 }
 
-Value type_exc_unsupported_2(const char *op, const Class *c1, const Class *c2)
+RhoValue rho_type_exc_unsupported_2(const char *op, const RhoClass *c1, const RhoClass *c2)
 {
-	return TYPE_EXC("unsupported operand types for %s: '%s' and '%s'",
+	return RHO_TYPE_EXC("unsupported operand types for %s: '%s' and '%s'",
 	                op,
 	                c1->name,
 	                c2->name);
 }
 
-Value type_exc_cannot_index(const Class *c1)
+RhoValue rho_type_exc_cannot_index(const RhoClass *c1)
 {
-	return TYPE_EXC("type '%s' does not support indexing", c1->name);
+	return RHO_TYPE_EXC("type '%s' does not support indexing", c1->name);
 }
 
-Value type_exc_cannot_apply(const Class *c1)
+RhoValue rho_type_exc_cannot_apply(const RhoClass *c1)
 {
-	return TYPE_EXC("type '%s' does not support function application", c1->name);
+	return RHO_TYPE_EXC("type '%s' does not support function application", c1->name);
 }
 
-Value type_exc_cannot_instantiate(const Class *c1)
+RhoValue rho_type_exc_cannot_instantiate(const RhoClass *c1)
 {
-	return TYPE_EXC("class '%s' cannot be instantiated", c1->name);
+	return RHO_TYPE_EXC("class '%s' cannot be instantiated", c1->name);
 }
 
-Value type_exc_not_callable(const Class *c1)
+RhoValue rho_type_exc_not_callable(const RhoClass *c1)
 {
-	return TYPE_EXC("object of type '%s' is not callable", c1->name);
+	return RHO_TYPE_EXC("object of type '%s' is not callable", c1->name);
 }
 
-Value type_exc_not_iterable(const Class *c1)
+RhoValue rho_type_exc_not_iterable(const RhoClass *c1)
 {
-	return TYPE_EXC("object of type '%s' is not iterable", c1->name);
+	return RHO_TYPE_EXC("object of type '%s' is not iterable", c1->name);
 }
 
-Value type_exc_not_iterator(const Class *c1)
+RhoValue rho_type_exc_not_iterator(const RhoClass *c1)
 {
-	return TYPE_EXC("object of type '%s' is not an iterator", c1->name);
+	return RHO_TYPE_EXC("object of type '%s' is not an iterator", c1->name);
 }
 
-Value call_exc_num_args(const char *fn, unsigned int expected, unsigned int got)
+RhoValue rho_call_exc_num_args(const char *fn, unsigned int expected, unsigned int got)
 {
-	return TYPE_EXC("function %s(): expected %u arguments, got %u",
+	return RHO_TYPE_EXC("function %s(): expected %u arguments, got %u",
 	                fn,
 	                expected,
 	                got);
 }
 
-Value call_exc_dup_arg(const char *fn, const char *name)
+RhoValue rho_call_exc_dup_arg(const char *fn, const char *name)
 {
-	return TYPE_EXC("function %s(): duplicate argument for parameter '%s'",
+	return RHO_TYPE_EXC("function %s(): duplicate argument for parameter '%s'",
 	                fn,
 	                name);
 }
 
-Value call_exc_unknown_arg(const char *fn, const char *name)
+RhoValue rho_call_exc_unknown_arg(const char *fn, const char *name)
 {
-	return TYPE_EXC("function %s(): unknown parameter name '%s'",
+	return RHO_TYPE_EXC("function %s(): unknown parameter name '%s'",
 	                fn,
 	                name);
 }
 
-Value call_exc_missing_arg(const char *fn, const char *name)
+RhoValue rho_call_exc_missing_arg(const char *fn, const char *name)
 {
-	return TYPE_EXC("function %s(): missing argument for parameter '%s'",
+	return RHO_TYPE_EXC("function %s(): missing argument for parameter '%s'",
 	                fn,
 	                name);
 }
 
-Value call_exc_native_named_args(void)
+RhoValue rho_call_exc_native_named_args(void)
 {
-	return TYPE_EXC("native functions do not take named arguments");
+	return RHO_TYPE_EXC("native functions do not take named arguments");
 }
 
-Value call_exc_constructor_named_args(void)
+RhoValue rho_call_exc_constructor_named_args(void)
 {
-	return TYPE_EXC("constructors do not take named arguments");
+	return RHO_TYPE_EXC("constructors do not take named arguments");
 }
 
-Value attr_exc_not_found(const Class *type, const char *attr)
+RhoValue rho_attr_exc_not_found(const RhoClass *type, const char *attr)
 {
-	return ATTR_EXC("object of type '%s' has no attribute '%s'",
+	return RHO_ATTR_EXC("object of type '%s' has no attribute '%s'",
 	                type->name,
 	                attr);
 }
 
-Value attr_exc_readonly(const Class *type, const char *attr)
+RhoValue rho_attr_exc_readonly(const RhoClass *type, const char *attr)
 {
-	return ATTR_EXC("attribute '%s' of type '%s' object is read-only",
+	return RHO_ATTR_EXC("attribute '%s' of type '%s' object is read-only",
 	                attr,
 	                type->name);
 }
 
-Value attr_exc_mismatch(const Class *type, const char *attr, const Class *assign_type)
+RhoValue rho_attr_exc_mismatch(const RhoClass *type, const char *attr, const RhoClass *assign_type)
 {
-	return ATTR_EXC("cannot assign '%s' to attribute '%s' of '%s' object",
+	return RHO_ATTR_EXC("cannot assign '%s' to attribute '%s' of '%s' object",
 	                assign_type->name,
 	                attr,
 	                type->name);
 }
 
-Value import_exc_not_found(const char *name)
+RhoValue rho_import_exc_not_found(const char *name)
 {
-	return IMPORT_EXC("cannot find module '%s'", name);
+	return RHO_IMPORT_EXC("cannot find module '%s'", name);
 }

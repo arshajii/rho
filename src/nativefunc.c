@@ -4,38 +4,38 @@
 #include "exc.h"
 #include "nativefunc.h"
 
-static void nativefunc_free(Value *nfunc)
+static void nativefunc_free(RhoValue *nfunc)
 {
 	/*
 	 * Purposefully do not call super-destructor,
 	 * since NativeFuncObjects should be statically
 	 * allocated.
 	 */
-	UNUSED(nfunc);
+	RHO_UNUSED(nfunc);
 }
 
-static Value nativefunc_call(Value *this,
-                             Value *args,
-                             Value *args_named,
+static RhoValue nativefunc_call(RhoValue *this,
+                             RhoValue *args,
+                             RhoValue *args_named,
                              size_t nargs,
                              size_t nargs_named)
 {
-	UNUSED(args_named);
+	RHO_UNUSED(args_named);
 
 	if (nargs_named > 0) {
-		return call_exc_native_named_args();
+		return rho_call_exc_native_named_args();
 	}
 
-	NativeFuncObject *nfunc = objvalue(this);
+	RhoNativeFuncObject *nfunc = rho_objvalue(this);
 	return nfunc->func(args, nargs);
 }
 
-Class native_func_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_native_func_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "NativeFunction",
 	.super = &obj_class,
 
-	.instance_size = sizeof(NativeFuncObject),
+	.instance_size = sizeof(RhoNativeFuncObject),
 
 	.init = NULL,
 	.del = nativefunc_free,
@@ -52,7 +52,7 @@ Class native_func_class = {
 	.iternext = NULL,
 
 	.num_methods = NULL,
-	.seq_methods  = NULL,
+	.seq_methods = NULL,
 
 	.members = NULL,
 	.methods = NULL,

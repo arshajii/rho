@@ -38,30 +38,30 @@
  *   - Value stack size (uint16)
  */
 
-static void read_lno_table(CodeObject *co, Code *code);
-static void read_sym_table(CodeObject *co, Code *code);
-static void read_const_table(CodeObject *co, Code *code);
+static void read_lno_table(RhoCodeObject *co, RhoCode *code);
+static void read_sym_table(RhoCodeObject *co, RhoCode *code);
+static void read_const_table(RhoCodeObject *co, RhoCode *code);
 
 /*
  * stack_depth = -1 means that the depth must be read
  * out of `code`.
  */
-CodeObject *codeobj_make(Code *code,
+RhoCodeObject *codeobj_make(RhoCode *code,
                          const char *name,
                          unsigned int argcount,
                          int stack_depth,
                          int try_catch_depth,
-                         VM *vm)
+                         RhoVM *vm)
 {
-	CodeObject *co = obj_alloc(&co_class);
+	RhoCodeObject *co = rho_obj_alloc(&rho_co_class);
 	co->name = name;
 
 	if (stack_depth == -1) {
 		assert(try_catch_depth == -1);
-		stack_depth = code_read_uint16(code);
-		try_catch_depth = code_read_uint16(code);
+		stack_depth = rho_code_read_uint16(code);
+		try_catch_depth = rho_code_read_uint16(code);
 	} else if (stack_depth < 0) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	co->vm = vm;
@@ -75,19 +75,19 @@ CodeObject *codeobj_make(Code *code,
 	return co;
 }
 
-void codeobj_free(Value *this)
+void codeobj_free(RhoValue *this)
 {
-	CodeObject *co = objvalue(this);
+	RhoCodeObject *co = rho_objvalue(this);
 	free(co->names.array);
 	free(co->attrs.array);
 	free(co->frees.array);
 
-	struct value_array *consts = &co->consts;
-	Value *consts_array = consts->array;
+	struct rho_value_array *consts = &co->consts;
+	RhoValue *consts_array = consts->array;
 	const size_t consts_size = consts->length;
 
 	for (size_t i = 0; i < consts_size; i++) {
-		release(&consts_array[i]);
+		rho_release(&consts_array[i]);
 	}
 
 	free(consts_array);
@@ -95,16 +95,16 @@ void codeobj_free(Value *this)
 	obj_class.del(this);
 }
 
-static void read_lno_table(CodeObject *co, Code *code)
+static void read_lno_table(RhoCodeObject *co, RhoCode *code)
 {
-	const unsigned int first_lineno = code_read_uint16(code);
+	const unsigned int first_lineno = rho_code_read_uint16(code);
 
-	const size_t lno_table_size = code_read_uint16(code);
+	const size_t lno_table_size = rho_code_read_uint16(code);
 	co->lno_table = code->bc;
 	co->first_lineno = first_lineno;
 
 	for (size_t i = 0; i < lno_table_size; i++) {
-		code_read_byte(code);
+		rho_code_read_byte(code);
 	}
 }
 
@@ -122,20 +122,20 @@ static void read_lno_table(CodeObject *co, Code *code)
  *
  * Example table: 2 0 'f' 'o' 'o' 0 'b' 'a' 'r' 0
  */
-static void read_sym_table(CodeObject *co, Code *code)
+static void read_sym_table(RhoCodeObject *co, RhoCode *code)
 {
-	assert(code_read_byte(code) == ST_ENTRY_BEGIN);
+	assert(rho_code_read_byte(code) == RHO_ST_ENTRY_BEGIN);
 
 	byte *symtab_bc = code->bc;  /* this is where the table is located */
 
-	while (code_read_byte(code) != ST_ENTRY_END);  /* get past the symbol table */
+	while (rho_code_read_byte(code) != RHO_ST_ENTRY_END);  /* get past the symbol table */
 
 	size_t off = 0;
 
-	const size_t n_locals = read_uint16_from_stream(symtab_bc);
+	const size_t n_locals = rho_util_read_uint16_from_stream(symtab_bc);
 	off += 2;
 
-	struct str_array names;
+	struct rho_str_array names;
 	names.array = rho_malloc(sizeof(*names.array) * n_locals);
 	names.length = n_locals;
 
@@ -153,10 +153,10 @@ static void read_sym_table(CodeObject *co, Code *code)
 		off += len + 1;
 	}
 
-	const size_t n_attrs = read_uint16_from_stream(symtab_bc + off);
+	const size_t n_attrs = rho_util_read_uint16_from_stream(symtab_bc + off);
 	off += 2;
 
-	struct str_array attrs;
+	struct rho_str_array attrs;
 	attrs.array = rho_malloc(sizeof(*attrs.array) * n_attrs);
 	attrs.length = n_attrs;
 
@@ -174,10 +174,10 @@ static void read_sym_table(CodeObject *co, Code *code)
 		off += len + 1;
 	}
 
-	const size_t n_frees = read_uint16_from_stream(symtab_bc + off);
+	const size_t n_frees = rho_util_read_uint16_from_stream(symtab_bc + off);
 	off += 2;
 
-	struct str_array frees;
+	struct rho_str_array frees;
 	frees.array = rho_malloc(sizeof(*frees.array) * n_frees);
 	frees.length = n_frees;
 
@@ -200,31 +200,31 @@ static void read_sym_table(CodeObject *co, Code *code)
 	co->frees = frees;
 }
 
-static void read_const_table(CodeObject *co, Code *code)
+static void read_const_table(RhoCodeObject *co, RhoCode *code)
 {
 	/* read the constant table */
-	assert(code_read_byte(code) == CT_ENTRY_BEGIN);
+	assert(rho_code_read_byte(code) == RHO_CT_ENTRY_BEGIN);
 
-	const size_t ct_size = code_read_uint16(code);
-	Value *constants = rho_malloc(ct_size * sizeof(Value));
+	const size_t ct_size = rho_code_read_uint16(code);
+	RhoValue *constants = rho_malloc(ct_size * sizeof(RhoValue));
 
 	for (size_t i = 0; i < ct_size; i++) {
-		const byte p = code_read_byte(code);
+		const byte p = rho_code_read_byte(code);
 
 		switch (p) {
-		case CT_ENTRY_BEGIN:
-			INTERNAL_ERROR();
+		case RHO_CT_ENTRY_BEGIN:
+			RHO_INTERNAL_ERROR();
 			break;
-		case CT_ENTRY_INT:
-			constants[i].type = VAL_TYPE_INT;
-			constants[i].data.i = code_read_int(code);
+		case RHO_CT_ENTRY_INT:
+			constants[i].type = RHO_VAL_TYPE_INT;
+			constants[i].data.i = rho_code_read_int(code);
 			break;
-		case CT_ENTRY_FLOAT:
-			constants[i].type = VAL_TYPE_FLOAT;
-			constants[i].data.f = code_read_double(code);
+		case RHO_CT_ENTRY_FLOAT:
+			constants[i].type = RHO_VAL_TYPE_FLOAT;
+			constants[i].data.f = rho_code_read_double(code);
 			break;
-		case CT_ENTRY_STRING: {
-			constants[i].type = VAL_TYPE_OBJECT;
+		case RHO_CT_ENTRY_STRING: {
+			constants[i].type = RHO_VAL_TYPE_OBJECT;
 
 			/*
 			 * We read this string manually so we have
@@ -238,26 +238,26 @@ static void read_const_table(CodeObject *co, Code *code)
 
 			char *str = rho_malloc(str_len + 1);
 			for (size_t j = 0; j < str_len; j++) {
-				str[j] = code_read_byte(code);
+				str[j] = rho_code_read_byte(code);
 			}
 			str[str_len] = '\0';
-			code_read_byte(code);  /* skip the string termination byte */
-			constants[i] = strobj_make(STR_INIT(str, str_len, 1));
+			rho_code_read_byte(code);  /* skip the string termination byte */
+			constants[i] = rho_strobj_make(RHO_STR_INIT(str, str_len, 1));
 			break;
 		}
-		case CT_ENTRY_CODEOBJ: {
-			constants[i].type = VAL_TYPE_OBJECT;
-			const size_t code_len = code_read_uint16(code);
-			const char *name = code_read_str(code);
-			const unsigned int argcount = code_read_uint16(code);
-			const unsigned int stack_depth = code_read_uint16(code);
-			const unsigned int try_catch_depth = code_read_uint16(code);
+		case RHO_CT_ENTRY_CODEOBJ: {
+			constants[i].type = RHO_VAL_TYPE_OBJECT;
+			const size_t code_len = rho_code_read_uint16(code);
+			const char *name = rho_code_read_str(code);
+			const unsigned int argcount = rho_code_read_uint16(code);
+			const unsigned int stack_depth = rho_code_read_uint16(code);
+			const unsigned int try_catch_depth = rho_code_read_uint16(code);
 
-			Code sub;
+			RhoCode sub;
 			sub.bc = code->bc;
 			sub.size = code_len;
 			sub.capacity = 0;
-			code_skip_ahead(code, code_len);
+			rho_code_skip_ahead(code, code_len);
 
 			constants[i].data.o = codeobj_make(&sub,
 			                                   name,
@@ -267,20 +267,20 @@ static void read_const_table(CodeObject *co, Code *code)
 			                                   co->vm);
 			break;
 		}
-		case CT_ENTRY_END:
-			INTERNAL_ERROR();
+		case RHO_CT_ENTRY_END:
+			RHO_INTERNAL_ERROR();
 			break;
 		default:
-			INTERNAL_ERROR();
+			RHO_INTERNAL_ERROR();
 			break;
 		}
 	}
-	assert(code_read_byte(code) == CT_ENTRY_END);
+	assert(rho_code_read_byte(code) == RHO_CT_ENTRY_END);
 
-	co->consts = (struct value_array){.array = constants, .length = ct_size};
+	co->consts = (struct rho_value_array){.array = constants, .length = ct_size};
 }
 
-struct num_methods co_num_methods = {
+struct rho_num_methods co_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
 	NULL,    /* abs */
@@ -331,7 +331,7 @@ struct num_methods co_num_methods = {
 	NULL,    /* to_float */
 };
 
-struct seq_methods co_seq_methods = {
+struct rho_seq_methods co_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -340,12 +340,12 @@ struct seq_methods co_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class co_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_co_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "CodeObject",
 	.super = &obj_class,
 
-	.instance_size = sizeof(CodeObject),
+	.instance_size = sizeof(RhoCodeObject),
 
 	.init = NULL,
 	.del = codeobj_free,

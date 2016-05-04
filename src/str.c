@@ -5,9 +5,9 @@
 #include "util.h"
 #include "str.h"
 
-Str *str_new(const char *value, const size_t len)
+RhoStr *rho_str_new(const char *value, const size_t len)
 {
-	Str *str = rho_malloc(sizeof(Str));
+	RhoStr *str = rho_malloc(sizeof(RhoStr));
 	str->value = value;
 	str->len = len;
 	str->hash = 0;
@@ -16,9 +16,9 @@ Str *str_new(const char *value, const size_t len)
 	return str;
 }
 
-Str *str_new_copy(const char *value, const size_t len)
+RhoStr *rho_str_new_copy(const char *value, const size_t len)
 {
-	Str *str = rho_malloc(sizeof(Str));
+	RhoStr *str = rho_malloc(sizeof(RhoStr));
 	char *copy = rho_malloc(len + 1);
 	memcpy(copy, value, len);
 	copy[len] = '\0';
@@ -32,7 +32,7 @@ Str *str_new_copy(const char *value, const size_t len)
 	return str;
 }
 
-bool str_eq(Str *s1, Str *s2)
+bool rho_str_eq(RhoStr *s1, RhoStr *s2)
 {
 	if (s1->len != s2->len) {
 		return false;
@@ -41,22 +41,22 @@ bool str_eq(Str *s1, Str *s2)
 	return memcmp(s1->value, s2->value, s1->len) == 0;
 }
 
-int str_cmp(Str *s1, Str *s2)
+int rho_str_cmp(RhoStr *s1, RhoStr *s2)
 {
 	return strcmp(s1->value, s2->value);
 }
 
-int str_hash(Str *str)
+int rho_str_hash(RhoStr *str)
 {
 	if (!str->hashed) {
-		str->hash = hash_cstr2(str->value, str->len);
+		str->hash = rho_util_hash_cstr2(str->value, str->len);
 		str->hashed = 1;
 	}
 
 	return str->hash;
 }
 
-Str *str_cat(Str *s1, Str *s2)
+RhoStr *rho_str_cat(RhoStr *s1, RhoStr *s2)
 {
 	const size_t len1 = s1->len, len2 = s2->len;
 	const size_t len_cat = len1 + len2;
@@ -73,16 +73,16 @@ Str *str_cat(Str *s1, Str *s2)
 
 	cat[len_cat] = '\0';
 
-	return str_new(cat, len_cat);
+	return rho_str_new(cat, len_cat);
 }
 
-void str_dealloc(Str *str)
+void rho_str_dealloc(RhoStr *str)
 {
-	FREE(str->value);
+	RHO_FREE(str->value);
 }
 
-void str_free(Str *str)
+void rho_str_free(RhoStr *str)
 {
-	str_dealloc(str);
+	rho_str_dealloc(str);
 	free(str);
 }

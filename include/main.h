@@ -1,4 +1,4 @@
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef RHO_MAIN_H
+#define RHO_MAIN_H
 
-#endif /* MAIN_H */
+#endif /* RHO_MAIN_H */

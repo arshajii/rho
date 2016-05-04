@@ -1,19 +1,19 @@
-#ifndef TUPLEOBJECT_H
-#define TUPLEOBJECT_H
+#ifndef RHO_TUPLEOBJECT_H
+#define RHO_TUPLEOBJECT_H
 
 #include <stdlib.h>
 #include "object.h"
 
-extern struct num_methods tuple_num_methods;
-extern struct seq_methods tuple_seq_methods;
-extern Class tuple_class;
+extern struct rho_num_methods rho_tuple_num_methods;
+extern struct rho_seq_methods rho_tuple_seq_methods;
+extern RhoClass rho_tuple_class;
 
 typedef struct {
-	Object base;
+	RhoObject base;
 	size_t count;
-	Value elements[];
-} TupleObject;
+	RhoValue elements[];
+} RhoTupleObject;
 
-Value tuple_make(Value *elements, const size_t count);
+RhoValue rho_tuple_make(RhoValue *elements, const size_t count);
 
-#endif /* TUPLEOBJECT_H */
+#endif /* RHO_TUPLEOBJECT_H */

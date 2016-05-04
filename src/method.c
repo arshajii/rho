@@ -2,33 +2,33 @@
 #include "object.h"
 #include "method.h"
 
-Value methobj_make(Object *binder, MethodFunc meth_func)
+RhoValue rho_methobj_make(RhoObject *binder, MethodFunc meth_func)
 {
-	Method *meth = obj_alloc(&method_class);
-	retaino(binder);
+	RhoMethod *meth = rho_obj_alloc(&rho_method_class);
+	rho_retaino(binder);
 	meth->binder = binder;
 	meth->method = meth_func;
-	return makeobj(meth);
+	return rho_makeobj(meth);
 }
 
-static void methobj_free(Value *this)
+static void methobj_free(RhoValue *this)
 {
-	Method *meth = objvalue(this);
-	releaseo(meth->binder);
+	RhoMethod *meth = rho_objvalue(this);
+	rho_releaseo(meth->binder);
 	meth->base.class->super->del(this);
 }
 
-static Value methobj_invoke(Value *this,
-                            Value *args,
-                            Value *args_named,
+static RhoValue methobj_invoke(RhoValue *this,
+                            RhoValue *args,
+                            RhoValue *args_named,
                             size_t nargs,
                             size_t nargs_named)
 {
-	Method *meth = objvalue(this);
-	return meth->method(&makeobj(meth->binder), args, args_named, nargs, nargs_named);
+	RhoMethod *meth = rho_objvalue(this);
+	return meth->method(&rho_makeobj(meth->binder), args, args_named, nargs, nargs_named);
 }
 
-struct num_methods meth_num_methods = {
+struct rho_num_methods meth_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
 	NULL,    /* abs */
@@ -79,7 +79,7 @@ struct num_methods meth_num_methods = {
 	NULL,    /* to_float */
 };
 
-struct seq_methods meth_seq_methods = {
+struct rho_seq_methods meth_seq_methods = {
 	NULL,    /* len */
 	NULL,    /* get */
 	NULL,    /* set */
@@ -88,12 +88,12 @@ struct seq_methods meth_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class method_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_method_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Method",
 	.super = &obj_class,
 
-	.instance_size = sizeof(Method),
+	.instance_size = sizeof(RhoMethod),
 
 	.init = NULL,
 	.del = methobj_free,
@@ -110,7 +110,7 @@ Class method_class = {
 	.iternext = NULL,
 
 	.num_methods = &meth_num_methods,
-	.seq_methods  = &meth_seq_methods,
+	.seq_methods = &meth_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,

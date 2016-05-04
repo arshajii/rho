@@ -1,5 +1,5 @@
-#ifndef STR_H
-#define STR_H
+#ifndef RHO_STR_H
+#define RHO_STR_H
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -11,20 +11,20 @@ typedef struct {
 	int hash;
 	unsigned hashed : 1;
 	unsigned freeable : 1;
-} Str;
+} RhoStr;
 
-#define STR_INIT(v, l, f) ((Str){.value = (v), .len = (l), .hash = 0, .hashed = 0, .freeable = (f)})
+#define RHO_STR_INIT(v, l, f) ((RhoStr){.value = (v), .len = (l), .hash = 0, .hashed = 0, .freeable = (f)})
 
-Str *str_new(const char *value, const size_t len);
-Str *str_new_copy(const char *value, const size_t len);
+RhoStr *rho_str_new(const char *value, const size_t len);
+RhoStr *rho_str_new_copy(const char *value, const size_t len);
 
-bool str_eq(Str *s1, Str *s2);
-int str_cmp(Str *s1, Str *s2);
-int str_hash(Str *str);
+bool rho_str_eq(RhoStr *s1, RhoStr *s2);
+int rho_str_cmp(RhoStr *s1, RhoStr *s2);
+int rho_str_hash(RhoStr *str);
 
-Str *str_cat(Str *s1, Str *s2);
+RhoStr *rho_str_cat(RhoStr *s1, RhoStr *s2);
 
-void str_dealloc(Str *str);
-void str_free(Str *str);
+void rho_str_dealloc(RhoStr *str);
+void rho_str_free(RhoStr *str);
 
-#endif /* STR_H */
+#endif /* RHO_STR_H */

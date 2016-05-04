@@ -1,5 +1,5 @@
-#ifndef VM_H
-#define VM_H
+#ifndef RHO_VM_H
+#define RHO_VM_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,9 +8,10 @@
 #include "codeobject.h"
 #include "str.h"
 #include "strdict.h"
+#include "module.h"
 #include "util.h"
 
-struct exc_stack_element {
+struct rho_exc_stack_element {
 	size_t start;  /* start position of try-block */
 	size_t end;    /* end position of try-block */
 	size_t handler_pos;  /* where to jump in case of exception */
@@ -21,31 +22,31 @@ struct exc_stack_element {
 	 * want to clear the whole stack. This pointer
 	 * defines where we should stop clearing.
 	 */
-	Value *purge_wall;
+	RhoValue *purge_wall;
 };
 
 typedef struct frame {
-	CodeObject *co;
-	Value *locals;
-	Str *frees;  /* free variables */
-	Value *valuestack;
-	Value *valuestack_base;
-	Value return_value;
+	RhoCodeObject *co;
+	RhoValue *locals;
+	RhoStr *frees;  /* free variables */
+	RhoValue *valuestack;
+	RhoValue *valuestack_base;
+	RhoValue return_value;
 
-	struct exc_stack_element *exc_stack_base;
-	struct exc_stack_element *exc_stack;
+	struct rho_exc_stack_element *exc_stack_base;
+	struct rho_exc_stack_element *exc_stack;
 
 	size_t pos;  /* position in bytecode */
 	struct frame *prev;
-} Frame;
+} RhoFrame;
 
 typedef struct rho_vm {
 	byte *head;
-	Frame *module;
-	Frame *callstack;
-	struct value_array globals;
-	struct str_array global_names;
-	StrDict exports;
+	RhoFrame *module;
+	RhoFrame *callstack;
+	struct rho_value_array globals;
+	struct rho_str_array global_names;
+	RhoStrDict exports;
 
 	/*
 	 * VM instances form a tree whose structure is
@@ -55,16 +56,18 @@ typedef struct rho_vm {
 	 */
 	struct rho_vm *children;
 	struct rho_vm *sibling;
-} VM;
+} RhoVM;
 
-VM *vm_new(void);
-int vm_exec_code(VM *vm, Code *code);
-void vm_pushframe(VM *vm, CodeObject *co);
-void vm_eval_frame(VM *vm);
-void vm_popframe(VM *vm);
-void vm_free(VM *vm);
+RhoVM *rho_vm_new(void);
+int rho_vm_exec_code(RhoVM *vm, RhoCode *code);
+void rho_vm_pushframe(RhoVM *vm, RhoCodeObject *co);
+void rho_vm_eval_frame(RhoVM *vm);
+void rho_vm_popframe(RhoVM *vm);
+void rho_vm_free(RhoVM *vm);
 
-VM *get_current_vm(void);
-void set_current_vm(VM *vm);
+RhoVM *rho_current_vm_get(void);
+void rho_current_vm_set(RhoVM *vm);
 
-#endif /* VM_H */
+void rho_vm_register_module(const RhoModule *module);
+
+#endif /* RHO_VM_H */

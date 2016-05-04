@@ -1,45 +1,45 @@
-#ifndef CONSTTAB_H
-#define CONSTTAB_H
+#ifndef RHO_CONSTTAB_H
+#define RHO_CONSTTAB_H
 
 #include <stdlib.h>
 #include <stdbool.h>
 #include "str.h"
 #include "code.h"
 
-#define CT_CAPACITY 16
-#define CT_LOADFACTOR 0.75f
+#define RHO_CT_CAPACITY 16
+#define RHO_CT_LOADFACTOR 0.75f
 
 typedef enum {
-	CT_INT,
-	CT_DOUBLE,
-	CT_STRING,
-	CT_CODEOBJ
-} ConstType;
+	RHO_CT_INT,
+	RHO_CT_DOUBLE,
+	RHO_CT_STRING,
+	RHO_CT_CODEOBJ
+} RhoConstType;
 
 typedef struct {
-	ConstType type;
+	RhoConstType type;
 
 	union {
 		int i;
 		double d;
-		Str *s;
-		Code *c;
+		RhoStr *s;
+		RhoCode *c;
 	} value;
-} CTConst;
+} RhoCTConst;
 
-typedef struct CTEntry {
-	CTConst key;
+typedef struct rho_ct_entry {
+	RhoCTConst key;
 
 	unsigned int value;  // index of the constant
 	int hash;
-	struct CTEntry *next;
-} CTEntry;
+	struct rho_ct_entry *next;
+} RhoCTEntry;
 
 /*
  * Simple constant table
  */
 typedef struct {
-	CTEntry **table;
+	RhoCTEntry **table;
 	size_t table_size;
 	size_t capacity;
 
@@ -52,14 +52,14 @@ typedef struct {
 	 * Code objects work somewhat differently in the constant
 	 * indexing mechanism, so they are dealt with separately.
 	 */
-	CTEntry *codeobjs_head;
-	CTEntry *codeobjs_tail;
+	RhoCTEntry *codeobjs_head;
+	RhoCTEntry *codeobjs_tail;
 	size_t codeobjs_size;
-} ConstTable;
+} RhoConstTable;
 
-ConstTable *ct_new(void);
-unsigned int ct_id_for_const(ConstTable *ct, CTConst key);
-unsigned int ct_poll_codeobj(ConstTable *ct);
-void ct_free(ConstTable *ct);
+RhoConstTable *rho_ct_new(void);
+unsigned int rho_ct_id_for_const(RhoConstTable *ct, RhoCTConst key);
+unsigned int rho_ct_poll_codeobj(RhoConstTable *ct);
+void rho_ct_free(RhoConstTable *ct);
 
-#endif /* CONSTTAB_H */
+#endif /* RHO_CONSTTAB_H */

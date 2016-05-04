@@ -1,9 +1,9 @@
-#ifndef METACLASS_H
-#define METACLASS_H
+#ifndef RHO_METACLASS_H
+#define RHO_METACLASS_H
 
 #include <stdlib.h>
 
-struct class;
-extern struct class meta_class;
+struct rho_class;
+extern struct rho_class rho_meta_class;
 
-#endif /* METACLASS_H */
+#endif /* RHO_METACLASS_H */

@@ -1,5 +1,5 @@
-#ifndef CODEOBJECT_H
-#define CODEOBJECT_H
+#ifndef RHO_CODEOBJECT_H
+#define RHO_CODEOBJECT_H
 
 #include <stdbool.h>
 #include "code.h"
@@ -8,10 +8,10 @@
 
 struct rho_vm;
 
-extern Class co_class;
+extern RhoClass rho_co_class;
 
 typedef struct {
-	Object base;
+	RhoObject base;
 
 	/* name of this code object */
 	const char *name;
@@ -29,16 +29,16 @@ typedef struct {
 	unsigned int try_catch_depth;
 
 	/* enumerated variable names */
-	struct str_array names;
+	struct rho_str_array names;
 
 	/* enumerated attributes used */
-	struct str_array attrs;
+	struct rho_str_array attrs;
 
 	/* enumerated free variables */
-	struct str_array frees;
+	struct rho_str_array frees;
 
 	/* enumerated constants */
-	struct value_array consts;
+	struct rho_value_array consts;
 
 	/* line number table */
 	byte *lno_table;
@@ -48,15 +48,15 @@ typedef struct {
 
 	/* virtual machine associated with this code object */
 	struct rho_vm *vm;
-} CodeObject;
+} RhoCodeObject;
 
-CodeObject *codeobj_make(Code *code,
-                         const char *name,
-                         unsigned int argcount,
-                         int stack_depth,
-                         int try_catch_depth,
-                         struct rho_vm *vm);
+RhoCodeObject *codeobj_make(RhoCode *code,
+                            const char *name,
+                            unsigned int argcount,
+                            int stack_depth,
+                            int try_catch_depth,
+                            struct rho_vm *vm);
 
-#define CO_LOCALS_COUNT(co) ((co)->names.length)
+#define RHO_CO_LOCALS_COUNT(co) ((co)->names.length)
 
-#endif /* CODEOBJECT_H */
+#endif /* RHO_CODEOBJECT_H */

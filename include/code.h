@@ -1,5 +1,5 @@
-#ifndef CODE_H
-#define CODE_H
+#ifndef RHO_CODE_H
+#define RHO_CODE_H
 
 #include <stdint.h>
 #include "object.h"
@@ -9,8 +9,8 @@
 /* fundamental unit of compiled code: 8-bit byte */
 typedef uint8_t byte;
 
-#define INT_SIZE 4
-#define DOUBLE_SIZE 8
+#define RHO_INT_SIZE    4
+#define RHO_DOUBLE_SIZE 8
 
 /*
  * Low-level bytecode storage facility
@@ -24,40 +24,40 @@ typedef struct {
 
 	/* capacity of allocated array */
 	size_t capacity;
-} Code;
+} RhoCode;
 
-void code_init(Code *code, size_t capacity);
+void rho_code_init(RhoCode *code, size_t capacity);
 
-void code_dealloc(Code *code);
+void rho_code_dealloc(RhoCode *code);
 
-void code_ensure_capacity(Code *code, size_t min_capacity);
+void rho_code_ensure_capacity(RhoCode *code, size_t min_capacity);
 
-void code_write_byte(Code *code, byte b);
+void rho_code_write_byte(RhoCode *code, byte b);
 
-void code_write_int(Code *code, const int n);
+void rho_code_write_int(RhoCode *code, const int n);
 
-void code_write_uint16(Code *code, const size_t n);
+void rho_code_write_uint16(RhoCode *code, const size_t n);
 
-void code_write_uint16_at(Code *code, const size_t n, const size_t pos);
+void rho_code_write_uint16_at(RhoCode *code, const size_t n, const size_t pos);
 
-void code_write_double(Code *code, const double d);
+void rho_code_write_double(RhoCode *code, const double d);
 
-void code_write_str(Code *code, const Str *str);
+void rho_code_write_str(RhoCode *code, const RhoStr *str);
 
-void code_append(Code *code, const Code *append);
+void rho_code_append(RhoCode *code, const RhoCode *append);
 
-byte code_read_byte(Code *code);
+byte rho_code_read_byte(RhoCode *code);
 
-int code_read_int(Code *code);
+int rho_code_read_int(RhoCode *code);
 
-unsigned int code_read_uint16(Code *code);
+unsigned int rho_code_read_uint16(RhoCode *code);
 
-double code_read_double(Code *code);
+double rho_code_read_double(RhoCode *code);
 
-const char *code_read_str(Code *code);
+const char *rho_code_read_str(RhoCode *code);
 
-void code_skip_ahead(Code *code, const size_t skip);
+void rho_code_skip_ahead(RhoCode *code, const size_t skip);
 
-void code_cpy(Code *dst, Code *src);
+void rho_code_cpy(RhoCode *dst, RhoCode *src);
 
-#endif /* CODE_H */
+#endif /* RHO_CODE_H */

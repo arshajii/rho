@@ -6,19 +6,19 @@
 #include "util.h"
 #include "code.h"
 
-void code_init(Code *code, size_t capacity)
+void rho_code_init(RhoCode *code, size_t capacity)
 {
 	code->bc = rho_malloc(capacity);
 	code->size = 0;
 	code->capacity = capacity;
 }
 
-void code_dealloc(Code *code)
+void rho_code_dealloc(RhoCode *code)
 {
 	free(code->bc);
 }
 
-void code_ensure_capacity(Code *code, size_t min_capacity)
+void rho_code_ensure_capacity(RhoCode *code, size_t min_capacity)
 {
 	size_t capacity = code->capacity;
 	if (capacity < min_capacity) {
@@ -31,9 +31,9 @@ void code_ensure_capacity(Code *code, size_t min_capacity)
 	}
 }
 
-void code_write_byte(Code *code, const byte b)
+void rho_code_write_byte(RhoCode *code, const byte b)
 {
-	code_ensure_capacity(code, code->size + 1);
+	rho_code_ensure_capacity(code, code->size + 1);
 	code->bc[code->size++] = b;
 }
 
@@ -43,49 +43,49 @@ void code_write_byte(Code *code, const byte b)
  * `n` is of type `size_t`. An error will be emitted if `n`
  * is too large, however.
  */
-void code_write_uint16(Code *code, const size_t n)
+void rho_code_write_uint16(RhoCode *code, const size_t n)
 {
-	code_write_uint16_at(code, n, code->size);
+	rho_code_write_uint16_at(code, n, code->size);
 }
 
-void code_write_uint16_at(Code *code, const size_t n, const size_t pos)
+void rho_code_write_uint16_at(RhoCode *code, const size_t n, const size_t pos)
 {
 	if (n > 0xFFFF) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	const size_t code_size = code->size;
 
 	if (pos > code_size) {
-		INTERNAL_ERROR();
+		RHO_INTERNAL_ERROR();
 	}
 
 	if (code_size < 2 || pos > code_size - 2) {
-		code_ensure_capacity(code, pos + 2);
+		rho_code_ensure_capacity(code, pos + 2);
 		code->size += (pos + 2 - code_size);
 	}
 
-	write_uint16_to_stream(code->bc + pos, n);
+	rho_util_write_uint16_to_stream(code->bc + pos, n);
 }
 
-void code_write_int(Code *code, const int n)
+void rho_code_write_int(RhoCode *code, const int n)
 {
-	code_ensure_capacity(code, code->size + INT_SIZE);
-	write_int32_to_stream(code->bc + code->size, n);
-	code->size += INT_SIZE;
+	rho_code_ensure_capacity(code, code->size + RHO_INT_SIZE);
+	rho_util_write_int32_to_stream(code->bc + code->size, n);
+	code->size += RHO_INT_SIZE;
 }
 
-void code_write_double(Code *code, const double d)
+void rho_code_write_double(RhoCode *code, const double d)
 {
-	code_ensure_capacity(code, code->size + DOUBLE_SIZE);
-	write_double_to_stream(code->bc + code->size, d);
-	code->size += DOUBLE_SIZE;
+	rho_code_ensure_capacity(code, code->size + RHO_DOUBLE_SIZE);
+	rho_util_write_double_to_stream(code->bc + code->size, d);
+	code->size += RHO_DOUBLE_SIZE;
 }
 
-void code_write_str(Code *code, const Str *str)
+void rho_code_write_str(RhoCode *code, const RhoStr *str)
 {
 	const size_t len = str->len;
-	code_ensure_capacity(code, code->size + len + 1);
+	rho_code_ensure_capacity(code, code->size + len + 1);
 
 	for (size_t i = 0; i < len; i++) {
 		code->bc[code->size++] = str->value[i];
@@ -93,46 +93,46 @@ void code_write_str(Code *code, const Str *str)
 	code->bc[code->size++] = '\0';
 }
 
-void code_append(Code *code, const Code *append)
+void rho_code_append(RhoCode *code, const RhoCode *append)
 {
 	const size_t size = append->size;
-	code_ensure_capacity(code, code->size + size);
+	rho_code_ensure_capacity(code, code->size + size);
 
 	memcpy(code->bc + code->size, append->bc, size);
 	code->size += size;
 }
 
-byte code_read_byte(Code *code)
+byte rho_code_read_byte(RhoCode *code)
 {
 	--code->size;
 	return *code->bc++;
 }
 
-int code_read_int(Code *code)
+int rho_code_read_int(RhoCode *code)
 {
-	code->size -= INT_SIZE;
-	const int ret = read_int32_from_stream(code->bc);
-	code->bc += INT_SIZE;
+	code->size -= RHO_INT_SIZE;
+	const int ret = rho_util_read_int32_from_stream(code->bc);
+	code->bc += RHO_INT_SIZE;
 	return ret;
 }
 
-unsigned int code_read_uint16(Code *code)
+unsigned int rho_code_read_uint16(RhoCode *code)
 {
 	code->size -= 2;
-	const unsigned int ret = read_uint16_from_stream(code->bc);
+	const unsigned int ret = rho_util_read_uint16_from_stream(code->bc);
 	code->bc += 2;
 	return ret;
 }
 
-double code_read_double(Code *code)
+double rho_code_read_double(RhoCode *code)
 {
-	code->size -= DOUBLE_SIZE;
-	const double ret = read_double_from_stream(code->bc);
-	code->bc += DOUBLE_SIZE;
+	code->size -= RHO_DOUBLE_SIZE;
+	const double ret = rho_util_read_double_from_stream(code->bc);
+	code->bc += RHO_DOUBLE_SIZE;
 	return ret;
 }
 
-const char *code_read_str(Code *code)
+const char *rho_code_read_str(RhoCode *code)
 {
 	const char *start = (const char *)code->bc;
 
@@ -141,14 +141,14 @@ const char *code_read_str(Code *code)
 	return start;
 }
 
-void code_skip_ahead(Code *code, const size_t skip)
+void rho_code_skip_ahead(RhoCode *code, const size_t skip)
 {
 	assert(skip <= code->size);
 	code->bc += skip;
 	code->size -= skip;
 }
 
-void code_cpy(Code *dst, Code *src)
+void rho_code_cpy(RhoCode *dst, RhoCode *src)
 {
 	dst->bc = rho_malloc(src->capacity);
 	memcpy(dst->bc, src->bc, src->size);

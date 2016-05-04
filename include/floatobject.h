@@ -1,9 +1,9 @@
-#ifndef FLOATOBJECT_H
-#define FLOATOBJECT_H
+#ifndef RHO_FLOATOBJECT_H
+#define RHO_FLOATOBJECT_H
 
 #include "object.h"
 
-extern struct num_methods float_num_methods;
-extern Class float_class;  /* float pseudoclass */
+extern struct rho_num_methods rho_float_num_methods;
+extern RhoClass rho_float_class;  /* float pseudoclass */
 
-#endif /* FLOATOBJECT_H */
+#endif /* RHO_FLOATOBJECT_H */

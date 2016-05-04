@@ -1,18 +1,18 @@
-#ifndef BUILTINS_H
-#define BUILTINS_H
+#ifndef RHO_BUILTINS_H
+#define RHO_BUILTINS_H
 
 #include "object.h"
 #include "module.h"
 
-struct builtin {
+struct rho_builtin {
 	const char *name;
-	Value value;
+	RhoValue value;
 };
 
-/* builtins[last].name == NULL */
-extern const struct builtin builtins[];
+/* rho_builtins[last].name == NULL */
+extern const struct rho_builtin rho_builtins[];
 
-/* builtin_modules[last] == NULL */
-extern const Module *builtin_modules[];
+/* rho_builtin_modules[last] == NULL */
+extern const RhoModule *rho_builtin_modules[];
 
-#endif /* BUILTINS_H */
+#endif /* RHO_BUILTINS_H */

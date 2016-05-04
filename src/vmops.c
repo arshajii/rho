@@ -17,72 +17,72 @@
  * ------------------
  */
 
-Value op_hash(Value *v)
+RhoValue rho_op_hash(RhoValue *v)
 {
-	Class *class = getclass(v);
-	IntUnOp hash = resolve_hash(class);
+	RhoClass *class = rho_getclass(v);
+	IntUnOp hash = rho_resolve_hash(class);
 
 	if (!hash) {
-		return type_exc_unsupported_1("hash", class);
+		return rho_type_exc_unsupported_1("hash", class);
 	}
 
-	return makeint(hash(v));
+	return rho_makeint(hash(v));
 }
 
-StrObject *op_str(Value *v)
+RhoStrObject *rho_op_str(RhoValue *v)
 {
-	Class *class = getclass(v);
-	StrUnOp str = resolve_str(class);
+	RhoClass *class = rho_getclass(v);
+	StrUnOp str = rho_resolve_str(class);
 	return str(v);
 }
 
-void op_print(Value *v, FILE *out)
+void rho_op_print(RhoValue *v, FILE *out)
 {
 	switch (v->type) {
-	case VAL_TYPE_INT:
-		fprintf(out, "%ld\n", intvalue(v));
+	case RHO_VAL_TYPE_INT:
+		fprintf(out, "%ld\n", rho_intvalue(v));
 		break;
-	case VAL_TYPE_FLOAT:
-		fprintf(out, "%f\n", floatvalue(v));
+	case RHO_VAL_TYPE_FLOAT:
+		fprintf(out, "%f\n", rho_floatvalue(v));
 		break;
-	case VAL_TYPE_OBJECT: {
-		const Object *o = objvalue(v);
-		PrintFunc print = resolve_print(o->class);
+	case RHO_VAL_TYPE_OBJECT: {
+		const RhoObject *o = rho_objvalue(v);
+		PrintFunc print = rho_resolve_print(o->class);
 
 		if (print) {
 			print(v, out);
 		} else {
-			StrObject *str = op_str(v);
+			RhoStrObject *str = rho_op_str(v);
 			fprintf(out, "%s\n", str->str.value);
-			releaseo(str);
+			rho_releaseo(str);
 		}
 		break;
 	}
-	case VAL_TYPE_EXC: {
-		const Exception *exc = objvalue(v);
+	case RHO_VAL_TYPE_EXC: {
+		const RhoException *exc = rho_objvalue(v);
 		fprintf(out, "%s\n", exc->msg);
 		break;
 	}
-	case VAL_TYPE_EMPTY:
-	case VAL_TYPE_ERROR:
-	case VAL_TYPE_UNSUPPORTED_TYPES:
-	case VAL_TYPE_DIV_BY_ZERO:
-		INTERNAL_ERROR();
+	case RHO_VAL_TYPE_EMPTY:
+	case RHO_VAL_TYPE_ERROR:
+	case RHO_VAL_TYPE_UNSUPPORTED_TYPES:
+	case RHO_VAL_TYPE_DIV_BY_ZERO:
+		RHO_INTERNAL_ERROR();
 		break;
 	}
 }
 
 #define MAKE_VM_BINOP(op, tok) \
-Value op_##op(Value *a, Value *b) \
+RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 { \
-	Class *class = getclass(a); \
-	BinOp binop = resolve_##op(class); \
+	RhoClass *class = rho_getclass(a); \
+	BinOp binop = rho_resolve_##op(class); \
 	bool r_op = false; \
-	Value result; \
+	RhoValue result; \
 \
 	if (!binop) { \
-		Class *class2 = getclass(b); \
-		binop = resolve_r##op(class2); \
+		RhoClass *class2 = rho_getclass(b); \
+		binop = rho_resolve_r##op(class2); \
 \
 		if (!binop) { \
 			goto type_error; \
@@ -94,13 +94,13 @@ Value op_##op(Value *a, Value *b) \
 		result = binop(a, b); \
 	} \
 \
-	if (isut(&result)) { \
+	if (rho_isut(&result)) { \
 		if (r_op) { \
 			goto type_error; \
 		} \
 \
-		Class *class2 = getclass(b); \
-		binop = resolve_r##op(class2); \
+		RhoClass *class2 = rho_getclass(b); \
+		binop = rho_resolve_r##op(class2); \
 \
 		if (!binop) { \
 			goto type_error; \
@@ -108,32 +108,32 @@ Value op_##op(Value *a, Value *b) \
 \
 		result = binop(b, a); \
 \
-		if (isut(&result)) { \
+		if (rho_isut(&result)) { \
 			goto type_error; \
 		} \
 	} \
 \
-	if (isdbz(&result)) { \
+	if (rho_isdbz(&result)) { \
 		goto div_by_zero_error; \
 	} \
 \
 	return result; \
 \
 	type_error: \
-	return type_exc_unsupported_2(#tok, class, getclass(b)); \
+	return rho_type_exc_unsupported_2(#tok, class, rho_getclass(b)); \
 \
 	div_by_zero_error: \
-	return makeerr(div_by_zero_error()); \
+	return rho_makeerr(rho_err_div_by_zero()); \
 }
 
 #define MAKE_VM_UNOP(op, tok) \
-Value op_##op(Value *a) \
+RhoValue rho_op_##op(RhoValue *a) \
 { \
-	Class *class = getclass(a); \
-	const UnOp unop = resolve_##op(class); \
+	RhoClass *class = rho_getclass(a); \
+	const UnOp unop = rho_resolve_##op(class); \
 \
 	if (!unop) { \
-		return type_exc_unsupported_1(#tok, class); \
+		return rho_type_exc_unsupported_1(#tok, class); \
 	} \
 \
 	return unop(a); \
@@ -160,31 +160,31 @@ MAKE_VM_BINOP(shiftr, >>)
  * no error checking is done here.
  */
 
-Value op_and(Value *a, Value *b)
+RhoValue rho_op_and(RhoValue *a, RhoValue *b)
 {
-	Class *class_a = getclass(a);
-	Class *class_b = getclass(b);
-	const BoolUnOp bool_a = resolve_nonzero(class_a);
-	const BoolUnOp bool_b = resolve_nonzero(class_b);
+	RhoClass *class_a = rho_getclass(a);
+	RhoClass *class_b = rho_getclass(b);
+	const BoolUnOp bool_a = rho_resolve_nonzero(class_a);
+	const BoolUnOp bool_b = rho_resolve_nonzero(class_b);
 
-	return makeint(bool_a(a) && bool_b(b));
+	return rho_makeint(bool_a(a) && bool_b(b));
 }
 
-Value op_or(Value *a, Value *b)
+RhoValue rho_op_or(RhoValue *a, RhoValue *b)
 {
-	Class *class_a = getclass(a);
-	Class *class_b = getclass(b);
-	const BoolUnOp bool_a = resolve_nonzero(class_a);
-	const BoolUnOp bool_b = resolve_nonzero(class_b);
+	RhoClass *class_a = rho_getclass(a);
+	RhoClass *class_b = rho_getclass(b);
+	const BoolUnOp bool_a = rho_resolve_nonzero(class_a);
+	const BoolUnOp bool_b = rho_resolve_nonzero(class_b);
 
-	return makeint(bool_a(a) || bool_b(b));
+	return rho_makeint(bool_a(a) || bool_b(b));
 }
 
-Value op_not(Value *a)
+RhoValue rho_op_not(RhoValue *a)
 {
-	Class *class = getclass(a);
-	const BoolUnOp bool_a = resolve_nonzero(class);
-	return makeint(!bool_a(a));
+	RhoClass *class = rho_getclass(a);
+	const BoolUnOp bool_a = rho_resolve_nonzero(class);
+	return rho_makeint(!bool_a(a));
 }
 
 /*
@@ -193,53 +193,53 @@ Value op_not(Value *a)
  */
 
 #define MAKE_VM_CMPOP(op, tok) \
-Value op_##op(Value *a, Value *b) \
+RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 { \
-	Class *class = getclass(a); \
-	const BinOp cmp = resolve_cmp(class); \
+	RhoClass *class = rho_getclass(a); \
+	const BinOp cmp = rho_resolve_cmp(class); \
 \
 	if (!cmp) { \
 		goto error; \
 	} \
 \
-	Value v = cmp(a, b); \
+	RhoValue v = cmp(a, b); \
 \
-	if (isut(&v)) { \
+	if (rho_isut(&v)) { \
 		goto error; \
 	} \
 \
-	if (!isint(&v)) { \
-		return makeerr(type_error_invalid_cmp(class)); \
+	if (!rho_isint(&v)) { \
+		return rho_makeerr(rho_type_err_invalid_cmp(class)); \
 	} \
 \
-	return makeint(intvalue(&v) tok 0); \
+	return rho_makeint(rho_intvalue(&v) tok 0); \
 \
 	error: \
-	return type_exc_unsupported_2(#tok, class, getclass(b)); \
+	return rho_type_exc_unsupported_2(#tok, class, rho_getclass(b)); \
 }
 
-Value op_eq(Value *a, Value *b)
+RhoValue rho_op_eq(RhoValue *a, RhoValue *b)
 {
-	Class *class = getclass(a);
-	const BoolBinOp eq = resolve_eq(class);
+	RhoClass *class = rho_getclass(a);
+	const BoolBinOp eq = rho_resolve_eq(class);
 
 	if (!eq) {
-		return type_exc_unsupported_2("==", class, getclass(b));
+		return rho_type_exc_unsupported_2("==", class, rho_getclass(b));
 	}
 
-	return makeint(eq(a, b));
+	return rho_makeint(eq(a, b));
 }
 
-Value op_neq(Value *a, Value *b)
+RhoValue rho_op_neq(RhoValue *a, RhoValue *b)
 {
-	Class *class = getclass(a);
-	const BoolBinOp eq = resolve_eq(class);
+	RhoClass *class = rho_getclass(a);
+	const BoolBinOp eq = rho_resolve_eq(class);
 
 	if (!eq) {
-		return type_exc_unsupported_2("!=", class, getclass(b));
+		return rho_type_exc_unsupported_2("!=", class, rho_getclass(b));
 	}
 
-	return makeint(!eq(a, b));
+	return rho_makeint(!eq(a, b));
 }
 
 MAKE_VM_CMPOP(lt, <)
@@ -272,26 +272,26 @@ MAKE_VM_UNOP(minus, unary -)
  * already been retained. However, as described above, if the
  * corresponding in-place method is not supported, the regular
  * method will be used, in which case a new value will be
- * returned. Therefore, in this case, the LHS will be released
+ * returned. Therefore, in this case, the LHS will be rho_released
  * by the in-place operator function. A consequence of this is
  * that the LHS should always be replaced by the return value
  * of the function, wherever it is being stored.
  */
 
 #define MAKE_VM_IBINOP(op, tok) \
-Value op_i##op(Value *a, Value *b) \
+RhoValue rho_op_i##op(RhoValue *a, RhoValue *b) \
 { \
-	Class *class = getclass(a); \
-	BinOp binop = resolve_i##op(class); \
+	RhoClass *class = rho_getclass(a); \
+	BinOp binop = rho_resolve_i##op(class); \
 	bool r_op = false; \
 	bool i_op = true; \
-	Value result; \
+	RhoValue result; \
 \
 	if (!binop) { \
-		binop = resolve_##op(class); \
+		binop = rho_resolve_##op(class); \
 		if (!binop) { \
-			Class *class2 = getclass(b); \
-			binop = resolve_r##op(class2); \
+			RhoClass *class2 = rho_getclass(b); \
+			binop = rho_resolve_r##op(class2); \
 \
 			if (!binop) { \
 				goto type_error; \
@@ -308,13 +308,13 @@ Value op_i##op(Value *a, Value *b) \
 		result = binop(a, b); \
 	} \
 \
-	while (isut(&result)) { \
+	while (rho_isut(&result)) { \
 		if (i_op) { \
-			binop = resolve_##op(class); \
+			binop = rho_resolve_##op(class); \
 \
 			if (!binop) { \
-				Class *class2 = getclass(b); \
-				binop = resolve_r##op(class2); \
+				RhoClass *class2 = rho_getclass(b); \
+				binop = rho_resolve_r##op(class2); \
 \
 				if (!binop) { \
 					goto type_error; \
@@ -331,8 +331,8 @@ Value op_i##op(Value *a, Value *b) \
 		} else if (r_op) { \
 			goto type_error; \
 		} else { \
-			Class *class2 = getclass(b); \
-			binop = resolve_r##op(class2); \
+			RhoClass *class2 = rho_getclass(b); \
+			binop = rho_resolve_r##op(class2); \
 \
 			if (!binop) { \
 				goto type_error; \
@@ -344,21 +344,21 @@ Value op_i##op(Value *a, Value *b) \
 		} \
 	} \
 \
-	if (isdbz(&result)) { \
+	if (rho_isdbz(&result)) { \
 		goto div_by_zero_error; \
 	} \
 \
 	if (!i_op) { \
-		release(a); \
+		rho_release(a); \
 	} \
 \
 	return result; \
 \
 	type_error: \
-	return type_exc_unsupported_2(#tok, class, getclass(b)); \
+	return rho_type_exc_unsupported_2(#tok, class, rho_getclass(b)); \
 \
 	div_by_zero_error: \
-	return makeerr(div_by_zero_error()); \
+	return rho_makeerr(rho_err_div_by_zero()); \
 }
 
 MAKE_VM_IBINOP(add, +=)
@@ -373,191 +373,191 @@ MAKE_VM_IBINOP(xor, ^=)
 MAKE_VM_IBINOP(shiftl, <<=)
 MAKE_VM_IBINOP(shiftr, >>=)
 
-Value op_get(Value *v, Value *idx)
+RhoValue rho_op_get(RhoValue *v, RhoValue *idx)
 {
-	Class *class = getclass(v);
-	BinOp get = resolve_get(class);
+	RhoClass *class = rho_getclass(v);
+	BinOp get = rho_resolve_get(class);
 
 	if (!get) {
-		return type_exc_cannot_index(class);
+		return rho_type_exc_cannot_index(class);
 	}
 
 	return get(v, idx);
 }
 
-Value op_set(Value *v, Value *idx, Value *e)
+RhoValue rho_op_set(RhoValue *v, RhoValue *idx, RhoValue *e)
 {
-	Class *class = getclass(v);
-	SeqSetFunc set = resolve_set(class);
+	RhoClass *class = rho_getclass(v);
+	SeqSetFunc set = rho_resolve_set(class);
 
 	if (!set) {
-		return type_exc_cannot_index(class);
+		return rho_type_exc_cannot_index(class);
 	}
 
 	return set(v, idx, e);
 }
 
-Value op_apply(Value *v, Value *fn)
+RhoValue rho_op_apply(RhoValue *v, RhoValue *fn)
 {
-	Class *class = getclass(v);
-	BinOp apply = resolve_apply(class);
+	RhoClass *class = rho_getclass(v);
+	BinOp apply = rho_resolve_apply(class);
 
 	if (!apply) {
-		return type_exc_cannot_apply(class);
+		return rho_type_exc_cannot_apply(class);
 	}
 
-	Class *fn_class = getclass(fn);
-	if (!resolve_call(fn_class)) {
-		return type_exc_not_callable(fn_class);
+	RhoClass *fn_class = rho_getclass(fn);
+	if (!rho_resolve_call(fn_class)) {
+		return rho_type_exc_not_callable(fn_class);
 	}
 
 	return apply(v, fn);
 }
 
-Value op_iapply(Value *v, Value *fn)
+RhoValue rho_op_iapply(RhoValue *v, RhoValue *fn)
 {
-	Class *class = getclass(v);
-	BinOp iapply = resolve_iapply(class);
+	RhoClass *class = rho_getclass(v);
+	BinOp iapply = rho_resolve_iapply(class);
 
-	Class *fn_class = getclass(fn);
+	RhoClass *fn_class = rho_getclass(fn);
 
-	if (!resolve_call(fn_class)) {
-		return type_exc_not_callable(fn_class);
+	if (!rho_resolve_call(fn_class)) {
+		return rho_type_exc_not_callable(fn_class);
 	}
 
 	if (!iapply) {
-		BinOp apply = resolve_apply(class);
+		BinOp apply = rho_resolve_apply(class);
 
 		if (!apply) {
-			return type_exc_cannot_apply(class);
+			return rho_type_exc_cannot_apply(class);
 		}
 
-		Value ret = apply(v, fn);
-		release(v);
+		RhoValue ret = apply(v, fn);
+		rho_release(v);
 		return ret;
 	}
 
 	return iapply(v, fn);
 }
 
-Value op_get_attr(Value *v, const char *attr)
+RhoValue rho_op_get_attr(RhoValue *v, const char *attr)
 {
-	Class *class = getclass(v);
-	AttrGetFunc attr_get = resolve_attr_get(class);
+	RhoClass *class = rho_getclass(v);
+	AttrGetFunc attr_get = rho_resolve_attr_get(class);
 
 	if (attr_get) {
 		return attr_get(v, attr);
 	} else {
-		return op_get_attr_default(v, attr);
+		return rho_op_get_attr_default(v, attr);
 	}
 }
 
-Value op_get_attr_default(Value *v, const char *attr)
+RhoValue rho_op_get_attr_default(RhoValue *v, const char *attr)
 {
-	Class *class = getclass(v);
+	RhoClass *class = rho_getclass(v);
 
-	if (!isobject(v)) {
+	if (!rho_isobject(v)) {
 		goto get_attr_error_not_found;
 	}
 
-	const unsigned int value = attr_dict_get(&class->attr_dict, attr);
+	const unsigned int value = rho_attr_dict_get(&class->attr_dict, attr);
 
-	if (!(value & ATTR_DICT_FLAG_FOUND)) {
+	if (!(value & RHO_ATTR_DICT_FLAG_FOUND)) {
 		goto get_attr_error_not_found;
 	}
 
-	const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
+	const bool is_method = (value & RHO_ATTR_DICT_FLAG_METHOD);
 	const unsigned int idx = (value >> 2);
 
-	Object *o = objvalue(v);
-	Value res;
+	RhoObject *o = rho_objvalue(v);
+	RhoValue res;
 
 	if (is_method) {
-		const struct attr_method *method = &class->methods[idx];
-		res = methobj_make(o, method->meth);
+		const struct rho_attr_method *method = &class->methods[idx];
+		res = rho_methobj_make(o, method->meth);
 	} else {
-		const struct attr_member *member = &class->members[idx];
+		const struct rho_attr_member *member = &class->members[idx];
 		const size_t offset = member->offset;
 
 		switch (member->type) {
-		case ATTR_T_CHAR: {
+		case RHO_ATTR_T_CHAR: {
 			char *c = rho_malloc(1);
-			*c = getmember(o, offset, char);
-			res = strobj_make(STR_INIT(c, 1, 1));
+			*c = rho_getmember(o, offset, char);
+			res = rho_strobj_make(RHO_STR_INIT(c, 1, 1));
 			break;
 		}
-		case ATTR_T_BYTE: {
-			const long n = getmember(o, offset, char);
-			res = makeint(n);
+		case RHO_ATTR_T_BYTE: {
+			const long n = rho_getmember(o, offset, char);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_SHORT: {
-			const long n = getmember(o, offset, short);
-			res = makeint(n);
+		case RHO_ATTR_T_SHORT: {
+			const long n = rho_getmember(o, offset, short);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_INT: {
-			const long n = getmember(o, offset, int);
-			res = makeint(n);
+		case RHO_ATTR_T_INT: {
+			const long n = rho_getmember(o, offset, int);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_LONG: {
-			const long n = getmember(o, offset, long);
-			res = makeint(n);
+		case RHO_ATTR_T_LONG: {
+			const long n = rho_getmember(o, offset, long);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_UBYTE: {
-			const long n = getmember(o, offset, unsigned char);
-			res = makeint(n);
+		case RHO_ATTR_T_UBYTE: {
+			const long n = rho_getmember(o, offset, unsigned char);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_USHORT: {
-			const long n = getmember(o, offset, unsigned short);
-			res = makeint(n);
+		case RHO_ATTR_T_USHORT: {
+			const long n = rho_getmember(o, offset, unsigned short);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_UINT: {
-			const long n = getmember(o, offset, unsigned int);
-			res = makeint(n);
+		case RHO_ATTR_T_UINT: {
+			const long n = rho_getmember(o, offset, unsigned int);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_ULONG: {
-			const long n = getmember(o, offset, unsigned long);
-			res = makeint(n);
+		case RHO_ATTR_T_ULONG: {
+			const long n = rho_getmember(o, offset, unsigned long);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_SIZE_T: {
-			const long n = getmember(o, offset, size_t);
-			res = makeint(n);
+		case RHO_ATTR_T_SIZE_T: {
+			const long n = rho_getmember(o, offset, size_t);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_BOOL: {
-			const long n = getmember(o, offset, bool);
-			res = makeint(n);
+		case RHO_ATTR_T_BOOL: {
+			const long n = rho_getmember(o, offset, bool);
+			res = rho_makeint(n);
 			break;
 		}
-		case ATTR_T_FLOAT: {
-			const double d = getmember(o, offset, float);
-			res = makefloat(d);
+		case RHO_ATTR_T_FLOAT: {
+			const double d = rho_getmember(o, offset, float);
+			res = rho_makefloat(d);
 			break;
 		}
-		case ATTR_T_DOUBLE: {
-			const double d = getmember(o, offset, double);
-			res = makefloat(d);
+		case RHO_ATTR_T_DOUBLE: {
+			const double d = rho_getmember(o, offset, double);
+			res = rho_makefloat(d);
 			break;
 		}
-		case ATTR_T_STRING: {
-			char *str = getmember(o, offset, char *);
+		case RHO_ATTR_T_STRING: {
+			char *str = rho_getmember(o, offset, char *);
 			const size_t len = strlen(str);
 			char *copy = rho_malloc(len);
 			memcpy(copy, str, len);
-			res = strobj_make(STR_INIT(copy, len, 1));
+			res = rho_strobj_make(RHO_STR_INIT(copy, len, 1));
 			break;
 		}
-		case ATTR_T_OBJECT: {
-			Object *obj = getmember(o, offset, Object *);
-			retaino(obj);
-			res = makeobj(obj);
+		case RHO_ATTR_T_OBJECT: {
+			RhoObject *obj = rho_getmember(o, offset, RhoObject *);
+			rho_retaino(obj);
+			res = rho_makeobj(obj);
 			break;
 		}
 		}
@@ -566,37 +566,37 @@ Value op_get_attr_default(Value *v, const char *attr)
 	return res;
 
 	get_attr_error_not_found:
-	return attr_exc_not_found(class, attr);
+	return rho_attr_exc_not_found(class, attr);
 }
 
-Value op_set_attr(Value *v, const char *attr, Value *new)
+RhoValue rho_op_set_attr(RhoValue *v, const char *attr, RhoValue *new)
 {
-	Class *class = getclass(v);
-	AttrSetFunc attr_set = resolve_attr_set(class);
+	RhoClass *class = rho_getclass(v);
+	AttrSetFunc attr_set = rho_resolve_attr_set(class);
 
 	if (attr_set) {
 		return attr_set(v, attr, new);
 	} else {
-		return op_set_attr_default(v, attr, new);
+		return rho_op_set_attr_default(v, attr, new);
 	}
 }
 
-Value op_set_attr_default(Value *v, const char *attr, Value *new)
+RhoValue rho_op_set_attr_default(RhoValue *v, const char *attr, RhoValue *new)
 {
-	Class *v_class = getclass(v);
-	Class *new_class = getclass(new);
+	RhoClass *v_class = rho_getclass(v);
+	RhoClass *new_class = rho_getclass(new);
 
-	if (!isobject(v)) {
+	if (!rho_isobject(v)) {
 		goto set_attr_error_not_found;
 	}
 
-	const unsigned int value = attr_dict_get(&v_class->attr_dict, attr);
+	const unsigned int value = rho_attr_dict_get(&v_class->attr_dict, attr);
 
-	if (!(value & ATTR_DICT_FLAG_FOUND)) {
+	if (!(value & RHO_ATTR_DICT_FLAG_FOUND)) {
 		goto set_attr_error_not_found;
 	}
 
-	const bool is_method = (value & ATTR_DICT_FLAG_METHOD);
+	const bool is_method = (value & RHO_ATTR_DICT_FLAG_METHOD);
 
 	if (is_method) {
 		goto set_attr_error_readonly;
@@ -604,26 +604,26 @@ Value op_set_attr_default(Value *v, const char *attr, Value *new)
 
 	const unsigned int idx = (value >> 2);
 
-	const struct attr_member *member = &v_class->members[idx];
+	const struct rho_attr_member *member = &v_class->members[idx];
 
 	const int member_flags = member->flags;
 
-	if (member_flags & ATTR_FLAG_READONLY) {
+	if (member_flags & RHO_ATTR_FLAG_READONLY) {
 		goto set_attr_error_readonly;
 	}
 
 	const size_t offset = member->offset;
 
-	Object *o = objvalue(v);
+	RhoObject *o = rho_objvalue(v);
 	char *o_raw = (char *)o;
 
 	switch (member->type) {
-	case ATTR_T_CHAR: {
-		if (new_class != &str_class) {
+	case RHO_ATTR_T_CHAR: {
+		if (new_class != &rho_str_class) {
 			goto set_attr_error_mismatch;
 		}
 
-		StrObject *str = objvalue(new);
+		RhoStrObject *str = rho_objvalue(new);
 		const size_t len = str->str.len;
 
 		if (len != 1) {
@@ -635,265 +635,265 @@ Value op_set_attr_default(Value *v, const char *attr, Value *new)
 		*member_raw = c;
 		break;
 	}
-	case ATTR_T_BYTE: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_BYTE: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		char *member_raw = (char *)(o_raw + offset);
 		*member_raw = (char)n;
 		break;
 	}
-	case ATTR_T_SHORT: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_SHORT: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		short *member_raw = (short *)(o_raw + offset);
 		*member_raw = (short)n;
 		break;
 	}
-	case ATTR_T_INT: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_INT: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		int *member_raw = (int *)(o_raw + offset);
 		*member_raw = (int)n;
 		break;
 	}
-	case ATTR_T_LONG: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_LONG: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		long *member_raw = (long *)(o_raw + offset);
 		*member_raw = n;
 		break;
 	}
-	case ATTR_T_UBYTE: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_UBYTE: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		unsigned char *member_raw = (unsigned char *)(o_raw + offset);
 		*member_raw = (unsigned char)n;
 		break;
 	}
-	case ATTR_T_USHORT: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_USHORT: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		unsigned short *member_raw = (unsigned short *)(o_raw + offset);
 		*member_raw = (unsigned short)n;
 		break;
 	}
-	case ATTR_T_UINT: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_UINT: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		unsigned int *member_raw = (unsigned int *)(o_raw + offset);
 		*member_raw = (unsigned int)n;
 		break;
 	}
-	case ATTR_T_ULONG: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_ULONG: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		unsigned long *member_raw = (unsigned long *)(o_raw + offset);
 		*member_raw = (unsigned long)n;
 		break;
 	}
-	case ATTR_T_SIZE_T: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_SIZE_T: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		size_t *member_raw = (size_t *)(o_raw + offset);
 		*member_raw = (size_t)n;
 		break;
 	}
-	case ATTR_T_BOOL: {
-		if (!isint(new)) {
+	case RHO_ATTR_T_BOOL: {
+		if (!rho_isint(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = intvalue(new);
+		const long n = rho_intvalue(new);
 		bool *member_raw = (bool *)(o_raw + offset);
 		*member_raw = (bool)n;
 		break;
 	}
-	case ATTR_T_FLOAT: {
+	case RHO_ATTR_T_FLOAT: {
 		float d;
 
 		/* ints get promoted */
-		if (isint(new)) {
-			d = (float)intvalue(new);
-		} else if (!isfloat(new)) {
+		if (rho_isint(new)) {
+			d = (float)rho_intvalue(new);
+		} else if (!rho_isfloat(new)) {
 			d = 0;
 			goto set_attr_error_mismatch;
 		} else {
-			d = (float)floatvalue(new);
+			d = (float)rho_floatvalue(new);
 		}
 
 		float *member_raw = (float *)(o_raw + offset);
 		*member_raw = d;
 		break;
 	}
-	case ATTR_T_DOUBLE: {
+	case RHO_ATTR_T_DOUBLE: {
 		double d;
 
 		/* ints get promoted */
-		if (isint(new)) {
-			d = (double)intvalue(new);
-		} else if (!isfloat(new)) {
+		if (rho_isint(new)) {
+			d = (double)rho_intvalue(new);
+		} else if (!rho_isfloat(new)) {
 			d = 0;
 			goto set_attr_error_mismatch;
 		} else {
-			d = floatvalue(new);
+			d = rho_floatvalue(new);
 		}
 
 		float *member_raw = (float *)(o_raw + offset);
 		*member_raw = d;
 		break;
 	}
-	case ATTR_T_STRING: {
-		if (new_class != &str_class) {
+	case RHO_ATTR_T_STRING: {
+		if (new_class != &rho_str_class) {
 			goto set_attr_error_mismatch;
 		}
 
-		StrObject *str = objvalue(new);
+		RhoStrObject *str = rho_objvalue(new);
 
 		char **member_raw = (char **)(o_raw + offset);
 		*member_raw = (char *)str->str.value;
 		break;
 	}
-	case ATTR_T_OBJECT: {
-		if (!isobject(new)) {
+	case RHO_ATTR_T_OBJECT: {
+		if (!rho_isobject(new)) {
 			goto set_attr_error_mismatch;
 		}
 
-		Object **member_raw = (Object **)(o_raw + offset);
+		RhoObject **member_raw = (RhoObject **)(o_raw + offset);
 
-		if ((member_flags & ATTR_FLAG_TYPE_STRICT) &&
+		if ((member_flags & RHO_ATTR_FLAG_TYPE_STRICT) &&
 		    ((*member_raw)->class != new_class)) {
 
 			goto set_attr_error_mismatch;
 		}
 
-		Object *new_o = objvalue(new);
+		RhoObject *new_o = rho_objvalue(new);
 		if (*member_raw != NULL) {
-			releaseo(*member_raw);
+			rho_releaseo(*member_raw);
 		}
-		retaino(new_o);
+		rho_retaino(new_o);
 		*member_raw = new_o;
 		break;
 	}
 	}
 
-	return makeint(0);
+	return rho_makeint(0);
 
 	set_attr_error_not_found:
-	return attr_exc_not_found(v_class, attr);
+	return rho_attr_exc_not_found(v_class, attr);
 
 	set_attr_error_readonly:
-	return attr_exc_readonly(v_class, attr);
+	return rho_attr_exc_readonly(v_class, attr);
 
 	set_attr_error_mismatch:
-	return attr_exc_mismatch(v_class, attr, new_class);
+	return rho_attr_exc_mismatch(v_class, attr, new_class);
 }
 
-Value op_call(Value *v,
-              Value *args,
-              Value *args_named,
+RhoValue rho_op_call(RhoValue *v,
+              RhoValue *args,
+              RhoValue *args_named,
               const size_t nargs,
               const size_t nargs_named)
 {
-	Class *class = getclass(v);
-	const CallFunc call = resolve_call(class);
+	RhoClass *class = rho_getclass(v);
+	const CallFunc call = rho_resolve_call(class);
 
 	if (!call) {
-		return type_exc_not_callable(class);
+		return rho_type_exc_not_callable(class);
 	}
 
 	return call(v, args, args_named, nargs, nargs_named);
 }
 
-Value op_in(Value *element, Value *collection)
+RhoValue rho_op_in(RhoValue *element, RhoValue *collection)
 {
-	Class *class = getclass(collection);
-	const BoolBinOp contains = resolve_contains(class);
+	RhoClass *class = rho_getclass(collection);
+	const BoolBinOp contains = rho_resolve_contains(class);
 
 	if (contains) {
-		return makeint(contains(collection, element));
+		return rho_makeint(contains(collection, element));
 	}
 
-	const UnOp iter_fn = resolve_iter(class);
+	const UnOp iter_fn = rho_resolve_iter(class);
 
 	if (!iter_fn) {
-		return type_exc_not_iterable(class);
+		return rho_type_exc_not_iterable(class);
 	}
 
-	Value iter = iter_fn(collection);
-	Class *iter_class = getclass(&iter);
-	const UnOp iternext = resolve_iternext(iter_class);
+	RhoValue iter = iter_fn(collection);
+	RhoClass *iter_class = rho_getclass(&iter);
+	const UnOp iternext = rho_resolve_iternext(iter_class);
 
 	if (!iternext) {
-		return type_exc_not_iterator(iter_class);
+		return rho_type_exc_not_iterator(iter_class);
 	}
 
 	while (1) {
-		Value next = iternext(&iter);
+		RhoValue next = iternext(&iter);
 
-		if (is_iter_stop(&next)) {
+		if (rho_is_iter_stop(&next)) {
 			break;
 		}
 
-		if (iserror(&next)) {
-			release(&iter);
+		if (rho_iserror(&next)) {
+			rho_release(&iter);
 			return next;
 		}
 
-		Value eq = op_eq(&next, element);
+		RhoValue eq = rho_op_eq(&next, element);
 
-		release(&next);
+		rho_release(&next);
 
-		if (iserror(&eq)) {
-			release(&iter);
+		if (rho_iserror(&eq)) {
+			rho_release(&iter);
 			return eq;
 		}
 
-		if (isint(&eq) && intvalue(&eq) != 0) {
-			release(&iter);
-			return makeint(1);
+		if (rho_isint(&eq) && rho_intvalue(&eq) != 0) {
+			rho_release(&iter);
+			return rho_makeint(1);
 		}
 	}
 
-	release(&iter);
-	return makeint(0);
+	rho_release(&iter);
+	return rho_makeint(0);
 }
 
-Value op_iter(Value *v)
+RhoValue rho_op_iter(RhoValue *v)
 {
-	Class *class = getclass(v);
-	const UnOp iter = resolve_iter(class);
+	RhoClass *class = rho_getclass(v);
+	const UnOp iter = rho_resolve_iter(class);
 
 	if (!iter) {
-		return type_exc_not_iterable(class);
+		return rho_type_exc_not_iterable(class);
 	}
 
 	return iter(v);
 }
 
-Value op_iternext(Value *v)
+RhoValue rho_op_iternext(RhoValue *v)
 {
-	Class *class = getclass(v);
-	const UnOp iternext = resolve_iternext(class);
+	RhoClass *class = rho_getclass(v);
+	const UnOp iternext = rho_resolve_iternext(class);
 
 	if (!iternext) {
-		return type_exc_not_iterator(class);
+		return rho_type_exc_not_iterator(class);
 	}
 
 	return iternext(v);

@@ -10,97 +10,97 @@
 
 #define INDEX_CHECK(index, count) \
 	if ((index) < 0 || ((size_t)(index)) >= (count)) { \
-		return INDEX_EXC("tuple index out of range (index = %li, len = %lu)", (index), (count)); \
+		return RHO_INDEX_EXC("tuple index out of range (index = %li, len = %lu)", (index), (count)); \
 	}
 
 /* Does not retain elements; direct transfer from value stack. */
-Value tuple_make(Value *elements, const size_t count)
+RhoValue rho_tuple_make(RhoValue *elements, const size_t count)
 {
-	const size_t extra_size = count * sizeof(Value);
-	TupleObject *tup = obj_alloc_var(&tuple_class, extra_size);
+	const size_t extra_size = count * sizeof(RhoValue);
+	RhoTupleObject *tup = rho_obj_alloc_var(&rho_tuple_class, extra_size);
 	memcpy(tup->elements, elements, extra_size);
 	tup->count = count;
-	return makeobj(tup);
+	return rho_makeobj(tup);
 }
 
-static StrObject *tuple_str(Value *this)
+static RhoStrObject *tuple_str(RhoValue *this)
 {
-	TupleObject *tup = objvalue(this);
+	RhoTupleObject *tup = rho_objvalue(this);
 	const size_t count = tup->count;
 
 	if (count == 0) {
-		Value ret = strobj_make_direct("()", 2);
-		return (StrObject *)objvalue(&ret);
+		RhoValue ret = rho_strobj_make_direct("()", 2);
+		return (RhoStrObject *)rho_objvalue(&ret);
 	}
 
-	StrBuf sb;
-	strbuf_init(&sb, 16);
-	strbuf_append(&sb, "(", 1);
+	RhoStrBuf sb;
+	rho_strbuf_init(&sb, 16);
+	rho_strbuf_append(&sb, "(", 1);
 
-	Value *elements = tup->elements;
+	RhoValue *elements = tup->elements;
 
 	for (size_t i = 0; i < count; i++) {
-		Value *v = &elements[i];
-		if (isobject(v) && objvalue(v) == tup) {  // this should really never happen
-			strbuf_append(&sb, "(...)", 5);
+		RhoValue *v = &elements[i];
+		if (rho_isobject(v) && rho_objvalue(v) == tup) {  // this should really never happen
+			rho_strbuf_append(&sb, "(...)", 5);
 		} else {
-			StrObject *str = op_str(v);
-			strbuf_append(&sb, str->str.value, str->str.len);
-			releaseo(str);
+			RhoStrObject *str = rho_op_str(v);
+			rho_strbuf_append(&sb, str->str.value, str->str.len);
+			rho_releaseo(str);
 		}
 
 		if (i < count - 1) {
-			strbuf_append(&sb, ", ", 2);
+			rho_strbuf_append(&sb, ", ", 2);
 		} else {
-			strbuf_append(&sb, ")", 1);
+			rho_strbuf_append(&sb, ")", 1);
 			break;
 		}
 	}
 
-	Str dest;
-	strbuf_to_str(&sb, &dest);
+	RhoStr dest;
+	rho_strbuf_to_str(&sb, &dest);
 	dest.freeable = 1;
 
-	Value ret = strobj_make(dest);
-	return (StrObject *)objvalue(&ret);
+	RhoValue ret = rho_strobj_make(dest);
+	return (RhoStrObject *)rho_objvalue(&ret);
 }
 
-static void tuple_free(Value *this)
+static void tuple_free(RhoValue *this)
 {
-	TupleObject *tup = objvalue(this);
-	Value *elements = tup->elements;
+	RhoTupleObject *tup = rho_objvalue(this);
+	RhoValue *elements = tup->elements;
 	const size_t count = tup->count;
 
 	for (size_t i = 0; i < count; i++) {
-		release(&elements[i]);
+		rho_release(&elements[i]);
 	}
 
 	obj_class.del(this);
 }
 
-static size_t tuple_len(Value *this)
+static size_t tuple_len(RhoValue *this)
 {
-	TupleObject *tup = objvalue(this);
+	RhoTupleObject *tup = rho_objvalue(this);
 	return tup->count;
 }
 
-static Value tuple_get(Value *this, Value *idx)
+static RhoValue tuple_get(RhoValue *this, RhoValue *idx)
 {
-	if (!isint(idx)) {
-		return TYPE_EXC("list indices must be integers, not %s instances", getclass(idx)->name);
+	if (!rho_isint(idx)) {
+		return RHO_TYPE_EXC("list indices must be integers, not %s instances", rho_getclass(idx)->name);
 	}
 
-	TupleObject *tup = objvalue(this);
+	RhoTupleObject *tup = rho_objvalue(this);
 	const size_t count = tup->count;
-	const long idx_raw = intvalue(idx);
+	const long idx_raw = rho_intvalue(idx);
 
 	INDEX_CHECK(idx_raw, count);
 
-	retain(&tup->elements[idx_raw]);
+	rho_retain(&tup->elements[idx_raw]);
 	return tup->elements[idx_raw];
 }
 
-struct num_methods tuple_num_methods = {
+struct rho_num_methods rho_tuple_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */
 	NULL,    /* abs */
@@ -151,7 +151,7 @@ struct num_methods tuple_num_methods = {
 	NULL,    /* to_float */
 };
 
-struct seq_methods tuple_seq_methods = {
+struct rho_seq_methods rho_tuple_seq_methods = {
 	tuple_len,    /* len */
 	tuple_get,    /* get */
 	NULL,    /* set */
@@ -160,12 +160,12 @@ struct seq_methods tuple_seq_methods = {
 	NULL,    /* iapply */
 };
 
-Class tuple_class = {
-	.base = CLASS_BASE_INIT(),
+RhoClass rho_tuple_class = {
+	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Tuple",
 	.super = &obj_class,
 
-	.instance_size = sizeof(TupleObject),  /* variable-length */
+	.instance_size = sizeof(RhoTupleObject),  /* variable-length */
 
 	.init = NULL,
 	.del = tuple_free,
@@ -181,8 +181,8 @@ Class tuple_class = {
 	.iter = NULL,
 	.iternext = NULL,
 
-	.num_methods = &tuple_num_methods,
-	.seq_methods  = &tuple_seq_methods,
+	.num_methods = &rho_tuple_num_methods,
+	.seq_methods = &rho_tuple_seq_methods,
 
 	.members = NULL,
 	.methods = NULL,

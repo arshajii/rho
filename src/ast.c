@@ -4,9 +4,9 @@
 #include "util.h"
 #include "ast.h"
 
-AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno)
+RhoAST *rho_ast_new(RhoNodeType type, RhoAST *left, RhoAST *right, unsigned int lineno)
 {
-	AST *ast = rho_malloc(sizeof(AST));
+	RhoAST *ast = rho_malloc(sizeof(RhoAST));
 	ast->type = type;
 	ast->lineno = lineno;
 	ast->left = left;
@@ -14,64 +14,64 @@ AST *ast_new(NodeType type, AST *left, AST *right, unsigned int lineno)
 	return ast;
 }
 
-struct ast_list *ast_list_new(void)
+struct rho_ast_list *rho_ast_list_new(void)
 {
-	struct ast_list *list = rho_malloc(sizeof(struct ast_list));
+	struct rho_ast_list *list = rho_malloc(sizeof(struct rho_ast_list));
 	list->ast = NULL;
 	list->next = NULL;
 	return list;
 }
 
-void ast_list_free(struct ast_list *list)
+void rho_ast_list_free(struct rho_ast_list *list)
 {
 	while (list != NULL) {
-		struct ast_list *temp = list;
+		struct rho_ast_list *temp = list;
 		list = list->next;
-		ast_free(temp->ast);
+		rho_ast_free(temp->ast);
 		free(temp);
 	}
 }
 
-void ast_free(AST *ast)
+void rho_ast_free(RhoAST *ast)
 {
 	if (ast == NULL)
 		return;
 
 	switch (ast->type) {
-	case NODE_STRING:
-		str_free(ast->v.str_val);
+	case RHO_NODE_STRING:
+		rho_str_free(ast->v.str_val);
 		break;
-	case NODE_IDENT:
-		str_free(ast->v.ident);
+	case RHO_NODE_IDENT:
+		rho_str_free(ast->v.ident);
 		break;
-	case NODE_IF:
-	case NODE_ELIF:
-	case NODE_FOR:
-		ast_free(ast->v.middle);
+	case RHO_NODE_IF:
+	case RHO_NODE_ELIF:
+	case RHO_NODE_FOR:
+		rho_ast_free(ast->v.middle);
 		break;
-	case NODE_DEF:
-	case NODE_CALL:
-		ast_list_free(ast->v.params);
+	case RHO_NODE_DEF:
+	case RHO_NODE_CALL:
+		rho_ast_list_free(ast->v.params);
 		break;
-	case NODE_BLOCK:
-		ast_list_free(ast->v.block);
+	case RHO_NODE_BLOCK:
+		rho_ast_list_free(ast->v.block);
 		break;
-	case NODE_LIST:
-	case NODE_TUPLE:
-		ast_list_free(ast->v.list);
+	case RHO_NODE_LIST:
+	case RHO_NODE_TUPLE:
+		rho_ast_list_free(ast->v.list);
 		break;
-	case NODE_TRY_CATCH:
-		ast_list_free(ast->v.excs);
+	case RHO_NODE_TRY_CATCH:
+		rho_ast_list_free(ast->v.excs);
 		break;
-	case NODE_COND_EXPR:
-		ast_free(ast->v.middle);
+	case RHO_NODE_COND_EXPR:
+		rho_ast_free(ast->v.middle);
 		break;
 	default:
 		break;
 	}
 
-	AST *left = ast->left, *right = ast->right;
+	RhoAST *left = ast->left, *right = ast->right;
 	free(ast);
-	ast_free(left);
-	ast_free(right);
+	rho_ast_free(left);
+	rho_ast_free(right);
 }

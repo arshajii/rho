@@ -1,46 +1,46 @@
-#ifndef ITER_H
-#define ITER_H
+#ifndef RHO_ITER_H
+#define RHO_ITER_H
 
 #include "object.h"
 
 /* Base iterator */
-extern Class iter_class;
+extern RhoClass rho_iter_class;
 
 typedef struct {
-	Object base;
-} Iter;
+	RhoObject base;
+} RhoIter;
 
 /* Singleton used to mark end of iteration */
-extern Class iter_stop_class;
+extern RhoClass rho_iter_stop_class;
 
 typedef struct {
-	Object base;
-} IterStop;
+	RhoObject base;
+} RhoIterStop;
 
-Value get_iter_stop(void);
-#define is_iter_stop(v) (getclass((v)) == &iter_stop_class)
+RhoValue rho_get_iter_stop(void);
+#define rho_is_iter_stop(v) (rho_getclass((v)) == &rho_iter_stop_class)
 
 /* Result of applying function to iterator */
-extern Class applied_iter_class;
+extern RhoClass rho_applied_iter_class;
 
 typedef struct {
-	Iter base;
-	Iter *source;
-	Value fn;
-} AppliedIter;
+	RhoIter base;
+	RhoIter *source;
+	RhoValue fn;
+} RhoAppliedIter;
 
-Value applied_iter_make(Iter *source, Value *fn);
+RhoValue rho_applied_iter_make(RhoIter *source, RhoValue *fn);
 
 /* Range iterator */
-extern Class range_class;
+extern RhoClass rho_range_class;
 
 typedef struct {
-	Iter base;
+	RhoIter base;
 	long from;
 	long to;
 	long i;
-} Range;
+} RhoRange;
 
-Value range_make(Value *from, Value *to);
+RhoValue rho_range_make(RhoValue *from, RhoValue *to);
 
-#endif /* ITER_H */
+#endif /* RHO_ITER_H */
