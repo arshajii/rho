@@ -47,6 +47,7 @@ typedef struct rho_vm {
 	struct rho_value_array globals;
 	struct rho_str_array global_names;
 	RhoStrDict exports;
+	unsigned int *lno_cache;
 
 	/*
 	 * VM instances form a tree whose structure is
