@@ -239,7 +239,7 @@ bool rho_dict_eq(RhoDictObject *dict, RhoDictObject *other)
 
 	Entry **entries = d1->entries;
 	size_t capacity = d1->capacity;
-	static RhoValue empty = rho_makeempty();
+	static RhoValue empty = RHO_MAKE_EMPTY();
 
 	for (size_t i = 0; i < capacity; i++) {
 		for (Entry *entry = entries[i];
