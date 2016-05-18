@@ -31,10 +31,10 @@ static RhoStrObject *meta_class_str(RhoValue *this)
 }
 
 static RhoValue meta_class_call(RhoValue *this,
-                             RhoValue *args,
-                             RhoValue *args_named,
-                             size_t nargs,
-                             size_t nargs_named)
+                                RhoValue *args,
+                                RhoValue *args_named,
+                                size_t nargs,
+                                size_t nargs_named)
 {
 	RHO_UNUSED(args_named);
 
@@ -54,9 +54,9 @@ static RhoValue meta_class_call(RhoValue *this,
 
 	if (rho_iserror(&init_result)) {
 		free(rho_objvalue(&instance));  /* straight-up free; no need to
-		                               go through `release` since we can
-		                               be sure nobody has a reference to
-		                               the newly created instance        */
+		                                   go through `release` since we can
+		                                   be sure nobody has a reference to
+		                                   the newly created instance        */
 		return init_result;
 	} else {
 		return instance;
@@ -65,7 +65,7 @@ static RhoValue meta_class_call(RhoValue *this,
 
 RhoClass rho_meta_class = {
 	.base = RHO_CLASS_BASE_INIT(),
-	.name = "MetaRhoClass",
+	.name = "MetaClass",
 	.super = &rho_meta_class,
 
 	.instance_size = sizeof(RhoClass),

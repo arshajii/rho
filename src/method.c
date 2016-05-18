@@ -19,10 +19,10 @@ static void methobj_free(RhoValue *this)
 }
 
 static RhoValue methobj_invoke(RhoValue *this,
-                            RhoValue *args,
-                            RhoValue *args_named,
-                            size_t nargs,
-                            size_t nargs_named)
+                               RhoValue *args,
+                               RhoValue *args_named,
+                               size_t nargs,
+                               size_t nargs_named)
 {
 	RhoMethod *meth = rho_objvalue(this);
 	return meth->method(&rho_makeobj(meth->binder), args, args_named, nargs, nargs_named);
