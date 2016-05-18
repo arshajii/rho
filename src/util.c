@@ -222,3 +222,14 @@ char *rho_util_file_to_str(const char *filename)
 	str[size] = '\0';
 	return str;
 }
+
+size_t rho_smallest_pow_2_at_least(size_t x)
+{
+	--x;
+	x |= x >> 1;
+	x |= x >> 2;
+	x |= x >> 4;
+	x |= x >> 8;
+	x |= x >> 16;
+	return x+1;
+}

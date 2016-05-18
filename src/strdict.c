@@ -136,13 +136,13 @@ static void strdict_resize(RhoStrDict *dict, const size_t new_capacity)
 	Entry **new_table = make_empty_table(new_capacity);
 
 	for (size_t i = 0; i < old_capacity; i++) {
-		for (Entry *entry = old_table[i];
-		     entry != NULL;
-		     entry = entry->next) {
-
+		Entry *entry = old_table[i];
+		while (entry != NULL) {
+			Entry *next = entry->next;
 			const size_t index = entry->hash & (new_capacity - 1);
 			entry->next = new_table[index];
 			new_table[index] = entry;
+			entry = next;
 		}
 	}
 

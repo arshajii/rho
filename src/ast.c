@@ -58,6 +58,8 @@ void rho_ast_free(RhoAST *ast)
 		break;
 	case RHO_NODE_LIST:
 	case RHO_NODE_TUPLE:
+	case RHO_NODE_SET:
+	case RHO_NODE_DICT:
 		rho_ast_list_free(ast->v.list);
 		break;
 	case RHO_NODE_TRY_CATCH:

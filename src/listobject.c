@@ -170,45 +170,36 @@ void rho_list_append(RhoListObject *list, RhoValue *v)
 	list->elements[list->count++] = *v;
 }
 
-#define NAMED_ARGS_CHECK(name) \
-		if (nargs_named > 0) return RHO_TYPE_EXC(name "() takes no named arguments")
-
 static RhoValue list_append(RhoValue *this,
-                         RhoValue *args,
-                         RhoValue *args_named,
-                         size_t nargs,
-                         size_t nargs_named)
+                            RhoValue *args,
+                            RhoValue *args_named,
+                            size_t nargs,
+                            size_t nargs_named)
 {
 #define NAME "append"
 
 	RHO_UNUSED(args_named);
-	NAMED_ARGS_CHECK(NAME);
-
-	if (nargs != 1) {
-		return RHO_TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
-	}
+	RHO_NO_NAMED_ARGS_CHECK(NAME, nargs_named);
+	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 
 	RhoListObject *list = rho_objvalue(this);
 	rho_list_append(list, &args[0]);
-	return rho_makeint(0);
+	return rho_makenull();
 
 #undef NAME
 }
 
 static RhoValue list_pop(RhoValue *this,
-                      RhoValue *args,
-                      RhoValue *args_named,
-                      size_t nargs,
-                      size_t nargs_named)
+                         RhoValue *args,
+                         RhoValue *args_named,
+                         size_t nargs,
+                         size_t nargs_named)
 {
 #define NAME "pop"
 
 	RHO_UNUSED(args_named);
-	NAMED_ARGS_CHECK(NAME);
-
-	if (nargs >= 2) {
-		return RHO_TYPE_EXC(NAME "() takes at most 1 argument (got %lu)", nargs);
-	}
+	RHO_NO_NAMED_ARGS_CHECK(NAME, nargs_named);
+	RHO_ARG_COUNT_CHECK_AT_MOST(NAME, nargs, 1);
 
 	RhoListObject *list = rho_objvalue(this);
 	RhoValue *elements = list->elements;
@@ -243,19 +234,16 @@ static RhoValue list_pop(RhoValue *this,
 }
 
 static RhoValue list_insert(RhoValue *this,
-                         RhoValue *args,
-                         RhoValue *args_named,
-                         size_t nargs,
-                         size_t nargs_named)
+                            RhoValue *args,
+                            RhoValue *args_named,
+                            size_t nargs,
+                            size_t nargs_named)
 {
 #define NAME "insert"
 
 	RHO_UNUSED(args_named);
-	NAMED_ARGS_CHECK(NAME);
-
-	if (nargs != 2) {
-		return RHO_TYPE_EXC(NAME "() takes exactly 1 argument (got %lu)", nargs);
-	}
+	RHO_NO_NAMED_ARGS_CHECK(NAME, nargs_named);
+	RHO_ARG_COUNT_CHECK(NAME, nargs, 2);
 
 	RhoListObject *list = rho_objvalue(this);
 	const size_t count = list->count;
@@ -282,7 +270,7 @@ static RhoValue list_insert(RhoValue *this,
 	rho_retain(e);
 	elements[idx_raw] = *e;
 	++list->count;
-	return rho_makeint(0);
+	return rho_makenull();
 
 #undef NAME
 }
@@ -389,10 +377,10 @@ struct rho_seq_methods rho_list_seq_methods = {
 };
 
 struct rho_attr_method list_methods[] = {
-		{"append", list_append},
-		{"pop", list_pop},
-		{"insert", list_insert},
-		{NULL, NULL}
+	{"append", list_append},
+	{"pop", list_pop},
+	{"insert", list_insert},
+	{NULL, NULL}
 };
 
 RhoClass rho_list_class = {
@@ -441,7 +429,7 @@ static RhoValue iter_make(RhoListObject *list)
 static RhoValue iter_next(RhoValue *this)
 {
 	RhoListIter *iter = rho_objvalue(this);
-	if (iter->index == iter->source->count) {
+	if (iter->index >= iter->source->count) {
 		return rho_get_iter_stop();
 	} else {
 		RhoValue v = iter->source->elements[iter->index++];

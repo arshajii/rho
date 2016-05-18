@@ -203,6 +203,9 @@ static void compile_cond_expr(RhoCompiler *compiler, RhoAST *ast);
 static void compile_block(RhoCompiler *compiler, RhoAST *ast);
 static void compile_list(RhoCompiler *compiler, RhoAST *ast);
 static void compile_tuple(RhoCompiler *compiler, RhoAST *ast);
+static void compile_set(RhoCompiler *compiler, RhoAST *ast);
+static void compile_dict(RhoCompiler *compiler, RhoAST *ast);
+static void compile_dict_elem(RhoCompiler *compiler, RhoAST *ast);
 static void compile_index(RhoCompiler *compiler, RhoAST *ast);
 
 static void compile_if(RhoCompiler *compiler, RhoAST *ast);
@@ -568,6 +571,42 @@ static void compile_tuple(RhoCompiler *compiler, RhoAST *ast)
 
 	write_ins(compiler, RHO_INS_MAKE_TUPLE, ast->lineno);
 	write_uint16(compiler, len);
+}
+
+static void compile_set(RhoCompiler *compiler, RhoAST *ast)
+{
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_SET);
+
+	size_t len = 0;
+	for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
+		compile_node(compiler, node->ast, false);
+		++len;
+	}
+
+	write_ins(compiler, RHO_INS_MAKE_SET, ast->lineno);
+	write_uint16(compiler, len);
+}
+
+static void compile_dict(RhoCompiler *compiler, RhoAST *ast)
+{
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_DICT);
+
+	size_t len = 0;
+	for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
+		RHO_AST_TYPE_ASSERT(node->ast, RHO_NODE_DICT_ELEM);
+		compile_node(compiler, node->ast, false);
+		len += 2;
+	}
+
+	write_ins(compiler, RHO_INS_MAKE_DICT, ast->lineno);
+	write_uint16(compiler, len);
+}
+
+static void compile_dict_elem(RhoCompiler *compiler, RhoAST *ast)
+{
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_DICT_ELEM);
+	compile_node(compiler, ast->left, false);
+	compile_node(compiler, ast->right, false);
 }
 
 static void compile_index(RhoCompiler *compiler, RhoAST *ast)
@@ -1020,6 +1059,9 @@ static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel)
 	const unsigned int lineno = ast->lineno;
 
 	switch (ast->type) {
+	case RHO_NODE_NULL:
+		write_ins(compiler, RHO_INS_LOAD_NULL, lineno);
+		break;
 	case RHO_NODE_INT:
 	case RHO_NODE_FLOAT:
 	case RHO_NODE_STRING:
@@ -1134,6 +1176,15 @@ static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel)
 		break;
 	case RHO_NODE_TUPLE:
 		compile_tuple(compiler, ast);
+		break;
+	case RHO_NODE_SET:
+		compile_set(compiler, ast);
+		break;
+	case RHO_NODE_DICT:
+		compile_dict(compiler, ast);
+		break;
+	case RHO_NODE_DICT_ELEM:
+		compile_dict_elem(compiler, ast);
 		break;
 	case RHO_NODE_CALL:
 		compile_call(compiler, ast);
@@ -1389,6 +1440,8 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 		goto end;
 	case RHO_NODE_LIST:
 	case RHO_NODE_TUPLE:
+	case RHO_NODE_SET:
+	case RHO_NODE_DICT:
 		for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
 			fill_ct_from_ast(compiler, node->ast);
 		}
@@ -1618,6 +1671,8 @@ int rho_opcode_arg_size(RhoOpcode opcode)
 		return 2;
 	case RHO_INS_MAKE_LIST:
 	case RHO_INS_MAKE_TUPLE:
+	case RHO_INS_MAKE_SET:
+	case RHO_INS_MAKE_DICT:
 		return 2;
 	case RHO_INS_IMPORT:
 	case RHO_INS_EXPORT:
@@ -1775,6 +1830,8 @@ static int stack_delta(RhoOpcode opcode, int arg)
 		return -2;
 	case RHO_INS_MAKE_LIST:
 	case RHO_INS_MAKE_TUPLE:
+	case RHO_INS_MAKE_SET:
+	case RHO_INS_MAKE_DICT:
 		return -arg + 1;
 	case RHO_INS_IMPORT:
 		return 1;

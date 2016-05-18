@@ -165,6 +165,8 @@ static void populate_symtable_from_node(RhoSymTable *st, RhoAST *ast)
 		break;
 	case RHO_NODE_LIST:
 	case RHO_NODE_TUPLE:
+	case RHO_NODE_SET:
+	case RHO_NODE_DICT:
 		for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
 			populate_symtable_from_node(st, node->ast);
 		}
@@ -325,6 +327,8 @@ static void register_bindings_from_node(RhoSymTable *st, RhoAST *ast)
 	}
 	case RHO_NODE_LIST:
 	case RHO_NODE_TUPLE:
+	case RHO_NODE_SET:
+	case RHO_NODE_DICT:
 		for (struct rho_ast_list *node = ast->v.list; node != NULL; node = node->next) {
 			register_bindings_from_node(st, node->ast);
 		}

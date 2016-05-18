@@ -37,8 +37,8 @@ RhoValue rho_exc_make(RhoClass *exc_class, bool active, const char *msg_format, 
 }
 
 void rho_exc_traceback_append(RhoException *e,
-                          const char *fn,
-                          const unsigned int lineno)
+                              const char *fn,
+                              const unsigned int lineno)
 {
 	rho_tb_manager_add(&e->tbm, fn, lineno);
 }
@@ -300,6 +300,49 @@ RhoClass rho_import_exception_class = {
 	.attr_set = NULL
 };
 
+/* IllegalStateChangeException */
+
+static RhoValue isc_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
+{
+	return exc_init(this, args, nargs);
+}
+
+static void isc_exc_free(RhoValue *this)
+{
+	rho_exception_class.del(this);
+}
+
+RhoClass rho_isc_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
+	.name = "IllegalStateChangeException",
+	.super = &rho_exception_class,
+
+	.instance_size = sizeof(RhoIllegalStateChangeException),
+
+	.init = isc_exc_init,
+	.del = isc_exc_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
+
+	.num_methods = NULL,
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
+
 /* Common Exceptions */
 
 RhoValue rho_type_exc_unsupported_1(const char *op, const RhoClass *c1)
@@ -310,9 +353,9 @@ RhoValue rho_type_exc_unsupported_1(const char *op, const RhoClass *c1)
 RhoValue rho_type_exc_unsupported_2(const char *op, const RhoClass *c1, const RhoClass *c2)
 {
 	return RHO_TYPE_EXC("unsupported operand types for %s: '%s' and '%s'",
-	                op,
-	                c1->name,
-	                c2->name);
+	                    op,
+	                    c1->name,
+	                    c2->name);
 }
 
 RhoValue rho_type_exc_cannot_index(const RhoClass *c1)
@@ -345,12 +388,33 @@ RhoValue rho_type_exc_not_iterator(const RhoClass *c1)
 	return RHO_TYPE_EXC("object of type '%s' is not an iterator", c1->name);
 }
 
-RhoValue rho_call_exc_num_args(const char *fn, unsigned int expected, unsigned int got)
+RhoValue rho_call_exc_num_args(const char *fn, unsigned int got, unsigned int expected)
 {
 	return RHO_TYPE_EXC("function %s(): expected %u arguments, got %u",
-	                fn,
-	                expected,
-	                got);
+	                    fn,
+	                    expected,
+	                    got);
+}
+
+RhoValue rho_call_exc_num_args_at_most(const char *fn, unsigned int got, unsigned int expected)
+{
+	return RHO_TYPE_EXC("function %s(): expected at most %u arguments, got %u",
+	                    fn,
+	                    expected,
+	                    got);
+}
+
+RhoValue rho_call_exc_num_args_between(const char *fn, unsigned int got, unsigned int min, unsigned int max)
+{
+	return RHO_TYPE_EXC("function %s(): expected %u-%u arguments, got %u",
+	                    fn,
+	                    min, max,
+	                    got);
+}
+
+RhoValue rho_call_exc_named_args(const char *fn)
+{
+	return RHO_TYPE_EXC("function %s(): got unexpected named arguments", fn);
 }
 
 RhoValue rho_call_exc_dup_arg(const char *fn, const char *name)

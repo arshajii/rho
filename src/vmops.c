@@ -39,6 +39,9 @@ RhoStrObject *rho_op_str(RhoValue *v)
 void rho_op_print(RhoValue *v, FILE *out)
 {
 	switch (v->type) {
+	case RHO_VAL_TYPE_NULL:
+		fprintf(out, "null\n");
+		break;
 	case RHO_VAL_TYPE_INT:
 		fprintf(out, "%ld\n", rho_intvalue(v));
 		break;

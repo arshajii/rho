@@ -34,26 +34,21 @@ const struct rho_builtin rho_builtins[] = {
 		{NULL,   RHO_MAKE_EMPTY()},
 };
 
-#define ARG_ERR(count, expected) return rho_call_exc_num_args(__func__, count, expected)
-#define ARG_CHECK(count, expected) if (count != expected) ARG_ERR(count, expected)
-
-#define TYPE_ERROR(class) return rho_makeerr(type_error_unsupported_1(__func__, class))
-
 static RhoValue hash(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("hash", nargs, 1);
 	return rho_op_hash(&args[0]);
 }
 
 static RhoValue str(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("str", nargs, 1);
 	return rho_makeobj(rho_op_str(&args[0]));
 }
 
 static RhoValue len(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("len", nargs, 1);
 	RhoClass *class = rho_getclass(&args[0]);
 	LenFunc len = rho_resolve_len(class);
 
@@ -66,19 +61,19 @@ static RhoValue len(RhoValue *args, size_t nargs)
 
 static RhoValue iter(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("iter", nargs, 1);
 	return rho_op_iter(args);
 }
 
 static RhoValue next(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("next", nargs, 1);
 	return rho_op_iternext(args);
 }
 
 static RhoValue type(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("type", nargs, 1);
 	return rho_makeobj(rho_getclass(&args[0]));
 }
 
@@ -89,7 +84,7 @@ static RhoValue type(RhoValue *args, size_t nargs)
 
 static RhoValue rho_cos(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("cos", nargs, 1);
 	if (!(rho_isint(args) || rho_isfloat(args))) {
 		return rho_type_exc_unsupported_1("cos", rho_getclass(args));
 	}
@@ -99,7 +94,7 @@ static RhoValue rho_cos(RhoValue *args, size_t nargs)
 
 static RhoValue rho_sin(RhoValue *args, size_t nargs)
 {
-	ARG_CHECK(nargs, 1);
+	RHO_ARG_COUNT_CHECK("sin", nargs, 1);
 	if (!(rho_isint(args) || rho_isfloat(args))) {
 		return rho_type_exc_unsupported_1("sin", rho_getclass(args));
 	}

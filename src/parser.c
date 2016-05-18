@@ -112,6 +112,7 @@ static RhoAST *parse_parens(RhoParser *p);
 static RhoAST *parse_atom(RhoParser *p);
 static RhoAST *parse_unop(RhoParser *p);
 
+static RhoAST *parse_null(RhoParser *p);
 static RhoAST *parse_int(RhoParser *p);
 static RhoAST *parse_float(RhoParser *p);
 static RhoAST *parse_str(RhoParser *p);
@@ -133,14 +134,15 @@ static RhoAST *parse_export(RhoParser *p);
 
 static RhoAST *parse_block(RhoParser *p);
 static RhoAST *parse_list(RhoParser *p);
+static RhoAST *parse_set_or_dict(RhoParser *p);
 static RhoAST *parse_lambda(RhoParser *p);
 
 static RhoAST *parse_empty(RhoParser *p);
 
 static struct rho_ast_list *parse_comma_separated_list(RhoParser *p,
-                                                   const RhoTokType open_type, const RhoTokType close_type,
-                                                   RhoAST *(*sub_element_parse_routine)(RhoParser *),
-                                                   unsigned int *count);
+                                                       const RhoTokType open_type, const RhoTokType close_type,
+                                                       RhoAST *(*sub_element_parse_routine)(RhoParser *),
+                                                       unsigned int *count);
 
 static RhoToken *expect(RhoParser *p, RhoTokType type);
 
@@ -161,6 +163,7 @@ static void parse_err_unnamed_after_named(RhoParser *p, RhoToken *tok);
 static void parse_err_malformed_args(RhoParser *p, RhoToken *tok);
 static void parse_err_empty_catch(RhoParser *p, RhoToken *tok);
 static void parse_err_misplaced_dollar_identifier(RhoParser *p, RhoToken *tok);
+static void parse_err_inconsistent_dict_elements(RhoParser *p, RhoToken *tok);
 
 RhoParser *rho_parser_new(char *str, const char *name)
 {
@@ -462,6 +465,9 @@ static RhoAST *parse_atom(RhoParser *p)
 	case RHO_TOK_PAREN_OPEN:
 		ast = parse_parens(p);
 		break;
+	case RHO_TOK_NULL:
+		ast = parse_null(p);
+		break;
 	case RHO_TOK_INT:
 		ast = parse_int(p);
 		break;
@@ -479,6 +485,9 @@ static RhoAST *parse_atom(RhoParser *p)
 		break;
 	case RHO_TOK_BRACK_OPEN:
 		ast = parse_list(p);
+		break;
+	case RHO_TOK_BRACE_OPEN:
+		ast = parse_set_or_dict(p);
 		break;
 	case RHO_TOK_NOT:
 	case RHO_TOK_BITNOT:
@@ -520,9 +529,9 @@ static RhoAST *parse_atom(RhoParser *p)
 		case RHO_TOK_PAREN_OPEN: {
 			unsigned int nargs;
 			RhoParamList *params = parse_comma_separated_list(p,
-			                                               RHO_TOK_PAREN_OPEN, RHO_TOK_PAREN_CLOSE,
-			                                               parse_expr,
-			                                               &nargs);
+			                                                  RHO_TOK_PAREN_OPEN, RHO_TOK_PAREN_CLOSE,
+			                                                  parse_expr,
+			                                                  &nargs);
 
 			ERROR_CHECK_AST(p, params, ast);
 
@@ -715,6 +724,14 @@ static RhoAST *parse_unop(RhoParser *p)
 	return ast;
 }
 
+static RhoAST *parse_null(RhoParser *p)
+{
+	RhoToken *tok = expect(p, RHO_TOK_NULL);
+	ERROR_CHECK(p);
+	RhoAST *ast = rho_ast_new(RHO_NODE_NULL, NULL, NULL, tok->lineno);
+	return ast;
+}
+
 static RhoAST *parse_int(RhoParser *p)
 {
 	RhoToken *tok = expect(p, RHO_TOK_INT);
@@ -899,9 +916,9 @@ static RhoAST *parse_def(RhoParser *p)
 
 	unsigned int nargs;
 	RhoParamList *params = parse_comma_separated_list(p,
-	                                               RHO_TOK_PAREN_OPEN, RHO_TOK_PAREN_CLOSE,
-	                                               parse_expr,
-	                                               &nargs);
+	                                                  RHO_TOK_PAREN_OPEN, RHO_TOK_PAREN_CLOSE,
+	                                                  parse_expr,
+	                                                  &nargs);
 	ERROR_CHECK_AST(p, params, name);
 
 	/* parameter syntax check */
@@ -1037,10 +1054,10 @@ static RhoAST *parse_try_catch(RhoParser *p)
 
 	unsigned int count;
 	struct rho_ast_list *exc_list = parse_comma_separated_list(p,
-	                                                       RHO_TOK_PAREN_OPEN,
-	                                                       RHO_TOK_PAREN_CLOSE,
-	                                                       parse_expr,
-	                                                       &count);
+	                                                           RHO_TOK_PAREN_OPEN,
+	                                                           RHO_TOK_PAREN_CLOSE,
+	                                                           parse_expr,
+	                                                           &count);
 
 	ERROR_CHECK_AST(p, exc_list, try_body);
 
@@ -1153,13 +1170,65 @@ static RhoAST *parse_list(RhoParser *p)
 {
 	RhoToken *brack_open = rho_parser_peek_token(p);  /* parse_comma_separated_list does error checking */
 	struct rho_ast_list *list_head = parse_comma_separated_list(p,
-	                                                        RHO_TOK_BRACK_OPEN,
-	                                                        RHO_TOK_BRACK_CLOSE,
-	                                                        parse_expr,
-	                                                        NULL);
+	                                                            RHO_TOK_BRACK_OPEN,
+	                                                            RHO_TOK_BRACK_CLOSE,
+	                                                            parse_expr,
+	                                                            NULL);
 	ERROR_CHECK(p);
 	RhoAST *ast = rho_ast_new(RHO_NODE_LIST, NULL, NULL, brack_open->lineno);
 	ast->v.list = list_head;
+	return ast;
+}
+
+static RhoAST *parse_dict_or_set_sub_element(RhoParser *p)
+{
+	RhoAST *k = parse_expr(p);
+	ERROR_CHECK(p);
+
+	RhoToken *sep = rho_parser_peek_token(p);
+
+	if (sep->type == RHO_TOK_COLON) {
+		/* dict */
+		expect(p, RHO_TOK_COLON);
+		RhoAST *v = parse_expr(p);
+		ERROR_CHECK_AST(p, v, k);
+		return rho_ast_new(RHO_NODE_DICT_ELEM, k, v, k->lineno);
+	} else {
+		/* set */
+		return k;
+	}
+}
+
+static RhoAST *parse_set_or_dict(RhoParser *p)
+{
+	RhoToken *brace_open = rho_parser_peek_token(p);
+	const unsigned int lineno = brace_open->lineno;
+	struct rho_ast_list *head = parse_comma_separated_list(p,
+	                                                       RHO_TOK_BRACE_OPEN,
+	                                                       RHO_TOK_BRACE_CLOSE,
+	                                                       parse_dict_or_set_sub_element,
+	                                                       NULL);
+	ERROR_CHECK(p);
+
+	RhoAST *ast;
+
+	if (head != NULL) {
+		/* check if the elements are consistent */
+		const bool is_dict = (head->ast->type == RHO_NODE_DICT_ELEM);
+
+		for (struct rho_ast_list *node = head; node != NULL; node = node->next) {
+			if (is_dict ^ (node->ast->type == RHO_NODE_DICT_ELEM)) {
+				parse_err_inconsistent_dict_elements(p, brace_open);
+				ERROR_CHECK_LIST(p, NULL, head);
+			}
+		}
+
+		ast = rho_ast_new(is_dict ? RHO_NODE_DICT : RHO_NODE_SET, NULL, NULL, lineno);
+	} else {
+		ast = rho_ast_new(RHO_NODE_DICT, NULL, NULL, lineno);
+	}
+
+	ast->v.list = head;
 	return ast;
 }
 
@@ -1204,9 +1273,9 @@ static RhoAST *parse_empty(RhoParser *p)
  * Returns the number of elements in this parsed list.
  */
 static struct rho_ast_list *parse_comma_separated_list(RhoParser *p,
-                                                   const RhoTokType open_type, const RhoTokType close_type,
-                                                   RhoAST *(*sub_element_parse_routine)(RhoParser *),
-                                                   unsigned int *count)
+                                                       const RhoTokType open_type, const RhoTokType close_type,
+                                                       RhoAST *(*sub_element_parse_routine)(RhoParser *),
+                                                       unsigned int *count)
 {
 	RhoToken *tok_open = expect(p, open_type);
 	ERROR_CHECK(p);
@@ -1599,4 +1668,14 @@ static void parse_err_misplaced_dollar_identifier(RhoParser *p, RhoToken *tok)
 	                            p->name, tok->lineno, tok_err));
 	RHO_FREE(tok_err);
 	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_MISPLACED_DOLLAR_IDENTIFIER);
+}
+
+static void parse_err_inconsistent_dict_elements(RhoParser *p, RhoToken *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	RHO_PARSER_SET_ERROR_MSG(p,
+	                         rho_util_str_format(RHO_SYNTAX_ERROR " inconsistent dictionary elements\n\n%s",
+	                            p->name, tok->lineno, tok_err));
+	RHO_FREE(tok_err);
+	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_INCONSISTENT_DICT_ELEMENTS);
 }

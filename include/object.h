@@ -149,6 +149,7 @@ struct rho_value {
 		RHO_VAL_TYPE_EMPTY = 0,
 
 		/* standard type classes */
+		RHO_VAL_TYPE_NULL,
 		RHO_VAL_TYPE_INT,
 		RHO_VAL_TYPE_FLOAT,
 		RHO_VAL_TYPE_OBJECT,
@@ -169,6 +170,7 @@ struct rho_value {
 };
 
 #define rho_isempty(val)    ((val)->type == RHO_VAL_TYPE_EMPTY)
+#define rho_isnull(val)     ((val)->type == RHO_VAL_TYPE_NULL)
 #define rho_isint(val)      ((val)->type == RHO_VAL_TYPE_INT)
 #define rho_isfloat(val)    ((val)->type == RHO_VAL_TYPE_FLOAT)
 #define rho_isobject(val)   ((val)->type == RHO_VAL_TYPE_OBJECT)
@@ -184,6 +186,7 @@ struct rho_value {
 #define rho_errvalue(val)   ((val)->data.e)
 
 #define rho_makeempty()     ((RhoValue){.type = RHO_VAL_TYPE_EMPTY, .data = {.i = 0}})
+#define rho_makenull()      ((RhoValue){.type = RHO_VAL_TYPE_NULL, .data = {.i = 0}})
 #define rho_makeint(val)    ((RhoValue){.type = RHO_VAL_TYPE_INT, .data = {.i = (val)}})
 #define rho_makefloat(val)  ((RhoValue){.type = RHO_VAL_TYPE_FLOAT, .data = {.f = (val)}})
 #define rho_makeobj(val)    ((RhoValue){.type = RHO_VAL_TYPE_OBJECT, .data = {.o = (val)}})
@@ -194,6 +197,7 @@ struct rho_value {
 #define rho_makedbz()       ((RhoValue){.type = RHO_VAL_TYPE_DIV_BY_ZERO})
 
 #define RHO_MAKE_EMPTY()     { .type = RHO_VAL_TYPE_EMPTY, .data = { .i = 0 } }
+#define RHO_MAKE_NULL()      { .type = RHO_VAL_TYPE_NULL, .data = { .i = 0 } }
 #define RHO_MAKE_INT(val)    { .type = RHO_VAL_TYPE_INT, .data = { .i = (val) } }
 #define RHO_MAKE_FLOAT(val)  { .type = RHO_VAL_TYPE_FLOAT, .data = { .f = (val) } }
 #define RHO_MAKE_OBJ(val)    { .type = RHO_VAL_TYPE_OBJECT, .data = { .o = (val) } }

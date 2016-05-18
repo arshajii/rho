@@ -57,6 +57,7 @@ typedef enum {
 	RHO_NODE_UPLUS,
 	RHO_NODE_UMINUS,
 
+	RHO_NODE_NULL,
 	RHO_NODE_PRINT,
 	RHO_NODE_IF,
 	RHO_NODE_ELIF,
@@ -76,10 +77,13 @@ typedef enum {
 	RHO_NODE_BLOCK,
 	RHO_NODE_LIST,
 	RHO_NODE_TUPLE,
+	RHO_NODE_SET,
+	RHO_NODE_DICT,
 	RHO_NODE_LAMBDA,
 
 	RHO_NODE_CALL,
-	RHO_NODE_INDEX
+	RHO_NODE_INDEX,
+	RHO_NODE_DICT_ELEM,
 } RhoNodeType;
 
 #define RHO_AST_TYPE_ASSERT(ast, nodetype) assert((ast)->type == (nodetype))

@@ -81,7 +81,7 @@ static RhoValue funcobj_call(RhoValue *this,
 	const unsigned int argcount = co->argcount;
 
 	if (nargs > argcount) {
-		return rho_call_exc_num_args(co->name, argcount, nargs);
+		return rho_call_exc_num_args(co->name, nargs, argcount);
 	}
 
 	RhoValue *locals = rho_calloc(argcount, sizeof(RhoValue));

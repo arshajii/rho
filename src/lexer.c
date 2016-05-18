@@ -415,13 +415,17 @@ static RhoToken next_string(RhoParser *p, const char delim)
 	do {
 		const char c = currc(p);
 
+		if (c == '\n') {
+			RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_NEWLINE_IN_STRING);
+			static RhoToken x;
+			return x;
+		}
+
 		if (c == '\\') {
 			++escape_count;
-		}
-		else if (c == delim && escape_count % 2 == 0) {
+		} else if (c == delim && escape_count % 2 == 0) {
 			break;
-		}
-		else {
+		} else {
 			escape_count = 0;
 		}
 
@@ -467,6 +471,7 @@ static RhoToken next_word(RhoParser *p)
 		const char *keyword;
 		RhoTokType type;
 	} keywords[] = {
+		{"null",     RHO_TOK_NULL},
 		{"print",    RHO_TOK_PRINT},
 		{"if",       RHO_TOK_IF},
 		{"elif",     RHO_TOK_ELIF},
@@ -798,7 +803,7 @@ static void lex_err_unexpected_char(RhoParser *p, const char *c)
 	const char *tok_err = rho_err_on_char(c, p->code, p->end, p->lineno);
 	RHO_PARSER_SET_ERROR_MSG(p,
 	                         rho_util_str_format(RHO_SYNTAX_ERROR " unexpected character: %c\n\n%s",
-	                            p->name, p->lineno, *c, tok_err));
+	                                             p->name, p->lineno, *c, tok_err));
 	RHO_FREE(tok_err);
 	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_UNEXPECTED_CHAR);
 }

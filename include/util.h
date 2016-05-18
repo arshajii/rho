@@ -66,4 +66,6 @@ const char *rho_util_str_format(const char *format, ...);
 
 char *rho_util_file_to_str(const char *filename);
 
+size_t rho_smallest_pow_2_at_least(size_t x);
+
 #endif /* RHO_UTIL_H */

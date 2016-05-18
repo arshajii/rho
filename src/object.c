@@ -5,6 +5,7 @@
 #include "exc.h"
 #include "err.h"
 #include "util.h"
+#include "null.h"
 #include "intobject.h"
 #include "floatobject.h"
 #include "strobject.h"
@@ -155,6 +156,8 @@ RhoClass *rho_getclass(RhoValue *v)
 	}
 
 	switch (v->type) {
+	case RHO_VAL_TYPE_NULL:
+		return &rho_null_class;
 	case RHO_VAL_TYPE_INT:
 		return &rho_int_class;
 	case RHO_VAL_TYPE_FLOAT:
@@ -335,7 +338,9 @@ void *rho_obj_alloc_var(RhoClass *class, size_t extra)
 
 RhoValue rho_class_instantiate(RhoClass *class, RhoValue *args, size_t nargs)
 {
-	if (class == &rho_int_class) {
+	if (class == &rho_null_class) {
+		return rho_makenull();
+	} else if (class == &rho_int_class) {
 		return rho_makeint(0);
 	} else if (class == &rho_float_class) {
 		return rho_makefloat(0);

@@ -28,11 +28,16 @@ typedef struct {
 	RhoException base;
 } RhoImportException;
 
+typedef struct {
+	RhoException base;
+} RhoIllegalStateChangeException;
+
 extern RhoClass rho_exception_class;
 extern RhoClass rho_index_exception_class;
 extern RhoClass rho_type_exception_class;
 extern RhoClass rho_attr_exception_class;
 extern RhoClass rho_import_exception_class;
+extern RhoClass rho_isc_exception_class;
 
 RhoValue rho_exc_make(RhoClass *exc_class, bool active, const char *msg_format, ...);
 void rho_exc_traceback_append(RhoException *e,
@@ -46,6 +51,7 @@ void rho_exc_print_msg(RhoException *e, FILE *out);
 #define RHO_TYPE_EXC(...)   rho_exc_make(&rho_type_exception_class, true, __VA_ARGS__)
 #define RHO_ATTR_EXC(...)   rho_exc_make(&rho_attr_exception_class, true, __VA_ARGS__)
 #define RHO_IMPORT_EXC(...) rho_exc_make(&rho_import_exception_class, true, __VA_ARGS__)
+#define RHO_ISC_EXC(...)    rho_exc_make(&rho_isc_exception_class, true, __VA_ARGS__)
 
 RhoValue rho_type_exc_unsupported_1(const char *op, const RhoClass *c1);
 RhoValue rho_type_exc_unsupported_2(const char *op, const RhoClass *c1, const RhoClass *c2);
@@ -55,7 +61,10 @@ RhoValue rho_type_exc_cannot_instantiate(const RhoClass *c1);
 RhoValue rho_type_exc_not_callable(const RhoClass *c1);
 RhoValue rho_type_exc_not_iterable(const RhoClass *c1);
 RhoValue rho_type_exc_not_iterator(const RhoClass *c1);
-RhoValue rho_call_exc_num_args(const char *fn, unsigned int expected, unsigned int got);
+RhoValue rho_call_exc_num_args(const char *fn, unsigned int got, unsigned int expected);
+RhoValue rho_call_exc_num_args_at_most(const char *fn, unsigned int got, unsigned int expected);
+RhoValue rho_call_exc_num_args_between(const char *fn, unsigned int got, unsigned int min, unsigned int max);
+RhoValue rho_call_exc_named_args(const char *fn);
 RhoValue rho_call_exc_dup_arg(const char *fn, const char *name);
 RhoValue rho_call_exc_unknown_arg(const char *fn, const char *name);
 RhoValue rho_call_exc_missing_arg(const char *fn, const char *name);
@@ -65,5 +74,18 @@ RhoValue rho_attr_exc_not_found(const RhoClass *type, const char *attr);
 RhoValue rho_attr_exc_readonly(const RhoClass *type, const char *attr);
 RhoValue rho_attr_exc_mismatch(const RhoClass *type, const char *attr, const RhoClass *assign_type);
 RhoValue rho_import_exc_not_found(const char *name);
+
+/* Miscellaneous utilities */
+#define RHO_ARG_COUNT_CHECK(name, count, expected) \
+	if ((count) != (expected)) return rho_call_exc_num_args((name), (count), (expected));
+
+#define RHO_ARG_COUNT_CHECK_AT_MOST(name, count, expected) \
+	if ((count) > (expected)) return rho_call_exc_num_args_at_most((name), (count), (expected));
+
+#define RHO_ARG_COUNT_CHECK_BETWEEN(name, count, min, max) \
+	if ((count) < (min) || (count) > (max)) return rho_call_exc_num_args_between((name), (count), (min), (max));
+
+#define RHO_NO_NAMED_ARGS_CHECK(name, count) \
+	if ((count) > 0) return rho_call_exc_named_args((name));
 
 #endif /* RHO_EXC_H */

@@ -12,12 +12,15 @@
 #include "strobject.h"
 #include "listobject.h"
 #include "tupleobject.h"
+#include "setobject.h"
+#include "dictobject.h"
 #include "codeobject.h"
 #include "funcobject.h"
 #include "method.h"
 #include "nativefunc.h"
 #include "module.h"
 #include "metaclass.h"
+#include "null.h"
 #include "attr.h"
 #include "exc.h"
 #include "err.h"
@@ -43,26 +46,29 @@ void rho_current_vm_set(RhoVM *vm)
 }
 
 static RhoClass *classes[] = {
-		&obj_class,
-		&rho_int_class,
-		&rho_float_class,
-		&rho_str_class,
-		&rho_list_class,
-		&rho_tuple_class,
-		&rho_co_class,
-		&rho_fn_class,
-		&rho_method_class,
-		&rho_native_func_class,
-		&rho_module_class,
-		&rho_meta_class,
+	&obj_class,
+	&rho_null_class,
+	&rho_int_class,
+	&rho_float_class,
+	&rho_str_class,
+	&rho_list_class,
+	&rho_tuple_class,
+	&rho_set_class,
+	&rho_dict_class,
+	&rho_co_class,
+	&rho_fn_class,
+	&rho_method_class,
+	&rho_native_func_class,
+	&rho_module_class,
+	&rho_meta_class,
 
-		/* exception classes */
-		&rho_exception_class,
-		&rho_index_exception_class,
-		&rho_type_exception_class,
-		&rho_attr_exception_class,
-		&rho_import_exception_class,
-		NULL
+	/* exception classes */
+	&rho_exception_class,
+	&rho_index_exception_class,
+	&rho_type_exception_class,
+	&rho_attr_exception_class,
+	&rho_import_exception_class,
+	NULL
 };
 
 static RhoStrDict builtins_dict;
@@ -363,7 +369,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			break;
 		}
 		case RHO_INS_LOAD_NULL: {
-			STACK_PUSH(rho_makeint(0));
+			STACK_PUSH(rho_makenull());
 			break;
 		}
 		/*
@@ -1169,30 +1175,64 @@ void rho_vm_eval_frame(RhoVM *vm)
 		}
 		case RHO_INS_MAKE_LIST: {
 			const unsigned int len = GET_UINT16();
-			RhoValue list;
 
 			if (len > 0) {
-				list = rho_list_make(stack - len, len);
+				res = rho_list_make(stack - len, len);
 			} else {
-				list = rho_list_make(NULL, 0);
+				res = rho_list_make(NULL, 0);
 			}
 
 			STACK_POPN(len);
-			STACK_PUSH(list);
+			STACK_PUSH(res);
 			break;
 		}
 		case RHO_INS_MAKE_TUPLE: {
 			const unsigned int len = GET_UINT16();
-			RhoValue tup;
 
 			if (len > 0) {
-				tup = rho_tuple_make(stack - len, len);
+				res = rho_tuple_make(stack - len, len);
 			} else {
-				tup = rho_tuple_make(NULL, 0);
+				res = rho_tuple_make(NULL, 0);
 			}
 
 			STACK_POPN(len);
-			STACK_PUSH(tup);
+			STACK_PUSH(res);
+			break;
+		}
+		case RHO_INS_MAKE_SET: {
+			const unsigned int len = GET_UINT16();
+
+			if (len > 0) {
+				res = rho_set_make(stack - len, len);
+			} else {
+				res = rho_set_make(NULL, 0);
+			}
+
+			STACK_POPN(len);
+
+			if (rho_iserror(&res)) {
+				goto error;
+			}
+
+			STACK_PUSH(res);
+			break;
+		}
+		case RHO_INS_MAKE_DICT: {
+			const unsigned int len = GET_UINT16();
+
+			if (len > 0) {
+				res = rho_dict_make(stack - len, len);
+			} else {
+				res = rho_dict_make(NULL, 0);
+			}
+
+			STACK_POPN(len);
+
+			if (rho_iserror(&res)) {
+				goto error;
+			}
+
+			STACK_PUSH(res);
 			break;
 		}
 		case RHO_INS_IMPORT: {
