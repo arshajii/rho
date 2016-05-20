@@ -125,19 +125,6 @@ double rho_util_read_double_from_stream(unsigned char *stream)
 }
 
 /*
- * String-array functions
- */
-
-void rho_util_str_array_dup(struct rho_str_array *src, struct rho_str_array *dst)
-{
-	const size_t length = src->length;
-	const size_t size = length * sizeof(*(src->array));
-	dst->array = rho_malloc(size);
-	dst->length = length;
-	memcpy(dst->array, src->array, size);
-}
-
-/*
  * Memory allocation functions
  */
 

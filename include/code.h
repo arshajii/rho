@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include "object.h"
 #include "str.h"
-#include "util.h"
 
 /* fundamental unit of compiled code: 8-bit byte */
 typedef uint8_t byte;

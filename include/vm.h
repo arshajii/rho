@@ -9,7 +9,6 @@
 #include "str.h"
 #include "strdict.h"
 #include "module.h"
-#include "util.h"
 
 struct rho_exc_stack_element {
 	size_t start;  /* start position of try-block */

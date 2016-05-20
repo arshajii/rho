@@ -27,4 +27,16 @@ RhoStr *rho_str_cat(RhoStr *s1, RhoStr *s2);
 void rho_str_dealloc(RhoStr *str);
 void rho_str_free(RhoStr *str);
 
+struct rho_str_array {
+	/* bare-bones string array */
+	struct {
+		const char *str;
+		size_t length;
+	} *array;
+
+	size_t length;
+};
+
+void rho_util_str_array_dup(struct rho_str_array *src, struct rho_str_array *dst);
+
 #endif /* RHO_STR_H */

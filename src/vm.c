@@ -30,6 +30,7 @@
 #include "loader.h"
 #include "plugins.h"
 #include "util.h"
+#include "main.h"
 #include "vmops.h"
 #include "vm.h"
 

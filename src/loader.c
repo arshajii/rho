@@ -4,6 +4,7 @@
 #include "code.h"
 #include "compiler.h"
 #include "err.h"
+#include "util.h"
 #include "loader.h"
 
 int rho_load_from_file(const char *name, const bool name_has_ext, RhoCode *dest)

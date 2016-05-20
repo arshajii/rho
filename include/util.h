@@ -4,10 +4,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#define RHO_VERSION "0.0.0"
-
-#define RHO_IS_POSIX (defined (__unix__) || (defined (__APPLE__) && defined (__MACH__)))
-
 #define RHO_ANSI_CLR_RED     "\x1b[31m"
 #define RHO_ANSI_CLR_GREEN   "\x1b[32m"
 #define RHO_ANSI_CLR_YELLOW  "\x1b[33m"
@@ -43,18 +39,6 @@ void rho_util_write_uint16_to_stream(unsigned char *stream, const unsigned int n
 unsigned int rho_util_read_uint16_from_stream(unsigned char *stream);
 void rho_util_write_double_to_stream(unsigned char *stream, const double d);
 double rho_util_read_double_from_stream(unsigned char *stream);
-
-struct rho_str_array {
-	/* bare-bones string array */
-	struct {
-		const char *str;
-		size_t length;
-	} *array;
-
-	size_t length;
-};
-
-void rho_util_str_array_dup(struct rho_str_array *src, struct rho_str_array *dst);
 
 void *rho_malloc(size_t n);
 void *rho_calloc(size_t num, size_t size);

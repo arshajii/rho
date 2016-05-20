@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "code.h"
 #include "object.h"
-#include "util.h"
+#include "str.h"
 
 struct rho_vm;
 
