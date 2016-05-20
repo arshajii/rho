@@ -75,7 +75,7 @@ static void tuple_free(RhoValue *this)
 		rho_release(&elements[i]);
 	}
 
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 static size_t tuple_len(RhoValue *this)
@@ -163,7 +163,7 @@ struct rho_seq_methods rho_tuple_seq_methods = {
 RhoClass rho_tuple_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Tuple",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoTupleObject),  /* variable-length */
 

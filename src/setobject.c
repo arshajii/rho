@@ -354,7 +354,7 @@ static RhoValue set_remove_method(RhoValue *this,
 static RhoValue set_init(RhoValue *this, RhoValue *args, size_t nargs)
 {
 	RHO_ARG_COUNT_CHECK_AT_MOST("Set", nargs, 1);
-	obj_class.init(this, NULL, 0);
+	rho_obj_class.init(this, NULL, 0);
 
 	RhoSetObject *set = rho_objvalue(this);
 	set->entries = make_empty_table(EMPTY_SIZE);
@@ -420,7 +420,7 @@ static void set_free(RhoValue *this)
 {
 	RhoSetObject *set = rho_objvalue(this);
 	set_free_entries(set);
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 struct rho_num_methods rho_set_num_methods = {
@@ -492,7 +492,7 @@ struct rho_attr_method set_methods[] = {
 RhoClass rho_set_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Set",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoSetObject),
 

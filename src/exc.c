@@ -94,13 +94,13 @@ static void exc_free(RhoValue *this)
 	RhoException *exc = rho_objvalue(this);
 	RHO_FREE(exc->msg);
 	rho_tb_manager_dealloc(&exc->tbm);
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 RhoClass rho_exception_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Exception",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoException),
 

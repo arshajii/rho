@@ -463,7 +463,7 @@ static void dict_free(RhoValue *this)
 	}
 
 	free(entries);
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 struct rho_num_methods rho_dict_num_methods = {
@@ -536,7 +536,7 @@ struct rho_attr_method dict_methods[] = {
 RhoClass rho_dict_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Dict",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoDictObject),
 

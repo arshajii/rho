@@ -178,7 +178,7 @@ struct rho_seq_methods rho_str_seq_methods = {
 RhoClass rho_str_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Str",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoStrObject),
 

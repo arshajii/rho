@@ -47,7 +47,7 @@ void rho_current_vm_set(RhoVM *vm)
 }
 
 static RhoClass *classes[] = {
-	&obj_class,
+	&rho_obj_class,
 	&rho_null_class,
 	&rho_int_class,
 	&rho_float_class,

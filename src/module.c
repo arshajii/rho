@@ -18,7 +18,7 @@ static void module_free(RhoValue *this)
 {
 	RhoModule *mod = rho_objvalue(this);
 	rho_strdict_dealloc(&mod->contents);
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 static RhoValue module_attr_get(RhoValue *this, const char *attr)
@@ -106,7 +106,7 @@ struct rho_seq_methods module_seq_methods = {
 RhoClass rho_module_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Module",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoModule),
 

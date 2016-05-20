@@ -314,7 +314,7 @@ struct rho_num_methods rho_int_num_methods = {
 RhoClass rho_int_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Int",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = 0,
 

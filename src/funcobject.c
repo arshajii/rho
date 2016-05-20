@@ -29,7 +29,7 @@ void funcobj_free(RhoValue *this)
 	RhoFuncObject *fn = rho_objvalue(this);
 	release_defaults(fn);
 	rho_releaseo(fn->co);
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 void rho_funcobj_init_defaults(RhoFuncObject *fn, RhoValue *defaults, const size_t n_defaults)
@@ -220,7 +220,7 @@ struct rho_seq_methods fn_seq_methods = {
 RhoClass rho_fn_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "FuncObject",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoFuncObject),
 

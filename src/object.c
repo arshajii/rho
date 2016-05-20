@@ -118,7 +118,7 @@ struct rho_seq_methods obj_seq_methods = {
 	NULL,    /* iapply */
 };
 
-RhoClass obj_class = {
+RhoClass rho_obj_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Object",
 	.super = NULL,
@@ -209,13 +209,13 @@ type rho_resolve_##name(RhoClass *class) { \
 	type op; \
 	while (target != NULL && (op = target->name) == NULL) { \
 		if (target == target->super) { \
-			return obj_class.name; \
+			return rho_obj_class.name; \
 		} \
 		target = target->super; \
 	} \
 \
 	if (target == NULL) { \
-		return obj_class.name; \
+		return rho_obj_class.name; \
 	} \
 \
 	class->name = op; \
@@ -225,20 +225,20 @@ type rho_resolve_##name(RhoClass *class) { \
 #define MAKE_METHOD_RESOLVER(name, category, type) \
 type rho_resolve_##name(RhoClass *class) { \
 	if (class->category == NULL) { \
-		return obj_class.category->name; \
+		return rho_obj_class.category->name; \
 	} \
 \
 	RhoClass *target = class; \
 	type op; \
 	while (target != NULL && (op = target->category->name) == NULL) { \
 		if (target == target->super) { \
-			return obj_class.category->name; \
+			return rho_obj_class.category->name; \
 		} \
 		target = target->super; \
 	} \
 \
 	if (target == NULL) { \
-		return obj_class.category->name; \
+		return rho_obj_class.category->name; \
 	} \
 \
 	class->category->name = op; \

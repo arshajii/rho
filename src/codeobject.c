@@ -92,7 +92,7 @@ void codeobj_free(RhoValue *this)
 
 	free(consts_array);
 
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 static void read_lno_table(RhoCodeObject *co, RhoCode *code)
@@ -343,7 +343,7 @@ struct rho_seq_methods co_seq_methods = {
 RhoClass rho_co_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "CodeObject",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoCodeObject),
 

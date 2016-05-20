@@ -86,7 +86,7 @@ static void list_free(RhoValue *this)
 	}
 
 	free(elements);
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 static size_t list_len(RhoValue *this)
@@ -386,7 +386,7 @@ struct rho_attr_method list_methods[] = {
 RhoClass rho_list_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "List",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoListObject),
 

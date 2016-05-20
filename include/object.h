@@ -136,7 +136,7 @@ struct rho_seq_methods {
 
 extern struct rho_num_methods obj_num_methods;
 extern struct rho_seq_methods obj_seq_methods;
-extern RhoClass obj_class;
+extern RhoClass rho_obj_class;
 
 #define RHO_OBJ_INIT_STATIC(class_) { .class = (class_), .refcnt = -1 }
 #define RHO_CLASS_BASE_INIT()       RHO_OBJ_INIT_STATIC(&rho_meta_class)

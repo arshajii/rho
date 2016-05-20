@@ -220,7 +220,7 @@ struct rho_num_methods rho_float_num_methods = {
 RhoClass rho_float_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Float",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = 0,
 

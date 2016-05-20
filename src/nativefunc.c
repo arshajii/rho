@@ -33,7 +33,7 @@ static RhoValue nativefunc_call(RhoValue *this,
 RhoClass rho_native_func_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "NativeFunction",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoNativeFuncObject),
 

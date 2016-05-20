@@ -15,7 +15,7 @@ static void methobj_free(RhoValue *this)
 {
 	RhoMethod *meth = rho_objvalue(this);
 	rho_releaseo(meth->binder);
-	meth->base.class->super->del(this);
+	rho_obj_class.del(this);
 }
 
 static RhoValue methobj_invoke(RhoValue *this,
@@ -91,7 +91,7 @@ struct rho_seq_methods meth_seq_methods = {
 RhoClass rho_method_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Method",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoMethod),
 

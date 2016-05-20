@@ -7,7 +7,7 @@
 /* Base Iter */
 static void iter_free(RhoValue *this)
 {
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 static RhoValue iter_iter(RhoValue *this)
@@ -34,7 +34,7 @@ struct rho_seq_methods iter_seq_methods = {
 RhoClass rho_iter_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Iter",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoIter),
 
@@ -71,13 +71,13 @@ RhoValue rho_get_iter_stop(void)
 
 static void iter_stop_free(RhoValue *this)
 {
-	obj_class.del(this);
+	rho_obj_class.del(this);
 }
 
 RhoClass rho_iter_stop_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "IterStop",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = sizeof(RhoIterStop),
 

@@ -21,7 +21,7 @@ static bool null_eq(RhoValue *this, RhoValue *other)
 RhoClass rho_null_class = {
 	.base = RHO_CLASS_BASE_INIT(),
 	.name = "Null",
-	.super = &obj_class,
+	.super = &rho_obj_class,
 
 	.instance_size = 0,
 
