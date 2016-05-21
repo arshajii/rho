@@ -16,15 +16,18 @@ RhoValue rho_module_make(const char *name, RhoStrDict *contents);
 
 extern RhoClass rho_builtin_module_class;
 
+/* builtins.h */
+struct rho_builtin;
+
 typedef struct rho_built_in_module {
 	RhoModule base;
-	void (*init_func)(struct rho_built_in_module *mod);
+	const struct rho_builtin *members;
 	bool initialized;
 } RhoBuiltInModule;
 
-#define RHO_BUILTIN_MODULE_INIT_STATIC(name_, init_func_) { \
+#define RHO_BUILTIN_MODULE_INIT_STATIC(name_, members_) { \
   .base = { .base = RHO_OBJ_INIT_STATIC(&rho_builtin_module_class), .name = (name_) }, \
-  .init_func = (init_func_), \
+  .members = (members_), \
   .initialized = false \
 }
 

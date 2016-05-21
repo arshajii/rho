@@ -2,7 +2,9 @@
 #include <string.h>
 #include "object.h"
 #include "exc.h"
+#include "builtins.h"
 #include "str.h"
+#include "strdict.h"
 #include "util.h"
 #include "module.h"
 
@@ -134,13 +136,22 @@ RhoClass rho_module_class = {
 	.attr_set = module_attr_set
 };
 
+static void builtin_module_init(RhoBuiltInModule *mod)
+{
+	RhoStrDict *dict = &mod->base.contents;
+	const struct rho_builtin *members = mod->members;
+	for (size_t i = 0; members[i].name != NULL; i++) {
+		rho_strdict_put(dict, members[i].name, (RhoValue *)&members[i].value, false);
+	}
+}
+
 static RhoValue builtin_module_attr_get(RhoValue *this, const char *attr)
 {
 	RhoBuiltInModule *mod = rho_objvalue(this);
 
 	if (!mod->initialized) {
 		rho_strdict_init(&mod->base.contents);
-		mod->init_func(mod);
+		builtin_module_init(mod);
 		mod->initialized = true;
 	}
 

@@ -173,6 +173,7 @@ struct rho_value {
 #define rho_isnull(val)     ((val)->type == RHO_VAL_TYPE_NULL)
 #define rho_isint(val)      ((val)->type == RHO_VAL_TYPE_INT)
 #define rho_isfloat(val)    ((val)->type == RHO_VAL_TYPE_FLOAT)
+#define rho_isnumber(val)   (rho_isint(val) || rho_isfloat(val))
 #define rho_isobject(val)   ((val)->type == RHO_VAL_TYPE_OBJECT)
 #define rho_isexc(val)      ((val)->type == RHO_VAL_TYPE_EXC)
 
@@ -184,6 +185,9 @@ struct rho_value {
 #define rho_floatvalue(val) ((val)->data.f)
 #define rho_objvalue(val)   ((val)->data.o)
 #define rho_errvalue(val)   ((val)->data.e)
+
+#define rho_intvalue_force(val)   (rho_isint(val) ? rho_intvalue(val) : (long)rho_floatvalue(val))
+#define rho_floatvalue_force(val) (rho_isint(val) ? (double)rho_intvalue(val) : rho_floatvalue(val))
 
 #define rho_makeempty()     ((RhoValue){.type = RHO_VAL_TYPE_EMPTY, .data = {.i = 0}})
 #define rho_makenull()      ((RhoValue){.type = RHO_VAL_TYPE_NULL, .data = {.i = 0}})
