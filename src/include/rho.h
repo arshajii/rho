@@ -2,10 +2,13 @@
 #define RHO_RHO_H
 
 /* general */
+#include "main.h"
 #include "object.h"
 #include "vm.h"
 #include "vmops.h"
 #include "builtins.h"
+#include "attr.h"
+#include "plugins.h"
 
 /* built-in classes */
 #include "null.h"
