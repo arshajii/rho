@@ -10,22 +10,26 @@
 
 static RhoValue rho_cos(RhoValue *args, size_t nargs)
 {
-	RHO_ARG_COUNT_CHECK("cos", nargs, 1);
+#define NAME "cos"
+	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 	if (!rho_isnumber(&args[0])) {
-		return rho_type_exc_unsupported_1("cos", rho_getclass(&args[0]));
+		return rho_type_exc_unsupported_1(NAME, rho_getclass(&args[0]));
 	}
 	const double d = rho_floatvalue_force(&args[0]);
 	return rho_makefloat(cos(d));
+#undef NAME
 }
 
 static RhoValue rho_sin(RhoValue *args, size_t nargs)
 {
-	RHO_ARG_COUNT_CHECK("sin", nargs, 1);
+#define NAME "sin"
+	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 	if (!rho_isnumber(&args[0])) {
-		return rho_type_exc_unsupported_1("sin", rho_getclass(&args[0]));
+		return rho_type_exc_unsupported_1(NAME, rho_getclass(&args[0]));
 	}
 	const double d = rho_floatvalue_force(&args[0]);
 	return rho_makefloat(sin(d));
+#undef NAME
 }
 
 static RhoNativeFuncObject cos_nfo = RHO_NFUNC_INIT(rho_cos);
