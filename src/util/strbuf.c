@@ -39,6 +39,13 @@ void rho_strbuf_to_str(RhoStrBuf *sb, RhoStr *dest)
 	*dest = RHO_STR_INIT(sb->buf, sb->len, 0);
 }
 
+void rho_strbuf_trim(RhoStrBuf *sb)
+{
+	const size_t new_cap = sb->len + 1;
+	sb->buf = rho_realloc(sb->buf, new_cap);
+	sb->cap = new_cap;
+}
+
 void rho_strbuf_dealloc(RhoStrBuf *sb)
 {
 	free(sb->buf);

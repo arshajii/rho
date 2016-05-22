@@ -14,6 +14,7 @@
 #include "tupleobject.h"
 #include "setobject.h"
 #include "dictobject.h"
+#include "fileobject.h"
 #include "codeobject.h"
 #include "funcobject.h"
 #include "method.h"
@@ -56,6 +57,7 @@ static RhoClass *classes[] = {
 	&rho_tuple_class,
 	&rho_set_class,
 	&rho_dict_class,
+	&rho_file_class,
 	&rho_co_class,
 	&rho_fn_class,
 	&rho_method_class,

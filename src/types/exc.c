@@ -128,14 +128,12 @@ RhoClass rho_exception_class = {
 	.attr_set = NULL
 };
 
-/* IndexException */
-
-static RhoValue index_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
+static RhoValue sub_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
 {
 	return exc_init(this, args, nargs);
 }
 
-static void index_exc_free(RhoValue *this)
+static void sub_exc_free(RhoValue *this)
 {
 	rho_exception_class.del(this);
 }
@@ -147,8 +145,8 @@ RhoClass rho_index_exception_class = {
 
 	.instance_size = sizeof(RhoIndexException),
 
-	.init = index_exc_init,
-	.del = index_exc_free,
+	.init = sub_exc_init,
+	.del = sub_exc_free,
 
 	.eq = NULL,
 	.hash = NULL,
@@ -170,18 +168,6 @@ RhoClass rho_index_exception_class = {
 	.attr_get = NULL,
 	.attr_set = NULL
 };
-
-/* TypeException */
-
-static RhoValue type_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
-{
-	return exc_init(this, args, nargs);
-}
-
-static void type_exc_free(RhoValue *this)
-{
-	rho_exception_class.del(this);
-}
 
 RhoClass rho_type_exception_class = {
 	.base = RHO_CLASS_BASE_INIT(),
@@ -190,8 +176,8 @@ RhoClass rho_type_exception_class = {
 
 	.instance_size = sizeof(RhoTypeException),
 
-	.init = type_exc_init,
-	.del = type_exc_free,
+	.init = sub_exc_init,
+	.del = sub_exc_free,
 
 	.eq = NULL,
 	.hash = NULL,
@@ -214,17 +200,36 @@ RhoClass rho_type_exception_class = {
 	.attr_set = NULL
 };
 
-/* AttributeException */
+RhoClass rho_io_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
+	.name = "IOException",
+	.super = &rho_exception_class,
 
-static RhoValue attr_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
-{
-	return exc_init(this, args, nargs);
-}
+	.instance_size = sizeof(RhoIOException),
 
-static void attr_exc_free(RhoValue *this)
-{
-	rho_exception_class.del(this);
-}
+	.init = sub_exc_init,
+	.del = sub_exc_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
+
+	.num_methods = NULL,
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
 
 RhoClass rho_attr_exception_class = {
 	.base = RHO_CLASS_BASE_INIT(),
@@ -233,8 +238,8 @@ RhoClass rho_attr_exception_class = {
 
 	.instance_size = sizeof(RhoAttributeException),
 
-	.init = attr_exc_init,
-	.del = attr_exc_free,
+	.init = sub_exc_init,
+	.del = sub_exc_free,
 
 	.eq = NULL,
 	.hash = NULL,
@@ -256,18 +261,6 @@ RhoClass rho_attr_exception_class = {
 	.attr_get = NULL,
 	.attr_set = NULL
 };
-
-/* ImportException */
-
-static RhoValue import_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
-{
-	return exc_init(this, args, nargs);
-}
-
-static void import_exc_free(RhoValue *this)
-{
-	rho_exception_class.del(this);
-}
 
 RhoClass rho_import_exception_class = {
 	.base = RHO_CLASS_BASE_INIT(),
@@ -276,8 +269,8 @@ RhoClass rho_import_exception_class = {
 
 	.instance_size = sizeof(RhoImportException),
 
-	.init = import_exc_init,
-	.del = import_exc_free,
+	.init = sub_exc_init,
+	.del = sub_exc_free,
 
 	.eq = NULL,
 	.hash = NULL,
@@ -299,18 +292,6 @@ RhoClass rho_import_exception_class = {
 	.attr_get = NULL,
 	.attr_set = NULL
 };
-
-/* IllegalStateChangeException */
-
-static RhoValue isc_exc_init(RhoValue *this, RhoValue *args, size_t nargs)
-{
-	return exc_init(this, args, nargs);
-}
-
-static void isc_exc_free(RhoValue *this)
-{
-	rho_exception_class.del(this);
-}
 
 RhoClass rho_isc_exception_class = {
 	.base = RHO_CLASS_BASE_INIT(),
@@ -319,8 +300,8 @@ RhoClass rho_isc_exception_class = {
 
 	.instance_size = sizeof(RhoIllegalStateChangeException),
 
-	.init = isc_exc_init,
-	.del = isc_exc_free,
+	.init = sub_exc_init,
+	.del = sub_exc_free,
 
 	.eq = NULL,
 	.hash = NULL,
@@ -343,7 +324,8 @@ RhoClass rho_isc_exception_class = {
 	.attr_set = NULL
 };
 
-/* Common Exceptions */
+
+/* Common exceptions */
 
 RhoValue rho_type_exc_unsupported_1(const char *op, const RhoClass *c1)
 {
@@ -446,6 +428,26 @@ RhoValue rho_call_exc_native_named_args(void)
 RhoValue rho_call_exc_constructor_named_args(void)
 {
 	return RHO_TYPE_EXC("constructors do not take named arguments");
+}
+
+RhoValue rho_io_exc_cannot_open_file(const char *filename, const char *mode)
+{
+	return RHO_IO_EXC("cannot open file '%s' in mode '%s'", filename, mode);
+}
+
+RhoValue rho_io_exc_cannot_read_file(const char *filename)
+{
+	return RHO_IO_EXC("cannot read from file '%s'", filename);
+}
+
+RhoValue rho_io_exc_cannot_write_file(const char *filename)
+{
+	return RHO_IO_EXC("cannot write to file '%s'", filename);
+}
+
+RhoValue rho_io_exc_file_closed(const char *filename)
+{
+	return RHO_IO_EXC("file '%s' has been closed", filename);
 }
 
 RhoValue rho_attr_exc_not_found(const RhoClass *type, const char *attr)

@@ -77,9 +77,11 @@ static RhoValue type(RhoValue *args, size_t nargs)
 
 
 /* Built-in modules */
+#include "iomodule.h"
 #include "mathmodule.h"
 
 const RhoModule *rho_builtin_modules[] = {
+		(RhoModule *)&rho_io_module,
 		(RhoModule *)&rho_math_module,
 		NULL
 };

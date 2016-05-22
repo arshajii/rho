@@ -22,6 +22,10 @@ typedef struct {
 
 typedef struct {
 	RhoException base;
+} RhoIOException;
+
+typedef struct {
+	RhoException base;
 } RhoAttributeException;
 
 typedef struct {
@@ -35,6 +39,7 @@ typedef struct {
 extern RhoClass rho_exception_class;
 extern RhoClass rho_index_exception_class;
 extern RhoClass rho_type_exception_class;
+extern RhoClass rho_io_exception_class;
 extern RhoClass rho_attr_exception_class;
 extern RhoClass rho_import_exception_class;
 extern RhoClass rho_isc_exception_class;
@@ -49,6 +54,7 @@ void rho_exc_print_msg(RhoException *e, FILE *out);
 #define RHO_EXC(...)        rho_exc_make(&rho_exception_class, true, __VA_ARGS__)
 #define RHO_INDEX_EXC(...)  rho_exc_make(&rho_index_exception_class, true, __VA_ARGS__)
 #define RHO_TYPE_EXC(...)   rho_exc_make(&rho_type_exception_class, true, __VA_ARGS__)
+#define RHO_IO_EXC(...)     rho_exc_make(&rho_io_exception_class, true, __VA_ARGS__)
 #define RHO_ATTR_EXC(...)   rho_exc_make(&rho_attr_exception_class, true, __VA_ARGS__)
 #define RHO_IMPORT_EXC(...) rho_exc_make(&rho_import_exception_class, true, __VA_ARGS__)
 #define RHO_ISC_EXC(...)    rho_exc_make(&rho_isc_exception_class, true, __VA_ARGS__)
@@ -70,6 +76,10 @@ RhoValue rho_call_exc_unknown_arg(const char *fn, const char *name);
 RhoValue rho_call_exc_missing_arg(const char *fn, const char *name);
 RhoValue rho_call_exc_native_named_args(void);
 RhoValue rho_call_exc_constructor_named_args(void);
+RhoValue rho_io_exc_cannot_open_file(const char *filename, const char *mode);
+RhoValue rho_io_exc_cannot_read_file(const char *filename);
+RhoValue rho_io_exc_cannot_write_file(const char *filename);
+RhoValue rho_io_exc_file_closed(const char *filename);
 RhoValue rho_attr_exc_not_found(const RhoClass *type, const char *attr);
 RhoValue rho_attr_exc_readonly(const RhoClass *type, const char *attr);
 RhoValue rho_attr_exc_mismatch(const RhoClass *type, const char *attr, const RhoClass *assign_type);
