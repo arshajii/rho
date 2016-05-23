@@ -23,5 +23,9 @@ typedef struct {
 } RhoFileObject;
 
 RhoValue rho_file_make(const char *filename, const char *mode);
+RhoValue rho_file_write(RhoFileObject *fileobj, const char *str, const size_t len);
+RhoValue rho_file_readline(RhoFileObject *fileobj);
+void rho_file_rewind(RhoFileObject *fileobj);
+bool rho_file_close(RhoFileObject *fileobj);
 
 #endif /* RHO_FILEOBJECT_H */
