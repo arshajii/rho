@@ -712,12 +712,6 @@ static void compile_for(RhoCompiler *compiler, RhoAST *ast)
 	RhoAST *iter = ast->right;
 	RhoAST *body = ast->v.middle;
 
-	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, lcv->v.ident);
-
-	if (sym == NULL) {
-		RHO_INTERNAL_ERROR();
-	}
-
 	compile_node(compiler, iter, true);
 	write_ins(compiler, RHO_INS_GET_ITER, lineno);
 
@@ -729,8 +723,45 @@ static void compile_for(RhoCompiler *compiler, RhoAST *ast)
 	const size_t jump_index = compiler->code.size;
 	write_uint16(compiler, 0);
 
-	write_ins(compiler, RHO_INS_STORE, lineno);
-	write_uint16(compiler, sym->id);
+	if (lcv->type == RHO_NODE_IDENT) {
+		const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, lcv->v.ident);
+
+		if (sym == NULL) {
+			RHO_INTERNAL_ERROR();
+		}
+
+		write_ins(compiler, RHO_INS_STORE, lineno);
+		write_uint16(compiler, sym->id);
+	} else {
+		RHO_AST_TYPE_ASSERT(lcv, RHO_NODE_TUPLE);
+
+		write_ins(compiler, RHO_INS_SEQ_EXPAND, lcv->lineno);
+
+		unsigned int count = 0;
+		for (struct rho_ast_list *node = lcv->v.list; node != NULL; node = node->next) {
+			++count;
+		}
+
+		write_uint16(compiler, count);
+
+		/* sequence is expanded left-to-right, so we have to store in reverse */
+		for (int i = count-1; i >= 0; i--) {
+			struct rho_ast_list *node = lcv->v.list;
+			for (int j = 0; j < i; j++) {
+				node = node->next;
+			}
+
+			RHO_AST_TYPE_ASSERT(node->ast, RHO_NODE_IDENT);
+			const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, node->ast->v.ident);
+
+			if (sym == NULL) {
+				RHO_INTERNAL_ERROR();
+			}
+
+			write_ins(compiler, RHO_INS_STORE, lineno);
+			write_uint16(compiler, sym->id);
+		}
+	}
 
 	compile_node(compiler, body, true);
 
@@ -1684,6 +1715,8 @@ int rho_opcode_arg_size(RhoOpcode opcode)
 		return 2;
 	case RHO_INS_MAKE_FUNCOBJ:
 		return 2;
+	case RHO_INS_SEQ_EXPAND:
+		return 2;
 	case RHO_INS_POP:
 	case RHO_INS_DUP:
 	case RHO_INS_DUP_TWO:
@@ -1844,6 +1877,8 @@ static int stack_delta(RhoOpcode opcode, int arg)
 		return 1;
 	case RHO_INS_MAKE_FUNCOBJ:
 		return -arg;
+	case RHO_INS_SEQ_EXPAND:
+		return -1 + arg;
 	case RHO_INS_POP:
 		return -1;
 	case RHO_INS_DUP:

@@ -1324,6 +1324,71 @@ void rho_vm_eval_frame(RhoVM *vm)
 
 			break;
 		}
+		case RHO_INS_SEQ_EXPAND: {
+			const unsigned int n = GET_UINT16();
+			v1 = STACK_POP();
+
+			/* common case */
+			if (rho_getclass(v1) == &rho_tuple_class) {
+				RhoTupleObject *tup = rho_objvalue(v1);
+
+				if (tup->count != n) {
+					res = rho_seq_exp_exc_inconsistent(tup->count, n);
+					rho_release(v1);
+					goto error;
+				}
+
+				RhoValue *elems = tup->elements;
+				for (unsigned i = 0; i < n; i++) {
+					rho_retain(&elems[i]);
+					STACK_PUSH(elems[i]);
+				}
+
+				rho_releaseo(tup);
+			} else {
+				RhoValue iter = rho_op_iter(v1);
+				rho_release(v1);
+
+				if (rho_iserror(&iter)) {
+					res = iter;
+					goto error;
+				}
+
+				unsigned int count = 0;
+				while (true) {
+					res = rho_op_iternext(&iter);
+
+					if (rho_iserror(&res)) {
+						rho_release(&iter);
+						goto error;
+					}
+
+					if (rho_is_iter_stop(&res)) {
+						break;
+					}
+
+					++count;
+
+					if (count > n) {
+						rho_release(&iter);
+						rho_release(&res);
+						res = rho_seq_exp_exc_inconsistent(count, n);
+						goto error;
+					}
+
+					STACK_PUSH(res);
+				}
+
+				rho_release(&iter);
+
+				if (count != n) {
+					res = rho_seq_exp_exc_inconsistent(count, n);
+					goto error;
+				}
+			}
+
+			break;
+		}
 		case RHO_INS_POP: {
 			rho_release(STACK_POP());
 			break;

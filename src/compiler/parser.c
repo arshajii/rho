@@ -164,6 +164,7 @@ static void parse_err_malformed_args(RhoParser *p, RhoToken *tok);
 static void parse_err_empty_catch(RhoParser *p, RhoToken *tok);
 static void parse_err_misplaced_dollar_identifier(RhoParser *p, RhoToken *tok);
 static void parse_err_inconsistent_dict_elements(RhoParser *p, RhoToken *tok);
+static void parse_err_empty_for_params(RhoParser *p, RhoToken *tok);
 
 RhoParser *rho_parser_new(char *str, const char *name)
 {
@@ -886,7 +887,27 @@ static RhoAST *parse_for(RhoParser *p)
 	RhoToken *tok = expect(p, RHO_TOK_FOR);
 	ERROR_CHECK(p);
 
-	RhoAST *lcv = parse_ident(p);  // loop-control variable
+	RhoToken *peek = rho_parser_peek_token(p);
+	RhoAST *lcv;
+
+	if (peek->type == RHO_TOK_PAREN_OPEN) {
+		unsigned int count;
+		struct rho_ast_list *vars = parse_comma_separated_list(p,
+		                                                       RHO_TOK_PAREN_OPEN, RHO_TOK_PAREN_CLOSE,
+		                                                       parse_ident, &count);
+		ERROR_CHECK_LIST(p, NULL, vars);
+
+		if (vars == NULL) {
+			parse_err_empty_for_params(p, peek);
+			ERROR_CHECK(p);
+		}
+
+		lcv = rho_ast_new(RHO_NODE_TUPLE, NULL, NULL, peek->lineno);
+		lcv->v.list = vars;
+	} else {
+		lcv = parse_ident(p);  // loop-control variable
+	}
+
 	ERROR_CHECK(p);
 
 	expect(p, RHO_TOK_IN);
@@ -1678,4 +1699,14 @@ static void parse_err_inconsistent_dict_elements(RhoParser *p, RhoToken *tok)
 	                            p->name, tok->lineno, tok_err));
 	RHO_FREE(tok_err);
 	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_INCONSISTENT_DICT_ELEMENTS);
+}
+
+static void parse_err_empty_for_params(RhoParser *p, RhoToken *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	RHO_PARSER_SET_ERROR_MSG(p,
+	                         rho_util_str_format(RHO_SYNTAX_ERROR " empty for-loop parameter list\n\n%s",
+	                            p->name, tok->lineno, tok_err));
+	RHO_FREE(tok_err);
+	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_EMPTY_FOR_PARAMETERS);
 }

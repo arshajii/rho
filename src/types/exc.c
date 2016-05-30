@@ -324,6 +324,37 @@ RhoClass rho_isc_exception_class = {
 	.attr_set = NULL
 };
 
+RhoClass rho_seq_exp_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
+	.name = "SequenceExpandException",
+	.super = &rho_exception_class,
+
+	.instance_size = sizeof(RhoSequenceExpandException),
+
+	.init = sub_exc_init,
+	.del = sub_exc_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
+
+	.num_methods = NULL,
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
+
 
 /* Common exceptions */
 
@@ -475,4 +506,13 @@ RhoValue rho_attr_exc_mismatch(const RhoClass *type, const char *attr, const Rho
 RhoValue rho_import_exc_not_found(const char *name)
 {
 	return RHO_IMPORT_EXC("cannot find module '%s'", name);
+}
+
+RhoValue rho_seq_exp_exc_inconsistent(const unsigned int got, const unsigned int expected)
+{
+	if (got > expected) {
+		return RHO_SEQ_EXP_EXC("too many values to expand (got %u, expected %u)", got, expected);
+	} else {
+		return RHO_SEQ_EXP_EXC("too few values to expand (got %u, expected %u)", got, expected);
+	}
 }

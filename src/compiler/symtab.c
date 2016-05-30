@@ -251,7 +251,14 @@ static void register_bindings_from_node(RhoSymTable *st, RhoAST *ast)
 		}
 		break;
 	case RHO_NODE_FOR:
-		ste_register_ident(st->ste_current, ast->left->v.ident, FLAG_BOUND_HERE);
+		if (ast->left->type == RHO_NODE_IDENT) {
+			ste_register_ident(st->ste_current, ast->left->v.ident, FLAG_BOUND_HERE);
+		} else {
+			for (struct rho_ast_list *node = ast->left->v.list; node != NULL; node = node->next) {
+				ste_register_ident(st->ste_current, node->ast->v.ident, FLAG_BOUND_HERE);
+			}
+		}
+
 		register_bindings_from_node(st, ast->right);
 		register_bindings_from_node(st, ast->v.middle);
 		break;
