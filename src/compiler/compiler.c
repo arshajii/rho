@@ -962,15 +962,17 @@ static void compile_export(RhoCompiler *compiler, RhoAST *ast)
 	const unsigned int lineno = ast->lineno;
 	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, ast->v.ident);
 
+	if (sym == NULL) {
+		RHO_INTERNAL_ERROR();
+	}
+
 	if (sym->bound_here) {
 		write_ins(compiler, RHO_INS_EXPORT, lineno);
 	} else if (sym->global_var) {
 		write_ins(compiler, RHO_INS_EXPORT_GLOBAL, lineno);
 	} else {
-		fprintf(stderr,
-		        "%s:%d: cannot export free variable '%s'\n",
-		        compiler->filename, lineno, sym->key->value);
-		exit(EXIT_FAILURE);  // XXX
+		assert(sym->free_var);
+		write_ins(compiler, RHO_INS_EXPORT_NAME, lineno);
 	}
 
 	write_uint16(compiler, sym->id);
@@ -1708,6 +1710,7 @@ int rho_opcode_arg_size(RhoOpcode opcode)
 	case RHO_INS_IMPORT:
 	case RHO_INS_EXPORT:
 	case RHO_INS_EXPORT_GLOBAL:
+	case RHO_INS_EXPORT_NAME:
 		return 2;
 	case RHO_INS_GET_ITER:
 		return 0;
@@ -1870,6 +1873,7 @@ static int stack_delta(RhoOpcode opcode, int arg)
 		return 1;
 	case RHO_INS_EXPORT:
 	case RHO_INS_EXPORT_GLOBAL:
+	case RHO_INS_EXPORT_NAME:
 		return -1;
 	case RHO_INS_GET_ITER:
 		return 0;

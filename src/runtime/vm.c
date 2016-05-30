@@ -1251,7 +1251,6 @@ void rho_vm_eval_frame(RhoVM *vm)
 		}
 		case RHO_INS_EXPORT: {
 			const unsigned int id = GET_UINT16();
-
 			v1 = STACK_POP();
 
 			/* no need to do a bounds check on `id`, since
@@ -1259,23 +1258,37 @@ void rho_vm_eval_frame(RhoVM *vm)
 			 * checks
 			 */
 			rho_strdict_put_copy(&vm->exports,
-			                 symbols.array[id].str,
-			                 symbols.array[id].length,
-			                 v1);
+			                     symbols.array[id].str,
+			                     symbols.array[id].length,
+			                     v1);
 			break;
 		}
 		case RHO_INS_EXPORT_GLOBAL: {
 			const unsigned int id = GET_UINT16();
-
 			v1 = STACK_POP();
 
 			/* no need to do a bounds check on `id`, since
 			 * the preceding INS_LOAD_GLOBAL should do all
 			 * such checks
 			 */
-			char *key = rho_malloc(global_symbols.array[id].length + 1);
-			strcpy(key, global_symbols.array[id].str);
-			rho_strdict_put(&vm->exports, key, v1, true);
+			rho_strdict_put_copy(&vm->exports,
+			                     global_symbols.array[id].str,
+			                     global_symbols.array[id].length,
+			                     v1);
+			break;
+		}
+		case RHO_INS_EXPORT_NAME: {
+			const unsigned int id = GET_UINT16();
+			v1 = STACK_POP();
+
+			/* no need to do a bounds check on `id`, since
+			 * the preceding INS_LOAD_NAME should do all
+			 * such checks
+			 */
+			rho_strdict_put_copy(&vm->exports,
+			                     frees[id].value,
+			                     frees[id].len,
+			                     v1);
 			break;
 		}
 		case RHO_INS_GET_ITER: {
