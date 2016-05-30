@@ -418,13 +418,7 @@ static void compile_assignment(RhoCompiler *compiler, RhoAST *ast)
 		}
 
 		const unsigned int sym_id = sym->id;
-
-		if (!sym->bound_here && !sym->global_var) {
-			/*
-			 * TODO: non-local assignments
-			 */
-			assert(0);
-		}
+		assert(sym->bound_here || sym->global_var);
 
 		if (type == RHO_NODE_ASSIGN) {
 			compile_node(compiler, rhs, false);
