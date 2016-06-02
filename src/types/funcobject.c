@@ -61,10 +61,10 @@ static void release_defaults(RhoFuncObject *fn)
 }
 
 static RhoValue funcobj_call(RhoValue *this,
-                          RhoValue *args,
-                          RhoValue *args_named,
-                          size_t nargs,
-                          size_t nargs_named)
+                             RhoValue *args,
+                             RhoValue *args_named,
+                             size_t nargs,
+                             size_t nargs_named)
 {
 #define RELEASE_ALL() \
 	do { \
@@ -145,13 +145,13 @@ static RhoValue funcobj_call(RhoValue *this,
 	}
 
 	rho_retaino(co);
-	rho_vm_pushframe(vm, co);
+	rho_vm_push_frame(vm, co);
 	RhoFrame *top = vm->callstack;
 	memcpy(top->locals, locals, argcount * sizeof(RhoValue));
 	free(locals);
 	rho_vm_eval_frame(vm);
 	RhoValue res = top->return_value;
-	rho_vm_popframe(vm);
+	rho_vm_pop_frame(vm);
 	return res;
 
 #undef RELEASE_ALL

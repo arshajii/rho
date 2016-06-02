@@ -120,8 +120,7 @@ static RhoCompiler *compiler_new(const char *filename, unsigned int first_lineno
 }
 
 /*
- * Note: this does not deallocate the compiler's code
- * field.
+ * Note: this does not deallocate the compiler's code field.
  */
 static void compiler_free(RhoCompiler *compiler, bool free_st)
 {
@@ -134,8 +133,7 @@ static void compiler_free(RhoCompiler *compiler, bool free_st)
 	free(compiler);
 }
 
-static struct rho_loop_block_info *lbi_new(size_t start_index,
-                                       struct rho_loop_block_info *prev)
+static struct rho_loop_block_info *lbi_new(size_t start_index, struct rho_loop_block_info *prev)
 {
 	struct rho_loop_block_info *lbi = rho_malloc(sizeof(*lbi));
 	lbi->start_index = start_index;
@@ -1689,6 +1687,7 @@ int rho_opcode_arg_size(RhoOpcode opcode)
 		return 2;
 	case RHO_INS_RETURN:
 	case RHO_INS_THROW:
+	case RHO_INS_PRODUCE:
 		return 0;
 	case RHO_INS_TRY_BEGIN:
 		return 4;
@@ -1851,6 +1850,7 @@ static int stack_delta(RhoOpcode opcode, int arg)
 		return -((arg & 0xff) + 2*(arg >> 8));
 	case RHO_INS_RETURN:
 	case RHO_INS_THROW:
+	case RHO_INS_PRODUCE:
 		return -1;
 	case RHO_INS_TRY_BEGIN:
 		return 0;

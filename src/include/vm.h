@@ -24,19 +24,25 @@ struct rho_exc_stack_element {
 	RhoValue *purge_wall;
 };
 
-typedef struct frame {
+typedef struct rho_frame {
 	RhoCodeObject *co;
+
 	RhoValue *locals;
+	size_t n_locals;
+
 	RhoStr *frees;  /* free variables */
-	RhoValue *valuestack;
-	RhoValue *valuestack_base;
+	RhoValue *val_stack;
+	RhoValue *val_stack_base;
 	RhoValue return_value;
 
 	struct rho_exc_stack_element *exc_stack_base;
 	struct rho_exc_stack_element *exc_stack;
 
 	size_t pos;  /* position in bytecode */
-	struct frame *prev;
+	struct rho_frame *prev;
+
+	unsigned active : 1;
+	unsigned top_level : 1;
 } RhoFrame;
 
 typedef struct rho_vm {
@@ -60,10 +66,17 @@ typedef struct rho_vm {
 
 RhoVM *rho_vm_new(void);
 int rho_vm_exec_code(RhoVM *vm, RhoCode *code);
-void rho_vm_pushframe(RhoVM *vm, RhoCodeObject *co);
+void rho_vm_push_frame(RhoVM *vm, RhoCodeObject *co);
 void rho_vm_eval_frame(RhoVM *vm);
-void rho_vm_popframe(RhoVM *vm);
+void rho_vm_pop_frame(RhoVM *vm);
 void rho_vm_free(RhoVM *vm);
+
+void rho_frame_save_state(RhoFrame *frame,
+                          const size_t pos,
+                          RhoValue *val_stack,
+                          struct rho_exc_stack_element *exc_stack);
+void rho_frame_reset(RhoFrame *frame);
+void rho_frame_free(RhoFrame *frame);
 
 RhoVM *rho_current_vm_get(void);
 void rho_current_vm_set(RhoVM *vm);

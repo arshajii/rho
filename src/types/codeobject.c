@@ -46,12 +46,12 @@ static void read_const_table(RhoCodeObject *co, RhoCode *code);
  * stack_depth = -1 means that the depth must be read
  * out of `code`.
  */
-RhoCodeObject *codeobj_make(RhoCode *code,
-                         const char *name,
-                         unsigned int argcount,
-                         int stack_depth,
-                         int try_catch_depth,
-                         RhoVM *vm)
+RhoCodeObject *rho_codeobj_make(RhoCode *code,
+                                const char *name,
+                                unsigned int argcount,
+                                int stack_depth,
+                                int try_catch_depth,
+                                RhoVM *vm)
 {
 	RhoCodeObject *co = rho_obj_alloc(&rho_co_class);
 	co->name = name;
@@ -72,10 +72,11 @@ RhoCodeObject *codeobj_make(RhoCode *code,
 	co->argcount = argcount;
 	co->stack_depth = stack_depth;
 	co->try_catch_depth = try_catch_depth;
+	co->frame = NULL;
 	return co;
 }
 
-void codeobj_free(RhoValue *this)
+static void codeobj_free(RhoValue *this)
 {
 	RhoCodeObject *co = rho_objvalue(this);
 	free(co->names.array);
@@ -91,6 +92,7 @@ void codeobj_free(RhoValue *this)
 	}
 
 	free(consts_array);
+	rho_frame_free(co->frame);
 
 	rho_obj_class.del(this);
 }
@@ -259,12 +261,12 @@ static void read_const_table(RhoCodeObject *co, RhoCode *code)
 			sub.capacity = 0;
 			rho_code_skip_ahead(code, code_len);
 
-			constants[i].data.o = codeobj_make(&sub,
-			                                   name,
-			                                   argcount,
-			                                   stack_depth,
-			                                   try_catch_depth,
-			                                   co->vm);
+			constants[i].data.o = rho_codeobj_make(&sub,
+			                                       name,
+			                                       argcount,
+			                                       stack_depth,
+			                                       try_catch_depth,
+			                                       co->vm);
 			break;
 		}
 		case RHO_CT_ENTRY_END:

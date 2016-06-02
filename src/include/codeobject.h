@@ -7,6 +7,7 @@
 #include "str.h"
 
 struct rho_vm;
+struct rho_frame;
 
 extern RhoClass rho_co_class;
 
@@ -48,15 +49,15 @@ typedef struct {
 
 	/* virtual machine associated with this code object */
 	struct rho_vm *vm;
+
+	struct rho_frame *frame;
 } RhoCodeObject;
 
-RhoCodeObject *codeobj_make(RhoCode *code,
-                            const char *name,
-                            unsigned int argcount,
-                            int stack_depth,
-                            int try_catch_depth,
-                            struct rho_vm *vm);
-
-#define RHO_CO_LOCALS_COUNT(co) ((co)->names.length)
+RhoCodeObject *rho_codeobj_make(RhoCode *code,
+                                const char *name,
+                                unsigned int argcount,
+                                int stack_depth,
+                                int try_catch_depth,
+                                struct rho_vm *vm);
 
 #endif /* RHO_CODEOBJECT_H */

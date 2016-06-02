@@ -220,41 +220,118 @@ int rho_vm_exec_code(RhoVM *vm, RhoCode *code)
 		rho_err_free(e);
 	}
 
-	rho_vm_popframe(vm);
+	rho_vm_pop_frame(vm);
 	return status;
 }
 
-void rho_vm_pushframe(RhoVM *vm, RhoCodeObject *co)
+void rho_vm_push_frame(RhoVM *vm, RhoCodeObject *co)
 {
-	RhoFrame *frame = rho_malloc(sizeof(RhoFrame));
-	frame->co = co;
+	RhoFrame *frame;
 
-	const size_t n_locals = co->names.length;
-	const size_t stack_depth = co->stack_depth;
-	const size_t try_catch_depth = co->try_catch_depth;
+	if (co->frame == NULL) {
+		frame = rho_malloc(sizeof(RhoFrame));
 
-	frame->locals = rho_calloc(n_locals + stack_depth, sizeof(RhoValue));
-	frame->valuestack = frame->valuestack_base = frame->locals + n_locals;
+		const size_t n_locals = co->names.length;
+		const size_t stack_depth = co->stack_depth;
+		const size_t try_catch_depth = co->try_catch_depth;
 
-	const size_t frees_len = co->frees.length;
-	RhoStr *frees = rho_malloc(frees_len * sizeof(RhoStr));
-	for (size_t i = 0; i < frees_len; i++) {
-		frees[i] = RHO_STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
+		frame->locals = rho_calloc(n_locals + stack_depth, sizeof(RhoValue));
+		frame->n_locals = n_locals;
+
+		frame->val_stack = frame->val_stack_base = frame->locals + n_locals;
+
+		const size_t frees_len = co->frees.length;
+		RhoStr *frees = rho_malloc(frees_len * sizeof(RhoStr));
+		for (size_t i = 0; i < frees_len; i++) {
+			frees[i] = RHO_STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
+		}
+		frame->frees = frees;
+
+		frame->exc_stack_base =
+		        frame->exc_stack =
+		                rho_malloc(try_catch_depth * sizeof(struct rho_exc_stack_element));
+
+		frame->pos = 0;
+		frame->return_value = rho_makeempty();
+	} else {
+		frame = co->frame;
 	}
-	frame->frees = frees;
 
-	frame->exc_stack_base = frame->exc_stack = rho_malloc(try_catch_depth * sizeof(struct rho_exc_stack_element));
-
-	frame->pos = 0;
+	/*
+	 * Important note about the references Frames and CodeObjects have for one another:
+	 *
+	 * Frames have a `co` field which points to the CodeObject they are currently executing.
+	 * Similarly, CodeObjects have a `frame` field that points to the Frame that *finished*
+	 * executing them (this is used to avoid unnecessary creation of Frames). The point is
+	 * that a Frame's `co` field is only valid once that Frame is pushed, while a CodeObject's
+	 * `frame` field is only valid while that CodeObject is no longer being executed. In this
+	 * way, we resolve the issue of any circular dependencies and avoid running into problems
+	 * with recursive functions (CodeObjects actually retain the highest-level Frame in the
+	 * case of recursive calls).
+	 */
+	co->frame = NULL;
+	frame->co = co;
+	frame->active = 1;
+	frame->top_level = (vm->callstack == NULL);
 	frame->prev = vm->callstack;
-	frame->return_value = rho_makeempty();
 	vm->callstack = frame;
 }
 
-void rho_vm_popframe(RhoVM *vm)
+void rho_vm_pop_frame(RhoVM *vm)
 {
 	RhoFrame *frame = vm->callstack;
 	vm->callstack = frame->prev;
+
+	RhoCodeObject *co = frame->co;
+	frame->active = 0;
+	frame->co = NULL;
+
+	if (co != NULL) {
+		if (co->frame == NULL) {
+			co->frame = frame;
+		} else {
+			rho_frame_free(frame);
+		}
+		rho_releaseo(co);
+	}
+}
+
+void rho_frame_save_state(RhoFrame *frame,
+                          const size_t pos,
+                          RhoValue *val_stack,
+                          struct rho_exc_stack_element *exc_stack)
+{
+	frame->pos = pos;
+	frame->val_stack = val_stack;
+	frame->exc_stack = exc_stack;
+}
+
+void rho_frame_reset(RhoFrame *frame)
+{
+	if (!frame->top_level) {
+		const size_t n_locals = frame->n_locals;
+		RhoValue *locals = frame->locals;
+
+		for (size_t i = 0; i < n_locals; i++) {
+			rho_release(&locals[i]);
+			locals[i] = rho_makeempty();
+		}
+	}
+
+	rho_release(&frame->return_value);
+	frame->return_value = rho_makeempty();
+	frame->val_stack = frame->val_stack_base;
+	frame->exc_stack = frame->exc_stack_base;
+	frame->pos = 0;
+}
+
+void rho_frame_free(RhoFrame *frame)
+{
+	if (frame == NULL) {
+		return;
+	}
+
+	rho_frame_reset(frame);
 
 	/*
 	 * We don't free the module-level local variables,
@@ -263,21 +340,16 @@ void rho_vm_popframe(RhoVM *vm)
 	 * eventually be freed once the VM instance itself
 	 * is freed.
 	 */
-	if (frame != vm->module) {
-		const size_t n_locals = RHO_CO_LOCALS_COUNT(frame->co);
-		RhoValue *locals = frame->locals;
+	if (!frame->top_level) {
+		free(frame->locals);
+	}
 
-		for (size_t i = 0; i < n_locals; i++) {
-			rho_release(&locals[i]);
-		}
-
-		free(locals);
+	if (frame->co != NULL) {
+		rho_releaseo(frame->co);
 	}
 
 	free(frame->frees);
 	free(frame->exc_stack_base);
-	rho_releaseo(frame->co);
-	rho_release(&frame->return_value);
 	free(frame);
 
 	/*
@@ -293,11 +365,11 @@ void rho_vm_popframe(RhoVM *vm)
 static void vm_push_module_frame(RhoVM *vm, RhoCode *code)
 {
 	assert(vm->module == NULL);
-	RhoCodeObject *co = codeobj_make(code, "<module>", 0, -1, -1, vm);
-	rho_vm_pushframe(vm, co);
+	RhoCodeObject *co = rho_codeobj_make(code, "<module>", 0, -1, -1, vm);
+	rho_vm_push_frame(vm, co);
 	vm->module = vm->callstack;
 	vm->globals = (struct rho_value_array){.array = vm->module->locals,
-	                                   .length = RHO_CO_LOCALS_COUNT(co)};
+	                                       .length = vm->module->n_locals};
 	rho_util_str_array_dup(&co->names, &vm->global_names);
 }
 
@@ -329,24 +401,24 @@ void rho_vm_eval_frame(RhoVM *vm)
 
 	RhoValue *locals = frame->locals;
 	RhoStr *frees = frame->frees;
-	const RhoCodeObject *co = frame->co;
+	RhoCodeObject *co = frame->co;
 	const RhoVM *co_vm = co->vm;
 	RhoValue *globals = co_vm->globals.array;
 
-	struct rho_str_array symbols = co->names;
-	struct rho_str_array attrs = co->attrs;
-	struct rho_str_array global_symbols = co_vm->global_names;
+	const struct rho_str_array symbols = co->names;
+	const struct rho_str_array attrs = co->attrs;
+	const struct rho_str_array global_symbols = co_vm->global_names;
 
 	RhoValue *constants = co->consts.array;
-	byte *bc = co->bc;
-	RhoValue *stack_base = frame->valuestack_base;
-	RhoValue *stack = frame->valuestack;
+	const byte *bc = co->bc;
+	const RhoValue *stack_base = frame->val_stack_base;
+	RhoValue *stack = frame->val_stack;
 
-	struct rho_exc_stack_element *exc_stack_base = frame->exc_stack_base;
+	const struct rho_exc_stack_element *exc_stack_base = frame->exc_stack_base;
 	struct rho_exc_stack_element *exc_stack = frame->exc_stack;
 
 	/* position in the bytecode */
-	size_t pos = 0;
+	size_t pos = frame->pos;
 
 	RhoValue *v1, *v2, *v3;
 	RhoValue res;
@@ -1123,9 +1195,10 @@ void rho_vm_eval_frame(RhoVM *vm)
 		case RHO_INS_RETURN: {
 			v1 = STACK_POP();
 			rho_retain(v1);
+			rho_frame_reset(frame);
 			frame->return_value = *v1;
 			STACK_PURGE(stack_base);
-			return;
+			goto done;
 		}
 		case RHO_INS_THROW: {
 			v1 = STACK_POP();  // exception
@@ -1139,6 +1212,13 @@ void rho_vm_eval_frame(RhoVM *vm)
 			res = *v1;
 			res.type = RHO_VAL_TYPE_EXC;
 			goto error;
+		}
+		case RHO_INS_PRODUCE: {
+			v1 = STACK_POP();
+			rho_retain(v1);
+			rho_frame_save_state(frame, pos, stack, exc_stack);
+			frame->return_value = *v1;
+			goto done;
 		}
 		case RHO_INS_TRY_BEGIN: {
 			const unsigned int try_block_len = GET_UINT16();
@@ -1450,7 +1530,8 @@ void rho_vm_eval_frame(RhoVM *vm)
 			STACK_PURGE(stack_base);
 			rho_retain(&res);
 			RhoException *e = rho_objvalue(&res);
-			rho_exc_traceback_append(e, frame->co->name, get_lineno(frame));
+			rho_exc_traceback_append(e, co->name, get_lineno(frame));
+			rho_frame_reset(frame);
 			frame->return_value = res;
 			return;
 		} else {
@@ -1464,13 +1545,17 @@ void rho_vm_eval_frame(RhoVM *vm)
 	}
 	case RHO_VAL_TYPE_ERROR: {
 		Error *e = rho_errvalue(&res);
-		rho_err_traceback_append(e, frame->co->name, get_lineno(frame));
+		rho_err_traceback_append(e, co->name, get_lineno(frame));
+		rho_frame_reset(frame);
 		frame->return_value = res;
 		return;
 	}
 	default:
 		RHO_INTERNAL_ERROR();
 	}
+
+	done:
+	return;
 
 #undef STACK_POP
 #undef STACK_TOP
