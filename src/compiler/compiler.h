@@ -39,6 +39,8 @@ typedef struct {
 	unsigned int first_ins_on_line_idx;
 	unsigned int last_ins_idx;
 	unsigned int last_lineno;
+
+	unsigned in_generator : 1;
 } RhoCompiler;
 
 void rho_compile(const char *name, RhoProgram *prog, FILE *out);

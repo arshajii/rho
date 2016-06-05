@@ -41,7 +41,7 @@ typedef enum {
 	RHO_TOK_IN,  // really a keyword but treated as an operator in some contexts
 
 	/* assignments */
-	RHO_TOK_ASSIGNMENTS_START,
+	RHO_TOK_ASSIGNMENTS_START,  /* marker */
 	RHO_TOK_ASSIGN,
 	RHO_TOK_ASSIGN_ADD,
 	RHO_TOK_ASSIGN_SUB,
@@ -55,7 +55,7 @@ typedef enum {
 	RHO_TOK_ASSIGN_SHIFTL,
 	RHO_TOK_ASSIGN_SHIFTR,
 	RHO_TOK_ASSIGN_AT,
-	RHO_TOK_ASSIGNMENTS_END,
+	RHO_TOK_ASSIGNMENTS_END,    /* marker */
 	RHO_TOK_OPS_END,    /* marker */
 
 	RHO_TOK_PAREN_OPEN,     // literal: (
@@ -74,10 +74,12 @@ typedef enum {
 	RHO_TOK_WHILE,
 	RHO_TOK_FOR,
 	RHO_TOK_DEF,
+	RHO_TOK_GEN,
 	RHO_TOK_BREAK,
 	RHO_TOK_CONTINUE,
 	RHO_TOK_RETURN,
 	RHO_TOK_THROW,
+	RHO_TOK_PRODUCE,
 	RHO_TOK_TRY,
 	RHO_TOK_CATCH,
 	RHO_TOK_IMPORT,
@@ -89,6 +91,7 @@ typedef enum {
 	RHO_TOK_DOLLAR,
 
 	/* statement terminators */
+	RHO_TOK_STMT_TERMINATOR,
 	RHO_TOK_SEMICOLON,
 	RHO_TOK_NEWLINE,
 	RHO_TOK_EOF             // should always be the last token
@@ -99,6 +102,8 @@ typedef enum {
 
 #define RHO_TOK_TYPE_IS_ASSIGNMENT_TOK(type) \
 	(RHO_TOK_ASSIGNMENTS_START < (type) && (type) < RHO_TOK_ASSIGNMENTS_END)
+
+#define RHO_TOK_TYPE_IS_STMT_TERM(type) (((type) > RHO_TOK_STMT_TERMINATOR) || (type) == RHO_TOK_BRACE_CLOSE)
 
 typedef struct {
 	const char *value;    // not null-terminated
@@ -146,9 +151,10 @@ typedef struct {
 	unsigned int max_dollar_ident;
 
 	/* parse flags */
-	unsigned in_function : 1;
-	unsigned in_lambda   : 1;
-	unsigned in_loop     : 1;
+	unsigned in_function  : 1;
+	unsigned in_lambda    : 1;
+	unsigned in_generator : 1;
+	unsigned in_loop      : 1;
 } RhoParser;
 
 enum {
@@ -162,6 +168,7 @@ enum {
 	RHO_PARSE_ERR_INVALID_BREAK,
 	RHO_PARSE_ERR_INVALID_CONTINUE,
 	RHO_PARSE_ERR_INVALID_RETURN,
+	RHO_PARSE_ERR_INVALID_PRODUCE,
 	RHO_PARSE_ERR_TOO_MANY_PARAMETERS,
 	RHO_PARSE_ERR_DUPLICATE_PARAMETERS,
 	RHO_PARSE_ERR_NON_DEFAULT_AFTER_DEFAULT_PARAMETERS,
@@ -173,7 +180,8 @@ enum {
 	RHO_PARSE_ERR_EMPTY_CATCH,
 	RHO_PARSE_ERR_MISPLACED_DOLLAR_IDENTIFIER,
 	RHO_PARSE_ERR_INCONSISTENT_DICT_ELEMENTS,
-	RHO_PARSE_ERR_EMPTY_FOR_PARAMETERS
+	RHO_PARSE_ERR_EMPTY_FOR_PARAMETERS,
+	RHO_PARSE_ERR_RETURN_VALUE_IN_GENERATOR
 };
 
 RhoParser *rho_parser_new(char *str, const char *name);

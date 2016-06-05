@@ -115,6 +115,7 @@ static RhoCompiler *compiler_new(const char *filename, unsigned int first_lineno
 	compiler->first_ins_on_line_idx = 0;
 	compiler->last_ins_idx = 0;
 	compiler->last_lineno = first_lineno;
+	compiler->in_generator = 0;
 
 	return compiler;
 }
@@ -210,11 +211,13 @@ static void compile_if(RhoCompiler *compiler, RhoAST *ast);
 static void compile_while(RhoCompiler *compiler, RhoAST *ast);
 static void compile_for(RhoCompiler *compiler, RhoAST *ast);
 static void compile_def(RhoCompiler *compiler, RhoAST *ast);
+static void compile_gen(RhoCompiler *compiler, RhoAST *ast);
 static void compile_lambda(RhoCompiler *compiler, RhoAST *ast);
 static void compile_break(RhoCompiler *compiler, RhoAST *ast);
 static void compile_continue(RhoCompiler *compiler, RhoAST *ast);
 static void compile_return(RhoCompiler *compiler, RhoAST *ast);
 static void compile_throw(RhoCompiler *compiler, RhoAST *ast);
+static void compile_produce(RhoCompiler *compiler, RhoAST *ast);
 static void compile_try_catch(RhoCompiler *compiler, RhoAST *ast);
 static void compile_import(RhoCompiler *compiler, RhoAST *ast);
 static void compile_export(RhoCompiler *compiler, RhoAST *ast);
@@ -242,7 +245,9 @@ static struct metadata compile_raw(RhoCompiler *compiler, RhoProgram *program, b
 	if (is_single_expr) {
 		write_ins(compiler, RHO_INS_RETURN, 0);
 	} else {
-		write_ins(compiler, RHO_INS_LOAD_NULL, 0);
+		write_ins(compiler,
+		          compiler->in_generator ? RHO_INS_LOAD_ITER_STOP : RHO_INS_LOAD_NULL,
+		          0);
 		write_ins(compiler, RHO_INS_RETURN, 0);
 	}
 
@@ -309,6 +314,7 @@ static void compile_const(RhoCompiler *compiler, RhoAST *ast)
 		value.value.s = ast->v.str_val;
 		break;
 	case RHO_NODE_DEF:
+	case RHO_NODE_GEN:
 	case RHO_NODE_LAMBDA: {
 		const unsigned int const_id = rho_ct_poll_codeobj(compiler->ct);
 		write_ins(compiler, RHO_INS_LOAD_CONST, lineno);
@@ -704,7 +710,7 @@ static void compile_for(RhoCompiler *compiler, RhoAST *ast)
 	RhoAST *iter = ast->right;
 	RhoAST *body = ast->v.middle;
 
-	compile_node(compiler, iter, true);
+	compile_node(compiler, iter, false);
 	write_ins(compiler, RHO_INS_GET_ITER, lineno);
 
 	const size_t loop_start_index = compiler->code.size;
@@ -768,9 +774,9 @@ static void compile_for(RhoCompiler *compiler, RhoAST *ast)
 	write_ins(compiler, RHO_INS_POP, 0);  // pop the iterator left behind by GET_ITER
 }
 
-static void compile_def(RhoCompiler *compiler, RhoAST *ast)
+static void compile_def_or_gen(RhoCompiler *compiler, RhoAST *ast, bool def)
 {
-	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_DEF);
+	RHO_AST_TYPE_ASSERT(ast, def ? RHO_NODE_DEF : RHO_NODE_GEN);
 	const unsigned int lineno = ast->lineno;
 
 	/* A function definition is essentially the assignment of a CodeObject to a variable. */
@@ -797,11 +803,21 @@ static void compile_def(RhoCompiler *compiler, RhoAST *ast)
 
 	assert(num_default <= 0xffff);
 
-	write_ins(compiler, RHO_INS_MAKE_FUNCOBJ, lineno);
+	write_ins(compiler, def ? RHO_INS_MAKE_FUNCOBJ : RHO_INS_MAKE_GENERATOR, lineno);
 	write_uint16(compiler, num_default);
 
 	write_ins(compiler, RHO_INS_STORE, lineno);
 	write_uint16(compiler, sym->id);
+}
+
+static void compile_def(RhoCompiler *compiler, RhoAST *ast)
+{
+	compile_def_or_gen(compiler, ast, true);
+}
+
+static void compile_gen(RhoCompiler *compiler, RhoAST *ast)
+{
+	compile_def_or_gen(compiler, ast, false);
 }
 
 static void compile_lambda(RhoCompiler *compiler, RhoAST *ast)
@@ -851,7 +867,15 @@ static void compile_return(RhoCompiler *compiler, RhoAST *ast)
 {
 	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_RETURN);
 	const unsigned int lineno = ast->lineno;
-	compile_node(compiler, ast->left, false);
+
+	if (ast->left != NULL) {
+		compile_node(compiler, ast->left, false);
+	} else {
+		write_ins(compiler,
+		          compiler->in_generator ? RHO_INS_LOAD_ITER_STOP : RHO_INS_LOAD_NULL,
+		          lineno);
+	}
+
 	write_ins(compiler, RHO_INS_RETURN, lineno);
 }
 
@@ -861,6 +885,14 @@ static void compile_throw(RhoCompiler *compiler, RhoAST *ast)
 	const unsigned int lineno = ast->lineno;
 	compile_node(compiler, ast->left, false);
 	write_ins(compiler, RHO_INS_THROW, lineno);
+}
+
+static void compile_produce(RhoCompiler *compiler, RhoAST *ast)
+{
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_PRODUCE);
+	const unsigned int lineno = ast->lineno;
+	compile_node(compiler, ast->left, false);
+	write_ins(compiler, RHO_INS_PRODUCE, lineno);
 }
 
 static void compile_try_catch(RhoCompiler *compiler, RhoAST *ast)
@@ -1169,6 +1201,9 @@ static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel)
 	case RHO_NODE_DEF:
 		compile_def(compiler, ast);
 		break;
+	case RHO_NODE_GEN:
+		compile_gen(compiler, ast);
+		break;
 	case RHO_NODE_LAMBDA:
 		compile_lambda(compiler, ast);
 		break;
@@ -1183,6 +1218,9 @@ static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel)
 		break;
 	case RHO_NODE_THROW:
 		compile_throw(compiler, ast);
+		break;
+	case RHO_NODE_PRODUCE:
+		compile_produce(compiler, ast);
 		break;
 	case RHO_NODE_TRY_CATCH:
 		compile_try_catch(compiler, ast);
@@ -1377,6 +1415,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 		value.value.s = ast->v.str_val;
 		break;
 	case RHO_NODE_DEF:
+	case RHO_NODE_GEN:
 	case RHO_NODE_LAMBDA: {
 		value.type = RHO_CT_CODEOBJ;
 
@@ -1386,7 +1425,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 
 		unsigned int nargs;
 
-		if (ast->type == RHO_NODE_DEF) {
+		if (ast->type == RHO_NODE_DEF || ast->type == RHO_NODE_GEN) {
 			nargs = 0;
 			for (struct rho_ast_list *param = ast->v.params; param != NULL; param = param->next) {
 				if (param->ast->type == RHO_NODE_ASSIGN) {
@@ -1400,7 +1439,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 
 		RhoBlock *body;
 
-		if (ast->type == RHO_NODE_DEF) {
+		if (ast->type == RHO_NODE_DEF || ast->type == RHO_NODE_GEN) {
 			body = ast->right->v.block;
 		} else {
 			body = rho_ast_list_new();
@@ -1416,6 +1455,9 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 
 		st->ste_current = child;
 		RhoCompiler *sub = compiler_new(compiler->filename, lineno, st);
+		if (ast->type == RHO_NODE_GEN) {
+			sub->in_generator = 1;
+		}
 
 		struct metadata metadata = compile_raw(sub, body, (ast->type == RHO_NODE_LAMBDA));
 		st->ste_current = parent;
@@ -1428,7 +1470,8 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 		RhoCode *fncode = rho_malloc(sizeof(RhoCode));
 
 #define LAMBDA "<lambda>"
-		RhoStr name = (ast->type == RHO_NODE_DEF) ? *ast->left->v.ident : RHO_STR_INIT(LAMBDA, strlen(LAMBDA), 0);
+		RhoStr name = (ast->type == RHO_NODE_DEF || ast->type == RHO_NODE_GEN) ? *ast->left->v.ident :
+		                                                                         RHO_STR_INIT(LAMBDA, strlen(LAMBDA), 0);
 #undef LAMBDA
 
 		rho_code_init(fncode, (name.len + 1) + 2 + 2 + 2 + subcode->size);  // total size
@@ -1441,7 +1484,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 		compiler_free(sub, false);
 		value.value.c = fncode;
 
-		if (ast->type != RHO_NODE_DEF) {
+		if (ast->type != RHO_NODE_DEF && ast->type != RHO_NODE_GEN) {
 			free(body);
 		}
 
@@ -1621,6 +1664,7 @@ int rho_opcode_arg_size(RhoOpcode opcode)
 	case RHO_INS_LOAD_CONST:
 		return 2;
 	case RHO_INS_LOAD_NULL:
+	case RHO_INS_LOAD_ITER_STOP:
 		return 0;
 	case RHO_INS_ADD:
 	case RHO_INS_SUB:
@@ -1710,6 +1754,7 @@ int rho_opcode_arg_size(RhoOpcode opcode)
 	case RHO_INS_LOOP_ITER:
 		return 2;
 	case RHO_INS_MAKE_FUNCOBJ:
+	case RHO_INS_MAKE_GENERATOR:
 		return 2;
 	case RHO_INS_SEQ_EXPAND:
 		return 2;
@@ -1770,6 +1815,7 @@ static int stack_delta(RhoOpcode opcode, int arg)
 		return 0;
 	case RHO_INS_LOAD_CONST:
 	case RHO_INS_LOAD_NULL:
+	case RHO_INS_LOAD_ITER_STOP:
 		return 1;
 	case RHO_INS_ADD:
 	case RHO_INS_SUB:
@@ -1874,6 +1920,7 @@ static int stack_delta(RhoOpcode opcode, int arg)
 	case RHO_INS_LOOP_ITER:
 		return 1;
 	case RHO_INS_MAKE_FUNCOBJ:
+	case RHO_INS_MAKE_GENERATOR:
 		return -arg;
 	case RHO_INS_SEQ_EXPAND:
 		return -1 + arg;

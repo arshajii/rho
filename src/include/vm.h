@@ -41,8 +41,9 @@ typedef struct rho_frame {
 	size_t pos;  /* position in bytecode */
 	struct rho_frame *prev;
 
-	unsigned active : 1;
-	unsigned top_level : 1;
+	unsigned active     : 1;
+	unsigned persistent : 1;
+	unsigned top_level  : 1;
 } RhoFrame;
 
 typedef struct rho_vm {
@@ -67,12 +68,15 @@ typedef struct rho_vm {
 RhoVM *rho_vm_new(void);
 int rho_vm_exec_code(RhoVM *vm, RhoCode *code);
 void rho_vm_push_frame(RhoVM *vm, RhoCodeObject *co);
+void rho_vm_push_frame_direct(RhoVM *vm, RhoFrame *frame);
 void rho_vm_eval_frame(RhoVM *vm);
 void rho_vm_pop_frame(RhoVM *vm);
 void rho_vm_free(RhoVM *vm);
 
+RhoFrame *rho_frame_make(RhoCodeObject *co);
 void rho_frame_save_state(RhoFrame *frame,
                           const size_t pos,
+                          RhoValue ret_val,
                           RhoValue *val_stack,
                           struct rho_exc_stack_element *exc_stack);
 void rho_frame_reset(RhoFrame *frame);

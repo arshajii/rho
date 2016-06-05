@@ -282,6 +282,90 @@ static void read_const_table(RhoCodeObject *co, RhoCode *code)
 	co->consts = (struct rho_value_array){.array = constants, .length = ct_size};
 }
 
+RhoValue rho_codeobj_load_args(RhoCodeObject *co,
+                               struct rho_value_array *default_args,
+                               RhoValue *args,
+                               RhoValue *args_named,
+                               size_t nargs,
+                               size_t nargs_named,
+                               RhoValue *locals)
+{
+#define RELEASE_ALL() \
+	do { \
+		for (unsigned i = 0; i < argcount; i++) \
+			if (locals[i].type != RHO_VAL_TYPE_EMPTY) \
+				rho_release(&locals[i]); \
+	} while (0)
+
+	const unsigned int argcount = co->argcount;
+
+	if (nargs > argcount) {
+		return rho_call_exc_num_args(co->name, nargs, argcount);
+	}
+
+	for (unsigned i = 0; i < nargs; i++) {
+		RhoValue v = args[i];
+		rho_retain(&v);
+		locals[i] = v;
+	}
+
+	struct rho_str_array names = co->names;
+
+	const unsigned limit = 2*nargs_named;
+	for (unsigned i = 0; i < limit; i += 2) {
+		RhoStrObject *name = rho_objvalue(&args_named[i]);
+		RhoValue v = args_named[i+1];
+
+		bool found = false;
+		for (unsigned j = 0; j < argcount; j++) {
+			if (strcmp(name->str.value, names.array[j].str) == 0) {
+				if (locals[j].type != RHO_VAL_TYPE_EMPTY) {
+					RELEASE_ALL();
+					return rho_call_exc_dup_arg(co->name, name->str.value);
+				}
+				rho_retain(&v);
+				locals[j] = v;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			RELEASE_ALL();
+			return rho_call_exc_unknown_arg(co->name, name->str.value);
+		}
+	}
+
+	RhoValue *defaults = default_args->array;
+	const unsigned int n_defaults = default_args->length;
+
+	if (defaults == NULL) {
+		for (unsigned i = 0; i < argcount; i++) {
+			if (locals[i].type == RHO_VAL_TYPE_EMPTY) {
+				RELEASE_ALL();
+				return rho_call_exc_missing_arg(co->name, names.array[i].str);
+			}
+		}
+	} else {
+		const unsigned int limit = argcount - n_defaults;  /* where the defaults start */
+		for (unsigned i = 0; i < argcount; i++) {
+			if (locals[i].type == RHO_VAL_TYPE_EMPTY) {
+				if (i >= limit) {
+					locals[i] = defaults[i - limit];
+					rho_retain(&locals[i]);
+				} else {
+					RELEASE_ALL();
+					return rho_call_exc_missing_arg(co->name, names.array[i].str);
+				}
+			}
+		}
+	}
+
+	return rho_makeempty();
+
+#undef RELEASE_ALL
+}
+
 struct rho_num_methods co_num_methods = {
 	NULL,    /* plus */
 	NULL,    /* minus */

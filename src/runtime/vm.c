@@ -17,6 +17,7 @@
 #include "fileobject.h"
 #include "codeobject.h"
 #include "funcobject.h"
+#include "generator.h"
 #include "method.h"
 #include "nativefunc.h"
 #include "module.h"
@@ -229,30 +230,7 @@ void rho_vm_push_frame(RhoVM *vm, RhoCodeObject *co)
 	RhoFrame *frame;
 
 	if (co->frame == NULL) {
-		frame = rho_malloc(sizeof(RhoFrame));
-
-		const size_t n_locals = co->names.length;
-		const size_t stack_depth = co->stack_depth;
-		const size_t try_catch_depth = co->try_catch_depth;
-
-		frame->locals = rho_calloc(n_locals + stack_depth, sizeof(RhoValue));
-		frame->n_locals = n_locals;
-
-		frame->val_stack = frame->val_stack_base = frame->locals + n_locals;
-
-		const size_t frees_len = co->frees.length;
-		RhoStr *frees = rho_malloc(frees_len * sizeof(RhoStr));
-		for (size_t i = 0; i < frees_len; i++) {
-			frees[i] = RHO_STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
-		}
-		frame->frees = frees;
-
-		frame->exc_stack_base =
-		        frame->exc_stack =
-		                rho_malloc(try_catch_depth * sizeof(struct rho_exc_stack_element));
-
-		frame->pos = 0;
-		frame->return_value = rho_makeempty();
+		frame = rho_frame_make(co);
 	} else {
 		frame = co->frame;
 	}
@@ -271,6 +249,11 @@ void rho_vm_push_frame(RhoVM *vm, RhoCodeObject *co)
 	 */
 	co->frame = NULL;
 	frame->co = co;
+	rho_vm_push_frame_direct(vm, frame);
+}
+
+void rho_vm_push_frame_direct(RhoVM *vm, RhoFrame *frame)
+{
 	frame->active = 1;
 	frame->top_level = (vm->callstack == NULL);
 	frame->prev = vm->callstack;
@@ -287,23 +270,63 @@ void rho_vm_pop_frame(RhoVM *vm)
 	frame->co = NULL;
 
 	if (co != NULL) {
-		if (co->frame == NULL) {
-			co->frame = frame;
-		} else {
-			rho_frame_free(frame);
+		if (!frame->persistent) {
+			if (co->frame == NULL) {
+				co->frame = frame;
+			} else {
+				rho_frame_free(frame);
+			}
 		}
 		rho_releaseo(co);
 	}
 }
 
+RhoFrame *rho_frame_make(RhoCodeObject *co)
+{
+	RhoFrame *frame = rho_malloc(sizeof(RhoFrame));
+
+	const size_t n_locals = co->names.length;
+	const size_t stack_depth = co->stack_depth;
+	const size_t try_catch_depth = co->try_catch_depth;
+
+	frame->co = NULL;  // `co` field only valid when frame is being executed
+	frame->locals = rho_calloc(n_locals + stack_depth, sizeof(RhoValue));
+	frame->n_locals = n_locals;
+
+	frame->val_stack = frame->val_stack_base = frame->locals + n_locals;
+
+	const size_t frees_len = co->frees.length;
+	RhoStr *frees = rho_malloc(frees_len * sizeof(RhoStr));
+	for (size_t i = 0; i < frees_len; i++) {
+		frees[i] = RHO_STR_INIT(co->frees.array[i].str, co->frees.array[i].length, 0);
+	}
+	frame->frees = frees;
+
+	frame->exc_stack_base =
+			frame->exc_stack =
+					rho_malloc(try_catch_depth * sizeof(struct rho_exc_stack_element));
+
+	frame->pos = 0;
+	frame->return_value = rho_makeempty();
+
+	frame->active = 0;
+	frame->persistent = 0;
+	frame->top_level = 0;
+
+	return frame;
+}
+
 void rho_frame_save_state(RhoFrame *frame,
                           const size_t pos,
+                          RhoValue ret_val,
                           RhoValue *val_stack,
                           struct rho_exc_stack_element *exc_stack)
 {
 	frame->pos = pos;
 	frame->val_stack = val_stack;
 	frame->exc_stack = exc_stack;
+	rho_release(&frame->return_value);
+	frame->return_value = ret_val;
 }
 
 void rho_frame_reset(RhoFrame *frame)
@@ -331,6 +354,12 @@ void rho_frame_free(RhoFrame *frame)
 		return;
 	}
 
+	RhoValue *val_stack = frame->val_stack;
+	const RhoValue *val_stack_base = frame->val_stack_base;
+	while (val_stack != val_stack_base) {
+		rho_release(--val_stack);
+	}
+
 	rho_frame_reset(frame);
 
 	/*
@@ -348,15 +377,10 @@ void rho_frame_free(RhoFrame *frame)
 		rho_releaseo(frame->co);
 	}
 
+	rho_release(&frame->return_value);
 	free(frame->frees);
 	free(frame->exc_stack_base);
 	free(frame);
-
-	/*
-	 * It's the frame evaluation function's job to make
-	 * sure nothing is on the value stack before the frame
-	 * is popped.
-	 */
 }
 
 /*
@@ -389,7 +413,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 #define STACK_SET_TOP(v)     (stack[-1] = (v))
 #define STACK_SET_SECOND(v)  (stack[-2] = (v))
 #define STACK_SET_THIRD(v)   (stack[-3] = (v))
-#define STACK_PURGE(wall)    do { while (stack != wall) {rho_release(STACK_POP());} } while (0)
+#define STACK_PURGE(wall)    do { while (stack != wall) { rho_release(STACK_POP());} } while (0)
 
 #define EXC_STACK_PUSH(start, end, handler, purge_wall) \
 	(*exc_stack++ = (struct rho_exc_stack_element){(start), (end), (handler), (purge_wall)})
@@ -445,6 +469,10 @@ void rho_vm_eval_frame(RhoVM *vm)
 		}
 		case RHO_INS_LOAD_NULL: {
 			STACK_PUSH(rho_makenull());
+			break;
+		}
+		case RHO_INS_LOAD_ITER_STOP: {
+			STACK_PUSH(rho_get_iter_stop());
 			break;
 		}
 		/*
@@ -1170,10 +1198,10 @@ void rho_vm_eval_frame(RhoVM *vm)
 			const unsigned int nargs_named = (x >> 8);
 			v1 = STACK_POP();
 			res = rho_op_call(v1,
-			              stack - nargs_named*2 - nargs,
-			              stack - nargs_named*2,
-						  nargs,
-						  nargs_named);
+			                  stack - nargs_named*2 - nargs,
+			                  stack - nargs_named*2,
+						      nargs,
+						      nargs_named);
 
 			rho_release(v1);
 			if (rho_iserror(&res)) {
@@ -1216,8 +1244,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 		case RHO_INS_PRODUCE: {
 			v1 = STACK_POP();
 			rho_retain(v1);
-			rho_frame_save_state(frame, pos, stack, exc_stack);
-			frame->return_value = *v1;
+			rho_frame_save_state(frame, pos, *v1, stack, exc_stack);
 			goto done;
 		}
 		case RHO_INS_TRY_BEGIN: {
@@ -1413,6 +1440,22 @@ void rho_vm_eval_frame(RhoVM *vm)
 			}
 
 			STACK_SET_TOP(fn);
+			rho_releaseo(co);
+
+			break;
+		}
+		case RHO_INS_MAKE_GENERATOR: {
+			const unsigned int num_defaults = GET_UINT16();
+
+			RhoCodeObject *co = rho_objvalue(stack - num_defaults - 1);
+			RhoValue gp = rho_gen_proxy_make(co);
+			rho_gen_proxy_init_defaults(rho_objvalue(&gp), stack - num_defaults, num_defaults);
+
+			for (unsigned i = 0; i < num_defaults; i++) {
+				rho_release(STACK_POP());
+			}
+
+			STACK_SET_TOP(gp);
 			rho_releaseo(co);
 
 			break;

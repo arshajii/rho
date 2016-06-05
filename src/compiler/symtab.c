@@ -171,7 +171,8 @@ static void populate_symtable_from_node(RhoSymTable *st, RhoAST *ast)
 			populate_symtable_from_node(st, node->ast);
 		}
 		break;
-	case RHO_NODE_DEF: {
+	case RHO_NODE_DEF:
+	case RHO_NODE_GEN: {
 		assert(ast->left->type == RHO_NODE_IDENT);
 		assert(ast->right->type == RHO_NODE_BLOCK);
 
@@ -281,7 +282,8 @@ static void register_bindings_from_node(RhoSymTable *st, RhoAST *ast)
 			register_bindings_from_node(st, node->ast);
 		}
 		break;
-	case RHO_NODE_DEF: {
+	case RHO_NODE_DEF:
+	case RHO_NODE_GEN: {
 		assert(ast->left->type == RHO_NODE_IDENT);
 		assert(ast->right->type == RHO_NODE_BLOCK);
 

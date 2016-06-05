@@ -60,4 +60,12 @@ RhoCodeObject *rho_codeobj_make(RhoCode *code,
                                 int try_catch_depth,
                                 struct rho_vm *vm);
 
+RhoValue rho_codeobj_load_args(RhoCodeObject *co,
+                               struct rho_value_array *default_args,
+                               RhoValue *args,
+                               RhoValue *args_named,
+                               size_t nargs,
+                               size_t nargs_named,
+                               RhoValue *locals);
+
 #endif /* RHO_CODEOBJECT_H */
