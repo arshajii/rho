@@ -1,7 +1,7 @@
 TARGET   := rho
 CC       := gcc
 WARNINGS := -Wall -Wextra -Werror
-CFLAGS   := -std=c11 -g -pedantic -pedantic-errors -fstrict-aliasing -pthread $(WARNINGS)
+CFLAGS   := -std=c99 -g -pedantic -pedantic-errors -fstrict-aliasing -pthread $(WARNINGS)
 LDLIBS   := -lm -ldl
 LDFLAGS  :=
 
