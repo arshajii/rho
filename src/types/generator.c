@@ -4,6 +4,7 @@
 #include "codeobject.h"
 #include "funcobject.h"
 #include "iter.h"
+#include "exc.h"
 #include "vm.h"
 #include "util.h"
 #include "generator.h"
@@ -20,6 +21,8 @@ RhoValue rho_gen_proxy_make(RhoCodeObject *co)
 RhoValue rho_gen_make(RhoGeneratorProxy *gp)
 {
 	RhoGeneratorObject *go = rho_obj_alloc(&rho_gen_class);
+	RHO_INIT_SAVED_TID_FIELD(go);
+
 	RhoCodeObject *co = gp->co;
 	RhoFrame *frame = rho_frame_make(co);
 	frame->persistent = 1;
@@ -113,6 +116,7 @@ static RhoValue gen_iter(RhoValue *this)
 static RhoValue gen_iternext(RhoValue *this)
 {
 	RhoGeneratorObject *go = rho_objvalue(this);
+	RHO_CHECK_THREAD(go);
 
 	if (go->frame == NULL) {
 		return rho_get_iter_stop();
@@ -120,7 +124,7 @@ static RhoValue gen_iternext(RhoValue *this)
 
 	RhoCodeObject *co = go->co;
 	RhoFrame *frame = go->frame;
-	RhoVM *vm = co->vm;
+	RhoVM *vm = rho_current_vm_get();
 
 	rho_retaino(co);
 	frame->co = co;

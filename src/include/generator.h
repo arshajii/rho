@@ -1,9 +1,9 @@
 #ifndef RHO_GENERATOR_H
 #define RHO_GENERATOR_H
 
+#include <stdlib.h>
 #include "object.h"
 #include "codeobject.h"
-#include "funcobject.h"
 #include "vm.h"
 
 extern RhoClass rho_gen_proxy_class;
@@ -19,6 +19,7 @@ typedef struct {
 	RhoObject base;
 	RhoCodeObject *co;
 	RhoFrame *frame;
+	RHO_SAVED_TID_FIELD
 } RhoGeneratorObject;
 
 RhoValue rho_gen_proxy_make(RhoCodeObject *co);

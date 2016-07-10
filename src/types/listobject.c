@@ -22,6 +22,7 @@ static void list_ensure_capacity(RhoListObject *list, const size_t min_capacity)
 RhoValue rho_list_make(RhoValue *elements, const size_t count)
 {
 	RhoListObject *list = rho_obj_alloc(&rho_list_class);
+	RHO_INIT_SAVED_TID_FIELD(list);
 
 	const size_t size = count * sizeof(RhoValue);
 	list->elements = rho_malloc(size);
@@ -33,14 +34,15 @@ RhoValue rho_list_make(RhoValue *elements, const size_t count)
 	return rho_makeobj(list);
 }
 
-static RhoStrObject *list_str(RhoValue *this)
+static RhoValue list_str(RhoValue *this)
 {
 	RhoListObject *list = rho_objvalue(this);
+	RHO_CHECK_THREAD(list);
+
 	const size_t count = list->count;
 
 	if (count == 0) {
-		RhoValue ret = rho_strobj_make_direct("[]", 2);
-		return (RhoStrObject *)rho_objvalue(&ret);
+		return rho_strobj_make_direct("[]", 2);
 	}
 
 	RhoStrBuf sb;
@@ -54,7 +56,14 @@ static RhoStrObject *list_str(RhoValue *this)
 		if (rho_isobject(v) && rho_objvalue(v) == list) {
 			rho_strbuf_append(&sb, "[...]", 5);
 		} else {
-			RhoStrObject *str = rho_op_str(v);
+			RhoValue str_v = rho_op_str(v);
+
+			if (rho_iserror(&str_v)) {
+				rho_strbuf_dealloc(&sb);
+				return str_v;
+			}
+
+			RhoStrObject *str = rho_objvalue(&str_v);
 			rho_strbuf_append(&sb, str->str.value, str->str.len);
 			rho_releaseo(str);
 		}
@@ -71,8 +80,7 @@ static RhoStrObject *list_str(RhoValue *this)
 	rho_strbuf_to_str(&sb, &dest);
 	dest.freeable = 1;
 
-	RhoValue ret = rho_strobj_make(dest);
-	return (RhoStrObject *)rho_objvalue(&ret);
+	return rho_strobj_make(dest);
 }
 
 static void list_free(RhoValue *this)
@@ -89,10 +97,11 @@ static void list_free(RhoValue *this)
 	rho_obj_class.del(this);
 }
 
-static size_t list_len(RhoValue *this)
+static RhoValue list_len(RhoValue *this)
 {
 	RhoListObject *list = rho_objvalue(this);
-	return list->count;
+	RHO_CHECK_THREAD(list);
+	return rho_makeint(list->count);
 }
 
 RhoValue rho_list_get(RhoListObject *list, const size_t idx)
@@ -104,12 +113,14 @@ RhoValue rho_list_get(RhoListObject *list, const size_t idx)
 
 static RhoValue list_get(RhoValue *this, RhoValue *idx)
 {
+	RhoListObject *list = rho_objvalue(this);
+	RHO_CHECK_THREAD(list);
+
 	if (!rho_isint(idx)) {
 		RhoClass *class = rho_getclass(idx);
 		return RHO_TYPE_EXC("list indices must be integers, not %s instances", class->name);
 	}
 
-	RhoListObject *list = rho_objvalue(this);
 	const size_t count = list->count;
 	const long idx_raw = rho_intvalue(idx);
 
@@ -120,12 +131,14 @@ static RhoValue list_get(RhoValue *this, RhoValue *idx)
 
 static RhoValue list_set(RhoValue *this, RhoValue *idx, RhoValue *v)
 {
+	RhoListObject *list = rho_objvalue(this);
+	RHO_CHECK_THREAD(list);
+
 	if (!rho_isint(idx)) {
 		RhoClass *class = rho_getclass(idx);
 		return RHO_TYPE_EXC("list indices must be integers, not %s instances", class->name);
 	}
 
-	RhoListObject *list = rho_objvalue(this);
 	const size_t count = list->count;
 	const long idx_raw = rho_intvalue(idx);
 
@@ -140,7 +153,9 @@ static RhoValue list_set(RhoValue *this, RhoValue *idx, RhoValue *v)
 static RhoValue list_apply(RhoValue *this, RhoValue *fn)
 {
 	RhoListObject *list = rho_objvalue(this);
-	CallFunc call = rho_resolve_call(rho_getclass(fn));  // this should've been checked already
+	RHO_CHECK_THREAD(list);
+
+	RhoCallFunc call = rho_resolve_call(rho_getclass(fn));  // this should've been checked already
 
 	RhoValue list2_value = rho_list_make(list->elements, list->count);
 	RhoListObject *list2 = rho_objvalue(&list2_value);
@@ -183,6 +198,8 @@ static RhoValue list_append(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 
 	RhoListObject *list = rho_objvalue(this);
+	RHO_CHECK_THREAD(list);
+
 	rho_list_append(list, &args[0]);
 	return rho_makenull();
 
@@ -202,6 +219,8 @@ static RhoValue list_pop(RhoValue *this,
 	RHO_ARG_COUNT_CHECK_AT_MOST(NAME, nargs, 1);
 
 	RhoListObject *list = rho_objvalue(this);
+	RHO_CHECK_THREAD(list);
+
 	RhoValue *elements = list->elements;
 	const size_t count = list->count;
 
@@ -246,6 +265,8 @@ static RhoValue list_insert(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 2);
 
 	RhoListObject *list = rho_objvalue(this);
+	RHO_CHECK_THREAD(list);
+
 	const size_t count = list->count;
 
 	RhoValue *idx = &args[0];
@@ -278,6 +299,7 @@ static RhoValue list_insert(RhoValue *this,
 static RhoValue list_iter(RhoValue *this)
 {
 	RhoListObject *list = rho_objvalue(this);
+	RHO_CHECK_THREAD(list);
 	return iter_make(list);
 }
 
@@ -429,6 +451,8 @@ static RhoValue iter_make(RhoListObject *list)
 static RhoValue iter_next(RhoValue *this)
 {
 	RhoListIter *iter = rho_objvalue(this);
+	RHO_CHECK_THREAD(iter->source);
+
 	if (iter->index >= iter->source->count) {
 		return rho_get_iter_stop();
 	} else {

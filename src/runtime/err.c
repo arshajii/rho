@@ -1,3 +1,5 @@
+#include "../include/err.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -8,7 +10,6 @@
 #include "metaclass.h"
 #include "util.h"
 #include "exc.h"
-#include "err.h"
 
 #define X(a, b) b,
 const char *rho_err_type_headers[] = {
@@ -57,9 +58,9 @@ void rho_tb_manager_dealloc(struct rho_traceback_manager *tbm)
 	free(tbm->tb);
 }
 
-Error *rho_err_new(RhoErrorType type, const char *msg_format, ...)
+RhoError *rho_err_new(RhoErrorType type, const char *msg_format, ...)
 {
-	Error *error = rho_malloc(sizeof(Error));
+	RhoError *error = rho_malloc(sizeof(RhoError));
 	error->type = type;
 
 	va_list args;
@@ -71,20 +72,24 @@ Error *rho_err_new(RhoErrorType type, const char *msg_format, ...)
 	return error;
 }
 
-void rho_err_free(Error *error)
+void rho_err_free(RhoError *error)
 {
+	if (error == NULL) {
+		return;
+	}
+
 	rho_tb_manager_dealloc(&error->tbm);
 	free(error);
 }
 
-void rho_err_traceback_append(Error *error,
+void rho_err_traceback_append(RhoError *error,
                             const char *fn,
                             const unsigned int lineno)
 {
 	rho_tb_manager_add(&error->tbm, fn, lineno);
 }
 
-void rho_err_traceback_print(Error *error, FILE *out)
+void rho_err_traceback_print(RhoError *error, FILE *out)
 {
 	rho_tb_manager_print(&error->tbm, out);
 }
@@ -93,24 +98,19 @@ void rho_err_traceback_print(Error *error, FILE *out)
 #define ATTR_ERROR_HEADER "Attribute Error: "
 #define FATAL_ERROR_HEADER "Fatal Error: "
 
-Error *rho_err_invalid_file_signature_error(const char *module)
+RhoError *rho_err_invalid_file_signature_error(const char *module)
 {
 	return rho_err_new(RHO_ERR_TYPE_FATAL,
 	                   "invalid file signature encountered when loading module '%s'",
 	                   module);
 }
 
-Error *rho_err_unbound(const char *var)
+RhoError *rho_err_unbound(const char *var)
 {
 	return rho_err_new(RHO_ERR_TYPE_NAME, "cannot reference unbound variable '%s'", var);
 }
 
-Error *rho_type_err_invalid_cmp(const RhoClass *c1)
-{
-	return rho_err_new(RHO_ERR_TYPE_TYPE, "comparison of type '%s' did not return an int", c1->name);
-}
-
-Error *rho_type_err_invalid_catch(const RhoClass *c1)
+RhoError *rho_type_err_invalid_catch(const RhoClass *c1)
 {
 	if (c1 == &rho_meta_class) {
 		return rho_err_new(RHO_ERR_TYPE_TYPE,
@@ -122,19 +122,25 @@ Error *rho_type_err_invalid_catch(const RhoClass *c1)
 	}
 }
 
-Error *rho_type_err_invalid_throw(const RhoClass *c1)
+RhoError *rho_type_err_invalid_throw(const RhoClass *c1)
 {
 	return rho_err_new(RHO_ERR_TYPE_TYPE,
 	                   "can only throw instances of a subclass of Exception, not %s",
 	                   c1->name);
 }
 
-Error *rho_err_div_by_zero(void)
+RhoError *rho_err_div_by_zero(void)
 {
 	return rho_err_new(RHO_ERR_TYPE_DIV_BY_ZERO, "division or modulo by zero");
 }
 
-void rho_err_print_msg(Error *e, FILE *out)
+RhoError *rho_err_multithreading_not_supported(void)
+{
+	return rho_err_new(RHO_ERR_TYPE_NO_MT,
+	                   "multithreading is not supported by this build of the Rho runtime");
+}
+
+void rho_err_print_msg(RhoError *e, FILE *out)
 {
 	fprintf(out, "%s: %s\n", rho_err_type_headers[e->type], e->msg);
 }

@@ -22,6 +22,7 @@ typedef struct {
 	size_t capacity;
 	size_t threshold;
 	unsigned state_id;
+	RHO_SAVED_TID_FIELD
 } RhoDictObject;
 
 /*
@@ -34,8 +35,8 @@ RhoValue rho_dict_make(RhoValue *entries, const size_t size);
 RhoValue rho_dict_get(RhoDictObject *dict, RhoValue *key, RhoValue *dflt);
 RhoValue rho_dict_put(RhoDictObject *dict, RhoValue *key, RhoValue *value);
 RhoValue rho_dict_remove_key(RhoDictObject *dict, RhoValue *key);
-bool rho_dict_contains_key(RhoDictObject *dict, RhoValue *key);
-bool rho_dict_eq(RhoDictObject *dict, RhoDictObject *other);
+RhoValue rho_dict_contains_key(RhoDictObject *dict, RhoValue *key);
+RhoValue rho_dict_eq(RhoDictObject *dict, RhoDictObject *other);
 size_t rho_dict_len(RhoDictObject *dict);
 
 extern RhoClass rho_dict_iter_class;

@@ -129,7 +129,7 @@ static RhoValue applied_iter_iternext(RhoValue *this)
 	RhoAppliedIter *appiter = rho_objvalue(this);
 	RhoIter *source = appiter->source;
 	RhoClass *source_class = source->base.class;
-	UnOp iternext = rho_resolve_iternext(source_class);
+	RhoUnOp iternext = rho_resolve_iternext(source_class);
 
 	if (!iternext) {
 		return rho_type_exc_not_iterator(source_class);
@@ -137,7 +137,7 @@ static RhoValue applied_iter_iternext(RhoValue *this)
 
 	RhoValue *fn = &appiter->fn;
 	RhoClass *fn_class = rho_getclass(fn);
-	CallFunc call = rho_resolve_call(fn_class);
+	RhoCallFunc call = rho_resolve_call(fn_class);
 
 	if (!call) {
 		return rho_type_exc_not_callable(fn_class);
@@ -237,10 +237,10 @@ static RhoValue range_iternext(RhoValue *this)
 	}
 }
 
-static bool range_contains(RhoValue *this, RhoValue *n)
+static RhoValue range_contains(RhoValue *this, RhoValue *n)
 {
 	if (!rho_isint(n)) {
-		return false;
+		return rho_makefalse();
 	}
 
 	RhoRange *range = rho_objvalue(this);
@@ -249,9 +249,9 @@ static bool range_contains(RhoValue *this, RhoValue *n)
 	const long to = range->to;
 
 	if (to >= from) {
-		return from <= target && target < to;
+		return rho_makebool((from <= target && target < to));
 	} else {
-		return to <= target && target <= from;
+		return rho_makebool((to <= target && target <= from));
 	}
 }
 

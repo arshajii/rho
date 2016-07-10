@@ -7,6 +7,7 @@
 #include "opcodes.h"
 #include "str.h"
 #include "object.h"
+#include "boolobject.h"
 #include "intobject.h"
 #include "floatobject.h"
 #include "strobject.h"
@@ -18,6 +19,7 @@
 #include "codeobject.h"
 #include "funcobject.h"
 #include "generator.h"
+#include "actor.h"
 #include "method.h"
 #include "nativefunc.h"
 #include "module.h"
@@ -36,21 +38,35 @@
 #include "vmops.h"
 #include "vm.h"
 
+#if RHO_THREADED
+#include <pthread.h>
+static pthread_key_t vm_key;
+#else
 static RhoVM *current_vm = NULL;
+#endif
 
 RhoVM *rho_current_vm_get(void)
 {
+#if RHO_THREADED
+	return pthread_getspecific(vm_key);
+#else
 	return current_vm;
+#endif
 }
 
 void rho_current_vm_set(RhoVM *vm)
 {
+#if RHO_THREADED
+	pthread_setspecific(vm_key, vm);
+#else
 	current_vm = vm;
+#endif
 }
 
 static RhoClass *classes[] = {
 	&rho_obj_class,
 	&rho_null_class,
+	&rho_bool_class,
 	&rho_int_class,
 	&rho_float_class,
 	&rho_str_class,
@@ -61,6 +77,11 @@ static RhoClass *classes[] = {
 	&rho_file_class,
 	&rho_co_class,
 	&rho_fn_class,
+#if RHO_THREADED
+	&rho_actor_class,
+	&rho_future_class,
+	&rho_message_class,
+#endif
 	&rho_method_class,
 	&rho_native_func_class,
 	&rho_module_class,
@@ -70,8 +91,13 @@ static RhoClass *classes[] = {
 	&rho_exception_class,
 	&rho_index_exception_class,
 	&rho_type_exception_class,
+	&rho_io_exception_class,
 	&rho_attr_exception_class,
 	&rho_import_exception_class,
+	&rho_isc_exception_class,
+	&rho_seq_exp_exception_class,
+	&rho_actor_exception_class,
+	&rho_conc_access_exception_class,
 	NULL
 };
 
@@ -139,6 +165,10 @@ RhoVM *rho_vm_new(void)
 		}
 #endif
 
+#if RHO_THREADED
+		pthread_key_create(&vm_key, NULL);
+#endif
+
 		init = true;
 	}
 
@@ -147,6 +177,7 @@ RhoVM *rho_vm_new(void)
 	vm->module = NULL;
 	vm->callstack = NULL;
 	vm->globals = (struct rho_value_array){.array = NULL, .length = 0};
+	vm->global_names = (struct rho_str_array){.array = NULL, .length = 0};
 	vm->lno_cache = NULL;
 	vm->children = NULL;
 	vm->sibling = NULL;
@@ -179,6 +210,10 @@ static void vm_free_helper(RhoVM *vm)
 
 void rho_vm_free(RhoVM *vm)
 {
+	if (vm == NULL) {
+		return;
+	}
+
 	/*
 	 * We only deallocate the export dictionary of the
 	 * top-level VM, since those of child VMs (i.e. the
@@ -203,6 +238,9 @@ int rho_vm_exec_code(RhoVM *vm, RhoCode *code)
 	vm->lno_cache = rho_calloc(code->size, sizeof(unsigned int));
 	vm_push_module_frame(vm, code);
 	rho_vm_eval_frame(vm);
+#if RHO_THREADED
+	rho_actor_join_all();
+#endif
 
 	RhoValue *ret = &vm->callstack->return_value;
 
@@ -215,7 +253,7 @@ int rho_vm_exec_code(RhoVM *vm, RhoCode *code)
 		rho_release(ret);
 	} else if (rho_iserror(ret)) {
 		status = 1;
-		Error *e = rho_errvalue(ret);
+		RhoError *e = rho_errvalue(ret);
 		rho_err_traceback_print(e, stderr);
 		rho_err_print_msg(e, stderr);
 		rho_err_free(e);
@@ -225,30 +263,51 @@ int rho_vm_exec_code(RhoVM *vm, RhoCode *code)
 	return status;
 }
 
-void rho_vm_push_frame(RhoVM *vm, RhoCodeObject *co)
-{
-	RhoFrame *frame;
+/*
+ * Important note about the references Frames and CodeObjects have for one another:
+ *
+ * Frames have a `co` field which points to the CodeObject they are currently executing.
+ * Similarly, CodeObjects have a `frame` field that points to the Frame that *finished*
+ * executing them (this is used to avoid unnecessary creation of Frames). The point is
+ * that a Frame's `co` field is only valid once that Frame is pushed, while a CodeObject's
+ * `frame` field is only valid while that CodeObject is no longer being executed. In this
+ * way, we resolve the issue of any circular dependencies and avoid running into problems
+ * with recursive functions (CodeObjects actually retain the highest-level Frame in the
+ * case of recursive calls).
+ */
 
-	if (co->frame == NULL) {
-		frame = rho_frame_make(co);
-	} else {
-		frame = co->frame;
+static RhoFrame *get_frame(RhoCodeObject *co)
+{
+	RhoFrame *frame = co->frame;
+	co->frame = NULL;
+
+	if (frame == NULL) {
+		goto new_frame;
 	}
 
-	/*
-	 * Important note about the references Frames and CodeObjects have for one another:
-	 *
-	 * Frames have a `co` field which points to the CodeObject they are currently executing.
-	 * Similarly, CodeObjects have a `frame` field that points to the Frame that *finished*
-	 * executing them (this is used to avoid unnecessary creation of Frames). The point is
-	 * that a Frame's `co` field is only valid once that Frame is pushed, while a CodeObject's
-	 * `frame` field is only valid while that CodeObject is no longer being executed. In this
-	 * way, we resolve the issue of any circular dependencies and avoid running into problems
-	 * with recursive functions (CodeObjects actually retain the highest-level Frame in the
-	 * case of recursive calls).
-	 */
-	co->frame = NULL;
+#if RHO_THREADED
+	const bool owned = atomic_flag_test_and_set(&frame->owned);
+
+	if (!owned) {
+		frame->co = co;
+		return frame;
+	} else {
+		goto new_frame;
+	}
+#else
 	frame->co = co;
+	return frame;
+#endif
+
+	new_frame:
+	frame = rho_frame_make(co);
+	frame->co = co;
+	return frame;
+}
+
+void rho_vm_push_frame(RhoVM *vm, RhoCodeObject *co)
+{
+	RhoFrame *frame = get_frame(co);
 	rho_vm_push_frame_direct(vm, frame);
 }
 
@@ -268,6 +327,10 @@ void rho_vm_pop_frame(RhoVM *vm)
 	RhoCodeObject *co = frame->co;
 	frame->active = 0;
 	frame->co = NULL;
+
+#if RHO_THREADED
+	atomic_flag_clear(&frame->owned);
+#endif
 
 	if (co != NULL) {
 		if (!frame->persistent) {
@@ -303,15 +366,22 @@ RhoFrame *rho_frame_make(RhoCodeObject *co)
 	frame->frees = frees;
 
 	frame->exc_stack_base =
-			frame->exc_stack =
-					rho_malloc(try_catch_depth * sizeof(struct rho_exc_stack_element));
+	        frame->exc_stack =
+	                rho_malloc(try_catch_depth * sizeof(struct rho_exc_stack_element));
 
 	frame->pos = 0;
 	frame->return_value = rho_makeempty();
+#if RHO_THREADED
+	frame->mailbox = NULL;
+	static atomic_flag flag = ATOMIC_FLAG_INIT;
+	frame->owned = flag;
+	atomic_flag_clear(&frame->owned);
+#endif
 
 	frame->active = 0;
 	frame->persistent = 0;
 	frame->top_level = 0;
+	frame->force_free_locals = 0;
 
 	return frame;
 }
@@ -331,7 +401,7 @@ void rho_frame_save_state(RhoFrame *frame,
 
 void rho_frame_reset(RhoFrame *frame)
 {
-	if (!frame->top_level) {
+	if (!frame->top_level || frame->force_free_locals) {
 		const size_t n_locals = frame->n_locals;
 		RhoValue *locals = frame->locals;
 
@@ -369,7 +439,7 @@ void rho_frame_free(RhoFrame *frame)
 	 * eventually be freed once the VM instance itself
 	 * is freed.
 	 */
-	if (!frame->top_level) {
+	if (!frame->top_level || frame->force_free_locals) {
 		free(frame->locals);
 	}
 
@@ -440,6 +510,10 @@ void rho_vm_eval_frame(RhoVM *vm)
 
 	const struct rho_exc_stack_element *exc_stack_base = frame->exc_stack_base;
 	struct rho_exc_stack_element *exc_stack = frame->exc_stack;
+
+#if RHO_THREADED
+	struct rho_mailbox *mb = frame->mailbox;
+#endif
 
 	/* position in the bytecode */
 	size_t pos = frame->pos;
@@ -810,6 +884,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -823,6 +898,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -836,6 +912,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -849,6 +926,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -862,6 +940,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -875,6 +954,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -888,6 +968,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -901,6 +982,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -914,6 +996,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -927,6 +1010,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -940,6 +1024,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 			if (rho_iserror(&res)) {
 				goto error;
 			}
+			rho_release(v1);
 
 			STACK_SET_TOP(res);
 			break;
@@ -1120,8 +1205,15 @@ void rho_vm_eval_frame(RhoVM *vm)
 		}
 		case RHO_INS_PRINT: {
 			v1 = STACK_POP();
-			rho_op_print(v1, stdout);
+
+			/* res will be either an error or empty: */
+			res = rho_op_print(v1, stdout);
 			rho_release(v1);
+
+			if (rho_iserror(&res)) {
+				goto error;
+			}
+
 			break;
 		}
 		case RHO_INS_JMP: {
@@ -1398,6 +1490,37 @@ void rho_vm_eval_frame(RhoVM *vm)
 			                     v1);
 			break;
 		}
+		case RHO_INS_RECEIVE: {
+#if RHO_THREADED
+			/*
+			 * There's an important assumption that this opcode
+			 * will only ever be executed by code running in an
+			 * actor. Otherwise, some UB may result.
+			 */
+			res = rho_mailbox_pop(mb);
+
+			if (rho_iserror(&res)) {
+				goto error;
+			}
+
+			RhoMessage *msg = rho_objvalue(&res);
+
+			if (rho_isempty(&msg->contents)) {
+				rho_releaseo(msg);
+				rho_frame_reset(frame);
+				frame->return_value = rho_makenull();
+				STACK_PURGE(stack_base);
+				goto done;
+			}
+
+			STACK_PUSH(res);
+#else
+			/* Based on the assumption above, we should never reach this. */
+			res = rho_makeerr(rho_err_multithreading_not_supported());
+			goto error;
+#endif
+			break;
+		}
 		case RHO_INS_GET_ITER: {
 			v1 = STACK_TOP();
 			res = rho_op_iter(v1);
@@ -1458,6 +1581,26 @@ void rho_vm_eval_frame(RhoVM *vm)
 			STACK_SET_TOP(gp);
 			rho_releaseo(co);
 
+			break;
+		}
+		case RHO_INS_MAKE_ACTOR: {
+#if RHO_THREADED
+			const unsigned int num_defaults = GET_UINT16();
+
+			RhoCodeObject *co = rho_objvalue(stack - num_defaults - 1);
+			RhoValue ap = rho_actor_proxy_make(co);
+			rho_actor_proxy_init_defaults(rho_objvalue(&ap), stack - num_defaults, num_defaults);
+
+			for (unsigned i = 0; i < num_defaults; i++) {
+				rho_release(STACK_POP());
+			}
+
+			STACK_SET_TOP(ap);
+			rho_releaseo(co);
+#else
+			res = rho_makeerr(rho_err_multithreading_not_supported());
+			goto error;
+#endif
 			break;
 		}
 		case RHO_INS_SEQ_EXPAND: {
@@ -1587,9 +1730,10 @@ void rho_vm_eval_frame(RhoVM *vm)
 		break;
 	}
 	case RHO_VAL_TYPE_ERROR: {
-		Error *e = rho_errvalue(&res);
+		RhoError *e = rho_errvalue(&res);
 		rho_err_traceback_append(e, co->name, get_lineno(frame));
 		rho_frame_reset(frame);
+		STACK_PURGE(stack_base);
 		frame->return_value = res;
 		return;
 	}

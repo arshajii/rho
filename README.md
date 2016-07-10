@@ -6,7 +6,7 @@ Rho Programming Language
 [![Build Status](https://travis-ci.org/arshajii/rho.svg?branch=master)](https://travis-ci.org/arshajii/rho) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/arshajii/rho/master/LICENSE)
 
 
-*Rho* is a lightweight, dynamically typed programming language written in C99. The language is largely inspired by Python, both in terms of syntax and implementation (CPython, to be exact).
+*Rho* is a lightweight, dynamically typed programming language written in C<sup>1</sup>. The language is largely inspired by Python, both in terms of syntax and implementation (CPython, to be exact).
 
 Examples
 --------
@@ -75,3 +75,6 @@ a = 1
     <b>return</b> sqrt(square(a) + square(b))
 }
 </pre>
+
+---
+<sup>1</sup> Should compile cleanly with C99 unless support for multithreading is required, in which case C11 is needed for its atomics.

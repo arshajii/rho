@@ -6,9 +6,9 @@
 
 RhoValue rho_op_hash(RhoValue *v);
 
-RhoStrObject *rho_op_str(RhoValue *v);
+RhoValue rho_op_str(RhoValue *v);
 
-void rho_op_print(RhoValue *v, FILE *out);
+RhoValue rho_op_print(RhoValue *v, FILE *out);
 
 RhoValue rho_op_add(RhoValue *a, RhoValue *b);
 

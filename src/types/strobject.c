@@ -30,15 +30,15 @@ RhoValue rho_strobj_make_direct(const char *value, const size_t len)
 	return rho_makeobj(s);
 }
 
-static bool strobj_eq(RhoValue *this, RhoValue *other)
+static RhoValue strobj_eq(RhoValue *this, RhoValue *other)
 {
 	if (!rho_is_a(other, &rho_str_class)) {
-		return false;
+		return rho_makefalse();
 	}
 
 	RhoStrObject *s1 = rho_objvalue(this);
 	RhoStrObject *s2 = rho_objvalue(other);
-	return rho_str_eq(&s1->str, &s2->str);
+	return rho_makebool(rho_str_eq(&s1->str, &s2->str));
 }
 
 static RhoValue strobj_cmp(RhoValue *this, RhoValue *other)
@@ -52,10 +52,10 @@ static RhoValue strobj_cmp(RhoValue *this, RhoValue *other)
 	return rho_makeint(rho_str_cmp(&s1->str, &s2->str));
 }
 
-static int strobj_hash(RhoValue *this)
+static RhoValue strobj_hash(RhoValue *this)
 {
 	RhoStrObject *s = rho_objvalue(this);
-	return rho_str_hash(&s->str);
+	return rho_makeint(rho_str_hash(&s->str));
 }
 
 static bool strobj_nonzero(RhoValue *this)
@@ -74,11 +74,11 @@ static void strobj_free(RhoValue *this)
 	s->base.class->super->del(this);
 }
 
-static RhoStrObject *strobj_str(RhoValue *this)
+static RhoValue strobj_str(RhoValue *this)
 {
 	RhoStrObject *s = rho_objvalue(this);
 	rho_retaino(s);
-	return s;
+	return *this;
 }
 
 static RhoValue strobj_cat(RhoValue *this, RhoValue *other)
@@ -109,10 +109,10 @@ static RhoValue strobj_cat(RhoValue *this, RhoValue *other)
 	return rho_strobj_make(RHO_STR_INIT(cat, len_cat, 1));
 }
 
-static size_t strobj_len(RhoValue *this)
+static RhoValue strobj_len(RhoValue *this)
 {
 	RhoStrObject *s = rho_objvalue(this);
-	return s->str.len;
+	return rho_makeint(s->str.len);
 }
 
 struct rho_num_methods rho_str_num_methods = {

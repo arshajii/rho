@@ -172,7 +172,8 @@ static void populate_symtable_from_node(RhoSymTable *st, RhoAST *ast)
 		}
 		break;
 	case RHO_NODE_DEF:
-	case RHO_NODE_GEN: {
+	case RHO_NODE_GEN:
+	case RHO_NODE_ACT: {
 		assert(ast->left->type == RHO_NODE_IDENT);
 		assert(ast->right->type == RHO_NODE_BLOCK);
 
@@ -242,6 +243,7 @@ static void register_bindings_from_node(RhoSymTable *st, RhoAST *ast)
 
 	switch (ast->type) {
 	case RHO_NODE_ASSIGN:
+	case RHO_NODE_RECEIVE:
 		if (ast->left->type == RHO_NODE_IDENT) {
 			int flag = FLAG_BOUND_HERE;
 			if (global) {
@@ -283,7 +285,8 @@ static void register_bindings_from_node(RhoSymTable *st, RhoAST *ast)
 		}
 		break;
 	case RHO_NODE_DEF:
-	case RHO_NODE_GEN: {
+	case RHO_NODE_GEN:
+	case RHO_NODE_ACT: {
 		assert(ast->left->type == RHO_NODE_IDENT);
 		assert(ast->right->type == RHO_NODE_BLOCK);
 
@@ -296,7 +299,7 @@ static void register_bindings_from_node(RhoSymTable *st, RhoAST *ast)
 
 		for (struct rho_ast_list *param = ast->v.params; param != NULL; param = param->next) {
 			RhoStr *ident = (param->ast->type == RHO_NODE_ASSIGN) ? param->ast->left->v.ident :
-			                                                 param->ast->v.ident;
+			                                                        param->ast->v.ident;
 
 			const bool param_seen = ste_register_ident(child, ident, FLAG_BOUND_HERE | FLAG_FUNC_PARAM);
 			assert(!param_seen);

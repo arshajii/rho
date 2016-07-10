@@ -15,7 +15,8 @@
 	X(RHO_ERR_TYPE_FATAL,       "Fatal Error") \
 	X(RHO_ERR_TYPE_TYPE,        "Type Error") \
 	X(RHO_ERR_TYPE_NAME,        "Name Error") \
-	X(RHO_ERR_TYPE_DIV_BY_ZERO, "Division by Zero Error")
+	X(RHO_ERR_TYPE_DIV_BY_ZERO, "Division by Zero Error") \
+	X(RHO_ERR_TYPE_NO_MT,       "Multithreading Error")
 
 #define X(a, b) a,
 typedef enum {
@@ -47,23 +48,23 @@ typedef struct rho_error {
 	RhoErrorType type;
 	char msg[1024];
 	struct rho_traceback_manager tbm;
-} Error;
+} RhoError;
 
-Error *rho_err_new(RhoErrorType type, const char *msg_format, ...);
-void rho_err_free(Error *error);
-void rho_err_traceback_append(Error *error,
+RhoError *rho_err_new(RhoErrorType type, const char *msg_format, ...);
+void rho_err_free(RhoError *error);
+void rho_err_traceback_append(RhoError *error,
                                 const char *fn,
                                 const unsigned int lineno);
-void rho_err_traceback_print(Error *error, FILE *out);
+void rho_err_traceback_print(RhoError *error, FILE *out);
 
-Error *rho_err_invalid_file_signature_error(const char *module);
-Error *rho_err_unbound(const char *var);
-Error *rho_type_err_invalid_cmp(const RhoClass *c1);
-Error *rho_type_err_invalid_catch(const RhoClass *c1);
-Error *rho_type_err_invalid_throw(const RhoClass *c1);
-Error *rho_err_div_by_zero(void);
+RhoError *rho_err_invalid_file_signature_error(const char *module);
+RhoError *rho_err_unbound(const char *var);
+RhoError *rho_type_err_invalid_catch(const RhoClass *c1);
+RhoError *rho_type_err_invalid_throw(const RhoClass *c1);
+RhoError *rho_err_div_by_zero(void);
+RhoError *rho_err_multithreading_not_supported(void);
 
-void rho_err_print_msg(Error *e, FILE *out);
+void rho_err_print_msg(RhoError *e, FILE *out);
 
 #define RHO_INTERNAL_ERROR() (assert(0))
 

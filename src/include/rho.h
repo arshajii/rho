@@ -21,6 +21,7 @@
 #include "dictobject.h"
 #include "iter.h"
 #include "codeobject.h"
+#include "err.h"
 #include "funcobject.h"
 #include "method.h"
 #include "module.h"
@@ -29,6 +30,5 @@
 
 /* errors/exceptions */
 #include "exc.h"
-#include "err.h"
 
 #endif /* RHO_RHO_H */

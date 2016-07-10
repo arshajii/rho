@@ -23,14 +23,13 @@ RhoValue rho_tuple_make(RhoValue *elements, const size_t count)
 	return rho_makeobj(tup);
 }
 
-static RhoStrObject *tuple_str(RhoValue *this)
+static RhoValue tuple_str(RhoValue *this)
 {
 	RhoTupleObject *tup = rho_objvalue(this);
 	const size_t count = tup->count;
 
 	if (count == 0) {
-		RhoValue ret = rho_strobj_make_direct("()", 2);
-		return (RhoStrObject *)rho_objvalue(&ret);
+		return rho_strobj_make_direct("()", 2);
 	}
 
 	RhoStrBuf sb;
@@ -44,7 +43,14 @@ static RhoStrObject *tuple_str(RhoValue *this)
 		if (rho_isobject(v) && rho_objvalue(v) == tup) {  // this should really never happen
 			rho_strbuf_append(&sb, "(...)", 5);
 		} else {
-			RhoStrObject *str = rho_op_str(v);
+			RhoValue str_v = rho_op_str(v);
+
+			if (rho_iserror(&str_v)) {
+				rho_strbuf_dealloc(&sb);
+				return str_v;
+			}
+
+			RhoStrObject *str = rho_objvalue(&str_v);
 			rho_strbuf_append(&sb, str->str.value, str->str.len);
 			rho_releaseo(str);
 		}
@@ -61,8 +67,7 @@ static RhoStrObject *tuple_str(RhoValue *this)
 	rho_strbuf_to_str(&sb, &dest);
 	dest.freeable = 1;
 
-	RhoValue ret = rho_strobj_make(dest);
-	return (RhoStrObject *)rho_objvalue(&ret);
+	return rho_strobj_make(dest);
 }
 
 static void tuple_free(RhoValue *this)
@@ -78,10 +83,10 @@ static void tuple_free(RhoValue *this)
 	rho_obj_class.del(this);
 }
 
-static size_t tuple_len(RhoValue *this)
+static RhoValue tuple_len(RhoValue *this)
 {
 	RhoTupleObject *tup = rho_objvalue(this);
-	return tup->count;
+	return rho_makeint(tup->count);
 }
 
 static RhoValue tuple_get(RhoValue *this, RhoValue *idx)

@@ -24,6 +24,8 @@ static void set_free(RhoValue *this);
 RhoValue rho_set_make(RhoValue *elements, const size_t size)
 {
 	RhoSetObject *set = rho_obj_alloc(&rho_set_class);
+	RHO_INIT_SAVED_TID_FIELD(set);
+
 	const size_t capacity = (size == 0) ? EMPTY_SIZE : rho_smallest_pow_2_at_least(size);
 
 	set->entries = make_empty_table(capacity);
@@ -76,14 +78,22 @@ RhoValue rho_set_add(RhoSetObject *set, RhoValue *element)
 	const size_t index = hash & (capacity - 1);
 
 	/* every value should have a valid `eq` */
-	const BoolBinOp eq = rho_resolve_eq(rho_getclass(element));
+	const RhoBinOp eq = rho_resolve_eq(rho_getclass(element));
 
 	for (Entry *entry = entries[index];
 	     entry != NULL;
 	     entry = entry->next) {
 
-		if (hash == entry->hash && eq(element, &entry->element)) {
-			return rho_makeint(0);
+		if (hash == entry->hash) {
+			RhoValue eq_v = eq(element, &entry->element);
+
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
+			}
+
+			if (rho_boolvalue(&eq_v)) {
+				return rho_makefalse();
+			}
 		}
 	}
 
@@ -100,7 +110,7 @@ RhoValue rho_set_add(RhoSetObject *set, RhoValue *element)
 	}
 
 	++set->state_id;
-	return rho_makeint(1);
+	return rho_maketrue();
 }
 
 RhoValue rho_set_remove(RhoSetObject *set, RhoValue *element)
@@ -114,7 +124,7 @@ RhoValue rho_set_remove(RhoSetObject *set, RhoValue *element)
 	const int hash = rho_util_hash_secondary(rho_intvalue(&hash_v));
 
 	/* every value should have a valid `eq` */
-	const BoolBinOp eq = rho_resolve_eq(rho_getclass(element));
+	const RhoBinOp eq = rho_resolve_eq(rho_getclass(element));
 
 	Entry **entries = set->entries;
 	const size_t idx = hash & (set->capacity - 1);
@@ -124,28 +134,36 @@ RhoValue rho_set_remove(RhoSetObject *set, RhoValue *element)
 	while (entry != NULL) {
 		Entry *next = entry->next;
 
-		if (hash == entry->hash && eq(element, &entry->element)) {
-			if (prev == entry) {
-				entries[idx] = next;
-			} else {
-				prev->next = next;
+		if (hash == entry->hash) {
+			RhoValue eq_v = eq(element, &entry->element);
+
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
 			}
 
-			rho_release(&entry->element);
-			free(entry);
-			--set->count;
-			++set->state_id;
-			return rho_makeint(1);
+			if (rho_boolvalue(&eq_v)) {
+				if (prev == entry) {
+					entries[idx] = next;
+				} else {
+					prev->next = next;
+				}
+
+				rho_release(&entry->element);
+				free(entry);
+				--set->count;
+				++set->state_id;
+				return rho_maketrue();
+			}
 		}
 
 		prev = entry;
 		entry = next;
 	}
 
-	return rho_makeint(0);
+	return rho_makefalse();
 }
 
-bool rho_set_contains(RhoSetObject *set, RhoValue *element)
+RhoValue rho_set_contains(RhoSetObject *set, RhoValue *element)
 {
 	Entry **entries = set->entries;
 	const size_t capacity = set->capacity;
@@ -153,31 +171,39 @@ bool rho_set_contains(RhoSetObject *set, RhoValue *element)
 
 	if (rho_iserror(&hash_v)) {
 		rho_release(&hash_v);
-		return false;
+		return rho_makefalse();
 	}
 
 	const int hash = rho_util_hash_secondary(rho_intvalue(&hash_v));
 	const size_t index = hash & (capacity - 1);
 
 	/* every value should have a valid `eq` */
-	const BoolBinOp eq = rho_resolve_eq(rho_getclass(element));
+	const RhoBinOp eq = rho_resolve_eq(rho_getclass(element));
 
 	for (Entry *entry = entries[index];
 	     entry != NULL;
 	     entry = entry->next) {
 
-		if (hash == entry->hash && eq(element, &entry->element)) {
-			return true;
+		if (hash == entry->hash) {
+			RhoValue eq_v = eq(element, &entry->element);
+
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
+			}
+
+			if (rho_boolvalue(&eq_v)) {
+				return rho_maketrue();
+			}
 		}
 	}
 
-	return false;
+	return rho_makefalse();
 }
 
-bool rho_set_eq(RhoSetObject *set, RhoSetObject *other)
+RhoValue rho_set_eq(RhoSetObject *set, RhoSetObject *other)
 {
 	if (set->count != other->count) {
-		return false;
+		return rho_makefalse();
 	}
 
 	RhoSetObject *s1, *s2;
@@ -197,13 +223,19 @@ bool rho_set_eq(RhoSetObject *set, RhoSetObject *other)
 		     entry != NULL;
 		     entry = entry->next) {
 
-			if (!rho_set_contains(s2, &entry->element)) {
-				return false;
+			RhoValue contains = rho_set_contains(s2, &entry->element);
+
+			if (rho_iserror(&contains)) {
+				return contains;
+			}
+
+			if (!rho_boolvalue(&contains)) {
+				return rho_makefalse();
 			}
 		}
 	}
 
-	return true;
+	return rho_maketrue();
 }
 
 size_t rho_set_len(RhoSetObject *set)
@@ -243,37 +275,42 @@ static void set_resize(RhoSetObject *set, const size_t new_capacity)
 	++set->state_id;
 }
 
-static bool set_contains(RhoValue *this, RhoValue *element)
+static RhoValue set_contains(RhoValue *this, RhoValue *element)
 {
 	RhoSetObject *set = rho_objvalue(this);
+	RHO_CHECK_THREAD(set);
 	return rho_set_contains(set, element);
 }
 
-static bool set_eq(RhoValue *this, RhoValue *other)
+static RhoValue set_eq(RhoValue *this, RhoValue *other)
 {
+	RhoSetObject *set = rho_objvalue(this);
+	RHO_CHECK_THREAD(set);
+
 	if (!rho_is_a(other, &rho_set_class)) {
-		return false;
+		return rho_makefalse();
 	}
 
-	RhoSetObject *set = rho_objvalue(this);
 	RhoSetObject *other_set = rho_objvalue(other);
 	return rho_set_eq(set, other_set);
 }
 
-static size_t set_len(RhoValue *this)
+static RhoValue set_len(RhoValue *this)
 {
 	RhoSetObject *set = rho_objvalue(this);
-	return rho_set_len(set);
+	RHO_CHECK_THREAD(set);
+	return rho_makeint(rho_set_len(set));
 }
 
-static RhoStrObject *set_str(RhoValue *this)
+static RhoValue set_str(RhoValue *this)
 {
 	RhoSetObject *set = rho_objvalue(this);
+	RHO_CHECK_THREAD(set);
+
 	const size_t capacity = set->capacity;
 
 	if (set->count == 0) {
-		RhoValue ret = rho_strobj_make_direct("{}", 2);
-		return (RhoStrObject *)rho_objvalue(&ret);
+		return rho_strobj_make_direct("{}", 2);
 	}
 
 	RhoStrBuf sb;
@@ -295,7 +332,14 @@ static RhoStrObject *set_str(RhoValue *this)
 			if (rho_isobject(element) && rho_objvalue(element) == set) {
 				rho_strbuf_append(&sb, "{...}", 5);
 			} else {
-				RhoStrObject *str = rho_op_str(element);
+				RhoValue str_v = rho_op_str(element);
+
+				if (rho_iserror(&str_v)) {
+					rho_strbuf_dealloc(&sb);
+					return str_v;
+				}
+
+				RhoStrObject *str = rho_objvalue(&str_v);
 				rho_strbuf_append(&sb, str->str.value, str->str.len);
 				rho_releaseo(str);
 			}
@@ -307,8 +351,7 @@ static RhoStrObject *set_str(RhoValue *this)
 	rho_strbuf_to_str(&sb, &dest);
 	dest.freeable = 1;
 
-	RhoValue ret = rho_strobj_make(dest);
-	return (RhoStrObject *)rho_objvalue(&ret);
+	return rho_strobj_make(dest);
 }
 
 static RhoValue iter_make(RhoSetObject *set);
@@ -316,6 +359,7 @@ static RhoValue iter_make(RhoSetObject *set);
 static RhoValue set_iter(RhoValue *this)
 {
 	RhoSetObject *set = rho_objvalue(this);
+	RHO_CHECK_THREAD(set);
 	return iter_make(set);
 }
 
@@ -331,6 +375,7 @@ static RhoValue set_add_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 
 	RhoSetObject *set = rho_objvalue(this);
+	RHO_CHECK_THREAD(set);
 	return rho_set_add(set, &args[0]);
 #undef NAME
 }
@@ -347,6 +392,7 @@ static RhoValue set_remove_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 
 	RhoSetObject *set = rho_objvalue(this);
+	RHO_CHECK_THREAD(set);
 	return rho_set_remove(set, &args[0]);
 #undef NAME
 }
@@ -537,6 +583,7 @@ static RhoValue iter_make(RhoSetObject *set)
 static RhoValue iter_next(RhoValue *this)
 {
 	RhoSetIter *iter = rho_objvalue(this);
+	RHO_CHECK_THREAD(iter->source);
 
 	if (iter->saved_state_id != iter->source->state_id) {
 		return RHO_ISC_EXC("set changed state during iteration");

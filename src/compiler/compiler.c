@@ -212,12 +212,14 @@ static void compile_while(RhoCompiler *compiler, RhoAST *ast);
 static void compile_for(RhoCompiler *compiler, RhoAST *ast);
 static void compile_def(RhoCompiler *compiler, RhoAST *ast);
 static void compile_gen(RhoCompiler *compiler, RhoAST *ast);
+static void compile_act(RhoCompiler *compiler, RhoAST *ast);
 static void compile_lambda(RhoCompiler *compiler, RhoAST *ast);
 static void compile_break(RhoCompiler *compiler, RhoAST *ast);
 static void compile_continue(RhoCompiler *compiler, RhoAST *ast);
 static void compile_return(RhoCompiler *compiler, RhoAST *ast);
 static void compile_throw(RhoCompiler *compiler, RhoAST *ast);
 static void compile_produce(RhoCompiler *compiler, RhoAST *ast);
+static void compile_receive(RhoCompiler *compiler, RhoAST *ast);
 static void compile_try_catch(RhoCompiler *compiler, RhoAST *ast);
 static void compile_import(RhoCompiler *compiler, RhoAST *ast);
 static void compile_export(RhoCompiler *compiler, RhoAST *ast);
@@ -315,6 +317,7 @@ static void compile_const(RhoCompiler *compiler, RhoAST *ast)
 		break;
 	case RHO_NODE_DEF:
 	case RHO_NODE_GEN:
+	case RHO_NODE_ACT:
 	case RHO_NODE_LAMBDA: {
 		const unsigned int const_id = rho_ct_poll_codeobj(compiler->ct);
 		write_ins(compiler, RHO_INS_LOAD_CONST, lineno);
@@ -774,9 +777,26 @@ static void compile_for(RhoCompiler *compiler, RhoAST *ast)
 	write_ins(compiler, RHO_INS_POP, 0);  // pop the iterator left behind by GET_ITER
 }
 
-static void compile_def_or_gen(RhoCompiler *compiler, RhoAST *ast, bool def)
+#define COMPILE_DEF 0
+#define COMPILE_GEN 1
+#define COMPILE_ACT 2
+
+static void compile_def_or_gen_or_act(RhoCompiler *compiler, RhoAST *ast, const int select)
 {
-	RHO_AST_TYPE_ASSERT(ast, def ? RHO_NODE_DEF : RHO_NODE_GEN);
+	switch (select) {
+	case COMPILE_DEF:
+		RHO_AST_TYPE_ASSERT(ast, RHO_NODE_DEF);
+		break;
+	case COMPILE_GEN:
+		RHO_AST_TYPE_ASSERT(ast, RHO_NODE_GEN);
+		break;
+	case COMPILE_ACT:
+		RHO_AST_TYPE_ASSERT(ast, RHO_NODE_ACT);
+		break;
+	default:
+		RHO_INTERNAL_ERROR();
+	}
+
 	const unsigned int lineno = ast->lineno;
 
 	/* A function definition is essentially the assignment of a CodeObject to a variable. */
@@ -803,7 +823,20 @@ static void compile_def_or_gen(RhoCompiler *compiler, RhoAST *ast, bool def)
 
 	assert(num_default <= 0xffff);
 
-	write_ins(compiler, def ? RHO_INS_MAKE_FUNCOBJ : RHO_INS_MAKE_GENERATOR, lineno);
+	switch (select) {
+	case COMPILE_DEF:
+		write_ins(compiler, RHO_INS_MAKE_FUNCOBJ, lineno);
+		break;
+	case COMPILE_GEN:
+		write_ins(compiler, RHO_INS_MAKE_GENERATOR, lineno);
+		break;
+	case COMPILE_ACT:
+		write_ins(compiler, RHO_INS_MAKE_ACTOR, lineno);
+		break;
+	default:
+		RHO_INTERNAL_ERROR();
+	}
+
 	write_uint16(compiler, num_default);
 
 	write_ins(compiler, RHO_INS_STORE, lineno);
@@ -812,13 +845,22 @@ static void compile_def_or_gen(RhoCompiler *compiler, RhoAST *ast, bool def)
 
 static void compile_def(RhoCompiler *compiler, RhoAST *ast)
 {
-	compile_def_or_gen(compiler, ast, true);
+	compile_def_or_gen_or_act(compiler, ast, COMPILE_DEF);
 }
 
 static void compile_gen(RhoCompiler *compiler, RhoAST *ast)
 {
-	compile_def_or_gen(compiler, ast, false);
+	compile_def_or_gen_or_act(compiler, ast, COMPILE_GEN);
 }
+
+static void compile_act(RhoCompiler *compiler, RhoAST *ast)
+{
+	compile_def_or_gen_or_act(compiler, ast, COMPILE_ACT);
+}
+
+#undef COMPILE_DEF
+#undef COMPILE_GEN
+#undef COMPILE_ACT
 
 static void compile_lambda(RhoCompiler *compiler, RhoAST *ast)
 {
@@ -893,6 +935,21 @@ static void compile_produce(RhoCompiler *compiler, RhoAST *ast)
 	const unsigned int lineno = ast->lineno;
 	compile_node(compiler, ast->left, false);
 	write_ins(compiler, RHO_INS_PRODUCE, lineno);
+}
+
+static void compile_receive(RhoCompiler *compiler, RhoAST *ast)
+{
+	RHO_AST_TYPE_ASSERT(ast, RHO_NODE_RECEIVE);
+	const unsigned int lineno = ast->lineno;
+	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
+
+	if (sym == NULL || !sym->bound_here) {
+		RHO_INTERNAL_ERROR();
+	}
+
+	write_ins(compiler, RHO_INS_RECEIVE, lineno);
+	write_ins(compiler, RHO_INS_STORE, lineno);
+	write_uint16(compiler, sym->id);
 }
 
 static void compile_try_catch(RhoCompiler *compiler, RhoAST *ast)
@@ -1204,6 +1261,9 @@ static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel)
 	case RHO_NODE_GEN:
 		compile_gen(compiler, ast);
 		break;
+	case RHO_NODE_ACT:
+		compile_act(compiler, ast);
+		break;
 	case RHO_NODE_LAMBDA:
 		compile_lambda(compiler, ast);
 		break;
@@ -1221,6 +1281,9 @@ static void compile_node(RhoCompiler *compiler, RhoAST *ast, bool toplevel)
 		break;
 	case RHO_NODE_PRODUCE:
 		compile_produce(compiler, ast);
+		break;
+	case RHO_NODE_RECEIVE:
+		compile_receive(compiler, ast);
 		break;
 	case RHO_NODE_TRY_CATCH:
 		compile_try_catch(compiler, ast);
@@ -1416,6 +1479,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 		break;
 	case RHO_NODE_DEF:
 	case RHO_NODE_GEN:
+	case RHO_NODE_ACT:
 	case RHO_NODE_LAMBDA: {
 		value.type = RHO_CT_CODEOBJ;
 
@@ -1425,7 +1489,10 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 
 		unsigned int nargs;
 
-		if (ast->type == RHO_NODE_DEF || ast->type == RHO_NODE_GEN) {
+		const bool def_or_gen_or_act =
+		        (ast->type == RHO_NODE_DEF || ast->type == RHO_NODE_GEN || ast->type == RHO_NODE_ACT);
+
+		if (def_or_gen_or_act) {
 			nargs = 0;
 			for (struct rho_ast_list *param = ast->v.params; param != NULL; param = param->next) {
 				if (param->ast->type == RHO_NODE_ASSIGN) {
@@ -1439,7 +1506,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 
 		RhoBlock *body;
 
-		if (ast->type == RHO_NODE_DEF || ast->type == RHO_NODE_GEN) {
+		if (def_or_gen_or_act) {
 			body = ast->right->v.block;
 		} else {
 			body = rho_ast_list_new();
@@ -1470,8 +1537,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 		RhoCode *fncode = rho_malloc(sizeof(RhoCode));
 
 #define LAMBDA "<lambda>"
-		RhoStr name = (ast->type == RHO_NODE_DEF || ast->type == RHO_NODE_GEN) ? *ast->left->v.ident :
-		                                                                         RHO_STR_INIT(LAMBDA, strlen(LAMBDA), 0);
+		RhoStr name = (def_or_gen_or_act ? *ast->left->v.ident : RHO_STR_INIT(LAMBDA, strlen(LAMBDA), 0));
 #undef LAMBDA
 
 		rho_code_init(fncode, (name.len + 1) + 2 + 2 + 2 + subcode->size);  // total size
@@ -1484,7 +1550,7 @@ static void fill_ct_from_ast(RhoCompiler *compiler, RhoAST *ast)
 		compiler_free(sub, false);
 		value.value.c = fncode;
 
-		if (ast->type != RHO_NODE_DEF && ast->type != RHO_NODE_GEN) {
+		if (!def_or_gen_or_act) {
 			free(body);
 		}
 
@@ -1749,12 +1815,15 @@ int rho_opcode_arg_size(RhoOpcode opcode)
 	case RHO_INS_EXPORT_GLOBAL:
 	case RHO_INS_EXPORT_NAME:
 		return 2;
+	case RHO_INS_RECEIVE:
+		return 0;
 	case RHO_INS_GET_ITER:
 		return 0;
 	case RHO_INS_LOOP_ITER:
 		return 2;
 	case RHO_INS_MAKE_FUNCOBJ:
 	case RHO_INS_MAKE_GENERATOR:
+	case RHO_INS_MAKE_ACTOR:
 		return 2;
 	case RHO_INS_SEQ_EXPAND:
 		return 2;
@@ -1915,12 +1984,15 @@ static int stack_delta(RhoOpcode opcode, int arg)
 	case RHO_INS_EXPORT_GLOBAL:
 	case RHO_INS_EXPORT_NAME:
 		return -1;
+	case RHO_INS_RECEIVE:
+		return 1;
 	case RHO_INS_GET_ITER:
 		return 0;
 	case RHO_INS_LOOP_ITER:
 		return 1;
 	case RHO_INS_MAKE_FUNCOBJ:
 	case RHO_INS_MAKE_GENERATOR:
+	case RHO_INS_MAKE_ACTOR:
 		return -arg;
 	case RHO_INS_SEQ_EXPAND:
 		return -1 + arg;

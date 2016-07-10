@@ -9,6 +9,7 @@
 #include "str.h"
 #include "strdict.h"
 #include "module.h"
+#include "main.h"
 
 struct rho_exc_stack_element {
 	size_t start;  /* start position of try-block */
@@ -23,6 +24,12 @@ struct rho_exc_stack_element {
 	 */
 	RhoValue *purge_wall;
 };
+
+struct rho_mailbox;
+
+#if RHO_THREADED
+#include <stdatomic.h>
+#endif
 
 typedef struct rho_frame {
 	RhoCodeObject *co;
@@ -41,9 +48,15 @@ typedef struct rho_frame {
 	size_t pos;  /* position in bytecode */
 	struct rho_frame *prev;
 
-	unsigned active     : 1;
-	unsigned persistent : 1;
-	unsigned top_level  : 1;
+#if RHO_THREADED
+	struct rho_mailbox *mailbox;  /* support for actors */
+	atomic_flag owned;
+#endif
+
+	unsigned active            : 1;
+	unsigned persistent        : 1;
+	unsigned top_level         : 1;
+	unsigned force_free_locals : 1;
 } RhoFrame;
 
 typedef struct rho_vm {

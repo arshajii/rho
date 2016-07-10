@@ -251,7 +251,7 @@ static RhoValue file_close(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 0);
 
 	RhoFileObject *fileobj = rho_objvalue(this);
-	return rho_makeint(rho_file_close(fileobj) ? 1 : 0);
+	return rho_makebool(rho_file_close(fileobj));
 
 #undef NAME
 }

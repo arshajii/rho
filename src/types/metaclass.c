@@ -13,7 +13,7 @@ static void meta_class_del(RhoValue *this)
 	RHO_UNUSED(this);
 }
 
-static RhoStrObject *meta_class_str(RhoValue *this)
+static RhoValue meta_class_str(RhoValue *this)
 {
 #define STR_MAX_LEN 50
 	char buf[STR_MAX_LEN];
@@ -25,8 +25,7 @@ static RhoStrObject *meta_class_str(RhoValue *this)
 		len = STR_MAX_LEN;
 	}
 
-	RhoValue ret = rho_strobj_make_direct(buf, len);
-	return (RhoStrObject *)rho_objvalue(&ret);
+	return rho_strobj_make_direct(buf, len);
 #undef STR_MAX_LEN
 }
 
@@ -43,7 +42,7 @@ static RhoValue meta_class_call(RhoValue *this,
 	}
 
 	RhoClass *class = rho_objvalue(this);
-	InitFunc init = rho_resolve_init(class);
+	RhoInitFunc init = rho_resolve_init(class);
 
 	if (!init) {
 		return rho_type_exc_cannot_instantiate(class);

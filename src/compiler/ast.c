@@ -51,6 +51,7 @@ void rho_ast_free(RhoAST *ast)
 		break;
 	case RHO_NODE_DEF:
 	case RHO_NODE_GEN:
+	case RHO_NODE_ACT:
 	case RHO_NODE_CALL:
 		rho_ast_list_free(ast->v.params);
 		break;

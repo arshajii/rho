@@ -5,17 +5,16 @@
 #include "strobject.h"
 #include "null.h"
 
-static RhoStrObject *null_str(RhoValue *this)
+static RhoValue null_str(RhoValue *this)
 {
 	RHO_UNUSED(this);
-	RhoValue res = rho_strobj_make_direct("null", 4);
-	return (RhoStrObject *)rho_objvalue(&res);
+	return rho_strobj_make_direct("null", 4);
 }
 
-static bool null_eq(RhoValue *this, RhoValue *other)
+static RhoValue null_eq(RhoValue *this, RhoValue *other)
 {
 	RHO_UNUSED(this);
-	return rho_isnull(other);
+	return rho_makebool(rho_isnull(other));
 }
 
 RhoClass rho_null_class = {

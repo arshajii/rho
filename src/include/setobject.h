@@ -21,13 +21,14 @@ typedef struct {
 	size_t capacity;
 	size_t threshold;
 	unsigned state_id;
+	RHO_SAVED_TID_FIELD
 } RhoSetObject;
 
 RhoValue rho_set_make(RhoValue *elements, const size_t size);
 RhoValue rho_set_add(RhoSetObject *set, RhoValue *element);
 RhoValue rho_set_remove(RhoSetObject *set, RhoValue *element);
-bool rho_set_contains(RhoSetObject *set, RhoValue *element);
-bool rho_set_eq(RhoSetObject *set, RhoSetObject *other);
+RhoValue rho_set_contains(RhoSetObject *set, RhoValue *element);
+RhoValue rho_set_eq(RhoSetObject *set, RhoSetObject *other);
 size_t rho_set_len(RhoSetObject *set);
 
 extern RhoClass rho_set_iter_class;

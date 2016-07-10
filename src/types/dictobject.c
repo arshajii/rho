@@ -26,6 +26,8 @@ static void dict_free(RhoValue *this);
 RhoValue rho_dict_make(RhoValue *entries, const size_t size)
 {
 	RhoDictObject *dict = rho_obj_alloc(&rho_dict_class);
+	RHO_INIT_SAVED_TID_FIELD(dict);
+
 	const size_t capacity = (size == 0) ? EMPTY_SIZE : rho_smallest_pow_2_at_least(size);
 
 	dict->entries = make_empty_table(capacity);
@@ -80,15 +82,23 @@ RhoValue rho_dict_get(RhoDictObject *dict, RhoValue *key, RhoValue *dflt)
 	const int hash = rho_util_hash_secondary(rho_intvalue(&hash_v));
 
 	/* every value should have a valid `eq` */
-	const BoolBinOp eq = rho_resolve_eq(rho_getclass(key));
+	const RhoBinOp eq = rho_resolve_eq(rho_getclass(key));
 
 	for (Entry *entry = dict->entries[hash & (dict->capacity - 1)];
 	     entry != NULL;
 	     entry = entry->next) {
 
-		if (hash == entry->hash && eq(key, &entry->key)) {
-			rho_retain(&entry->value);
-			return entry->value;
+		if (hash == entry->hash) {
+			RhoValue eq_v = eq(key, &entry->key);
+
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
+			}
+
+			if (rho_boolvalue(&eq_v)) {
+				rho_retain(&entry->value);
+				return entry->value;
+			}
 		}
 	}
 
@@ -96,7 +106,13 @@ RhoValue rho_dict_get(RhoDictObject *dict, RhoValue *key, RhoValue *dflt)
 		rho_retain(dflt);
 		return *dflt;
 	} else {
-		RhoStrObject *str = rho_op_str(key);
+		RhoValue str_v = rho_op_str(key);
+
+		if (rho_iserror(&str_v)) {
+			return str_v;
+		}
+
+		RhoStrObject *str = rho_objvalue(&str_v);
 		RhoValue exc = KEY_EXC(str->str.value);
 		rho_releaseo(str);
 		return exc;
@@ -118,17 +134,25 @@ RhoValue rho_dict_put(RhoDictObject *dict, RhoValue *key, RhoValue *value)
 	const size_t index = hash & (capacity - 1);
 
 	/* every value should have a valid `eq` */
-	const BoolBinOp eq = rho_resolve_eq(rho_getclass(key));
+	const RhoBinOp eq = rho_resolve_eq(rho_getclass(key));
 
 	for (Entry *entry = table[index];
 	     entry != NULL;
 	     entry = entry->next) {
 
-		if (hash == entry->hash && eq(key, &entry->key)) {
-			rho_retain(value);
-			RhoValue old = entry->value;
-			entry->value = *value;
-			return old;
+		if (hash == entry->hash) {
+			RhoValue eq_v = eq(key, &entry->key);
+
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
+			}
+
+			if (rho_boolvalue(&eq_v)) {
+				rho_retain(value);
+				RhoValue old = entry->value;
+				entry->value = *value;
+				return old;
+			}
 		}
 	}
 
@@ -159,7 +183,7 @@ RhoValue rho_dict_remove_key(RhoDictObject *dict, RhoValue *key)
 	const int hash = rho_util_hash_secondary(rho_intvalue(&hash_v));
 
 	/* every value should have a valid `eq` */
-	const BoolBinOp eq = rho_resolve_eq(rho_getclass(key));
+	const RhoBinOp eq = rho_resolve_eq(rho_getclass(key));
 
 	Entry **entries = dict->entries;
 	const size_t idx = hash & (dict->capacity - 1);
@@ -169,20 +193,28 @@ RhoValue rho_dict_remove_key(RhoDictObject *dict, RhoValue *key)
 	while (entry != NULL) {
 		Entry *next = entry->next;
 
-		if (hash == entry->hash && eq(key, &entry->key)) {
-			RhoValue value = entry->value;
+		if (hash == entry->hash) {
+			RhoValue eq_v = eq(key, &entry->key);
 
-			if (prev == entry) {
-				entries[idx] = next;
-			} else {
-				prev->next = next;
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
 			}
 
-			rho_release(&entry->key);
-			free(entry);
-			--dict->count;
-			++dict->state_id;
-			return value;
+			if (rho_boolvalue(&eq_v)) {
+				RhoValue value = entry->value;
+
+				if (prev == entry) {
+					entries[idx] = next;
+				} else {
+					prev->next = next;
+				}
+
+				rho_release(&entry->key);
+				free(entry);
+				--dict->count;
+				++dict->state_id;
+				return value;
+			}
 		}
 
 		prev = entry;
@@ -192,7 +224,7 @@ RhoValue rho_dict_remove_key(RhoDictObject *dict, RhoValue *key)
 	return rho_makeempty();
 }
 
-bool rho_dict_contains_key(RhoDictObject *dict, RhoValue *key)
+RhoValue rho_dict_contains_key(RhoDictObject *dict, RhoValue *key)
 {
 	Entry **entries = dict->entries;
 	const size_t capacity = dict->capacity;
@@ -200,31 +232,39 @@ bool rho_dict_contains_key(RhoDictObject *dict, RhoValue *key)
 
 	if (rho_iserror(&hash_v)) {
 		rho_release(&hash_v);
-		return false;
+		return rho_makefalse();
 	}
 
 	const int hash = rho_util_hash_secondary(rho_intvalue(&hash_v));
 	const size_t idx = hash & (capacity - 1);
 
 	/* every value should have a valid `eq` */
-	const BoolBinOp eq = rho_resolve_eq(rho_getclass(key));
+	const RhoBinOp eq = rho_resolve_eq(rho_getclass(key));
 
 	for (Entry *entry = entries[idx];
 	     entry != NULL;
 	     entry = entry->next) {
 
-		if (hash == entry->hash && eq(key, &entry->key)) {
-			return true;
+		if (hash == entry->hash) {
+			RhoValue eq_v = eq(key, &entry->key);
+
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
+			}
+
+			if (rho_boolvalue(&eq_v)) {
+				return rho_maketrue();
+			}
 		}
 	}
 
-	return false;
+	return rho_makefalse();
 }
 
-bool rho_dict_eq(RhoDictObject *dict, RhoDictObject *other)
+RhoValue rho_dict_eq(RhoDictObject *dict, RhoDictObject *other)
 {
 	if (dict->count != other->count) {
-		return false;
+		return rho_makefalse();
 	}
 
 	RhoDictObject *d1, *d2;
@@ -247,16 +287,29 @@ bool rho_dict_eq(RhoDictObject *dict, RhoDictObject *other)
 		     entry = entry->next) {
 
 			RhoValue v1 = entry->value;
-			const BoolBinOp eq = rho_resolve_eq(rho_getclass(&v1));
+			const RhoBinOp eq = rho_resolve_eq(rho_getclass(&v1));
 			RhoValue v2 = rho_dict_get(d2, &entry->key, &empty);
 
-			if (rho_isempty(&v2) || !eq(&v1, &v2)) {
-				return false;
+			if (rho_isempty(&v2)) {
+				goto neq;
+			}
+
+			RhoValue eq_v = eq(&v1, &v2);
+
+			if (rho_iserror(&eq_v)) {
+				return eq_v;
+			}
+
+			if (!rho_boolvalue(&eq_v)) {
+				goto neq;
 			}
 		}
 	}
 
-	return true;
+	return rho_maketrue();
+
+	neq:
+	return rho_makefalse();
 }
 
 size_t rho_dict_len(RhoDictObject *dict)
@@ -299,46 +352,53 @@ static void dict_resize(RhoDictObject *dict, const size_t new_capacity)
 static RhoValue dict_get(RhoValue *this, RhoValue *key)
 {
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
 	return rho_dict_get(dict, key, NULL);
 }
 
 static RhoValue dict_set(RhoValue *this, RhoValue *key, RhoValue *value)
 {
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
 	return rho_dict_put(dict, key, value);
 }
 
-static bool dict_contains(RhoValue *this, RhoValue *key)
+static RhoValue dict_contains(RhoValue *this, RhoValue *key)
 {
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
 	return rho_dict_contains_key(dict, key);
 }
 
-static bool dict_eq(RhoValue *this, RhoValue *other)
+static RhoValue dict_eq(RhoValue *this, RhoValue *other)
 {
+	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
+
 	if (!rho_is_a(other, &rho_dict_class)) {
-		return false;
+		return rho_makefalse();
 	}
 
-	RhoDictObject *dict = rho_objvalue(this);
 	RhoDictObject *other_dict = rho_objvalue(other);
 	return rho_dict_eq(dict, other_dict);
 }
 
-static size_t dict_len(RhoValue *this)
+static RhoValue dict_len(RhoValue *this)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	return rho_dict_len(dict);
+	RHO_CHECK_THREAD(dict);
+	return rho_makeint(rho_dict_len(dict));
 }
 
-static RhoStrObject *dict_str(RhoValue *this)
+static RhoValue dict_str(RhoValue *this)
 {
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
+
 	const size_t capacity = dict->capacity;
 
 	if (dict->count == 0) {
-		RhoValue ret = rho_strobj_make_direct("{}", 2);
-		return (RhoStrObject *)rho_objvalue(&ret);
+		return rho_strobj_make_direct("{}", 2);
 	}
 
 	RhoStrBuf sb;
@@ -361,7 +421,14 @@ static RhoStrObject *dict_str(RhoValue *this)
 			if (rho_isobject(key) && rho_objvalue(key) == dict) {
 				rho_strbuf_append(&sb, "{...}", 5);
 			} else {
-				RhoStrObject *str = rho_op_str(key);
+				RhoValue str_v = rho_op_str(key);
+
+				if (rho_iserror(&str_v)) {
+					rho_strbuf_dealloc(&sb);
+					return str_v;
+				}
+
+				RhoStrObject *str = rho_objvalue(&str_v);
 				rho_strbuf_append(&sb, str->str.value, str->str.len);
 				rho_releaseo(str);
 			}
@@ -371,7 +438,14 @@ static RhoStrObject *dict_str(RhoValue *this)
 			if (rho_isobject(value) && rho_objvalue(value) == dict) {
 				rho_strbuf_append(&sb, "{...}", 5);
 			} else {
-				RhoStrObject *str = rho_op_str(value);
+				RhoValue str_v = rho_op_str(value);
+
+				if (rho_iserror(&str_v)) {
+					rho_strbuf_dealloc(&sb);
+					return str_v;
+				}
+
+				RhoStrObject *str = rho_objvalue(&str_v);
 				rho_strbuf_append(&sb, str->str.value, str->str.len);
 				rho_releaseo(str);
 			}
@@ -383,8 +457,7 @@ static RhoStrObject *dict_str(RhoValue *this)
 	rho_strbuf_to_str(&sb, &dest);
 	dest.freeable = 1;
 
-	RhoValue ret = rho_strobj_make(dest);
-	return (RhoStrObject *)rho_objvalue(&ret);
+	return rho_strobj_make(dest);
 }
 
 static RhoValue iter_make(RhoDictObject *dict);
@@ -392,6 +465,7 @@ static RhoValue iter_make(RhoDictObject *dict);
 static RhoValue dict_iter(RhoValue *this)
 {
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
 	return iter_make(dict);
 }
 
@@ -407,6 +481,7 @@ static RhoValue dict_get_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK_BETWEEN(NAME, nargs, 1, 2);
 
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
 	return rho_dict_get(dict, &args[0], (nargs == 2) ? &args[1] : NULL);
 #undef NAME
 }
@@ -423,6 +498,7 @@ static RhoValue dict_put_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 2);
 
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
 	RhoValue old = rho_dict_put(dict, &args[0], &args[1]);
 	return rho_isempty(&old) ? rho_makenull() : old;
 #undef NAME
@@ -440,6 +516,7 @@ static RhoValue dict_remove_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 
 	RhoDictObject *dict = rho_objvalue(this);
+	RHO_CHECK_THREAD(dict);
 	RhoValue v = rho_dict_remove_key(dict, &args[0]);
 	return rho_isempty(&v) ? rho_makenull() : v;
 #undef NAME
@@ -581,6 +658,7 @@ static RhoValue iter_make(RhoDictObject *dict)
 static RhoValue iter_next(RhoValue *this)
 {
 	RhoDictIter *iter = rho_objvalue(this);
+	RHO_CHECK_THREAD(iter->source);
 
 	if (iter->saved_state_id != iter->source->state_id) {
 		return RHO_ISC_EXC("dict changed state during iteration");

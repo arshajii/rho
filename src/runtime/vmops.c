@@ -20,27 +20,52 @@
 RhoValue rho_op_hash(RhoValue *v)
 {
 	RhoClass *class = rho_getclass(v);
-	IntUnOp hash = rho_resolve_hash(class);
+	RhoUnOp hash = rho_resolve_hash(class);
 
 	if (!hash) {
 		return rho_type_exc_unsupported_1("hash", class);
 	}
 
-	return rho_makeint(hash(v));
+	RhoValue res = hash(v);
+
+	if (rho_iserror(&res)) {
+		return res;
+	}
+
+	if (!rho_isint(&res)) {
+		rho_release(&res);
+		return RHO_TYPE_EXC("hash method did not return an integer value");
+	}
+
+	return res;
 }
 
-RhoStrObject *rho_op_str(RhoValue *v)
+RhoValue rho_op_str(RhoValue *v)
 {
 	RhoClass *class = rho_getclass(v);
-	StrUnOp str = rho_resolve_str(class);
-	return str(v);
+	RhoUnOp str = rho_resolve_str(class);
+	RhoValue res = str(v);
+
+	if (rho_iserror(&res)) {
+		return res;
+	}
+
+	if (rho_getclass(&res) != &rho_str_class) {
+		rho_release(&res);
+		return RHO_TYPE_EXC("str method did not return a string object");
+	}
+
+	return res;
 }
 
-void rho_op_print(RhoValue *v, FILE *out)
+RhoValue rho_op_print(RhoValue *v, FILE *out)
 {
 	switch (v->type) {
 	case RHO_VAL_TYPE_NULL:
 		fprintf(out, "null\n");
+		break;
+	case RHO_VAL_TYPE_BOOL:
+		fprintf(out, rho_boolvalue(v) ? "true\n" : "false\n");
 		break;
 	case RHO_VAL_TYPE_INT:
 		fprintf(out, "%ld\n", rho_intvalue(v));
@@ -50,12 +75,18 @@ void rho_op_print(RhoValue *v, FILE *out)
 		break;
 	case RHO_VAL_TYPE_OBJECT: {
 		const RhoObject *o = rho_objvalue(v);
-		PrintFunc print = rho_resolve_print(o->class);
+		RhoPrintFunc print = rho_resolve_print(o->class);
 
 		if (print) {
 			print(v, out);
 		} else {
-			RhoStrObject *str = rho_op_str(v);
+			RhoValue str_v = rho_op_str(v);
+
+			if (rho_iserror(&str_v)) {
+				return str_v;
+			}
+
+			RhoStrObject *str = rho_objvalue(&str_v);
 			fprintf(out, "%s\n", str->str.value);
 			rho_releaseo(str);
 		}
@@ -73,13 +104,15 @@ void rho_op_print(RhoValue *v, FILE *out)
 		RHO_INTERNAL_ERROR();
 		break;
 	}
+
+	return rho_makeempty();
 }
 
 #define MAKE_VM_BINOP(op, tok) \
 RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 { \
 	RhoClass *class = rho_getclass(a); \
-	BinOp binop = rho_resolve_##op(class); \
+	RhoBinOp binop = rho_resolve_##op(class); \
 	bool r_op = false; \
 	RhoValue result; \
 \
@@ -97,6 +130,10 @@ RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 		result = binop(a, b); \
 	} \
 \
+	if (rho_iserror(&result)) { \
+		return result; \
+	} \
+\
 	if (rho_isut(&result)) { \
 		if (r_op) { \
 			goto type_error; \
@@ -110,6 +147,10 @@ RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 		} \
 \
 		result = binop(b, a); \
+\
+		if (rho_iserror(&result)) { \
+			return result; \
+		} \
 \
 		if (rho_isut(&result)) { \
 			goto type_error; \
@@ -133,7 +174,7 @@ RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 RhoValue rho_op_##op(RhoValue *a) \
 { \
 	RhoClass *class = rho_getclass(a); \
-	const UnOp unop = rho_resolve_##op(class); \
+	const RhoUnOp unop = rho_resolve_##op(class); \
 \
 	if (!unop) { \
 		return rho_type_exc_unsupported_1(#tok, class); \
@@ -170,7 +211,7 @@ RhoValue rho_op_and(RhoValue *a, RhoValue *b)
 	const BoolUnOp bool_a = rho_resolve_nonzero(class_a);
 	const BoolUnOp bool_b = rho_resolve_nonzero(class_b);
 
-	return rho_makeint(bool_a(a) && bool_b(b));
+	return rho_makebool(bool_a(a) && bool_b(b));
 }
 
 RhoValue rho_op_or(RhoValue *a, RhoValue *b)
@@ -180,14 +221,14 @@ RhoValue rho_op_or(RhoValue *a, RhoValue *b)
 	const BoolUnOp bool_a = rho_resolve_nonzero(class_a);
 	const BoolUnOp bool_b = rho_resolve_nonzero(class_b);
 
-	return rho_makeint(bool_a(a) || bool_b(b));
+	return rho_makebool(bool_a(a) || bool_b(b));
 }
 
 RhoValue rho_op_not(RhoValue *a)
 {
 	RhoClass *class = rho_getclass(a);
 	const BoolUnOp bool_a = rho_resolve_nonzero(class);
-	return rho_makeint(!bool_a(a));
+	return rho_makebool(!bool_a(a));
 }
 
 /*
@@ -199,23 +240,27 @@ RhoValue rho_op_not(RhoValue *a)
 RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 { \
 	RhoClass *class = rho_getclass(a); \
-	const BinOp cmp = rho_resolve_cmp(class); \
+	const RhoBinOp cmp = rho_resolve_cmp(class); \
 \
 	if (!cmp) { \
 		goto error; \
 	} \
 \
-	RhoValue v = cmp(a, b); \
+	RhoValue result = cmp(a, b); \
 \
-	if (rho_isut(&v)) { \
+	if (rho_iserror(&result)) { \
+		return result; \
+	} \
+\
+	if (rho_isut(&result)) { \
 		goto error; \
 	} \
 \
-	if (!rho_isint(&v)) { \
-		return rho_makeerr(rho_type_err_invalid_cmp(class)); \
+	if (!rho_isint(&result)) { \
+		return RHO_TYPE_EXC("comparison did not return an integer value"); \
 	} \
 \
-	return rho_makeint(rho_intvalue(&v) tok 0); \
+	return rho_makeint(rho_intvalue(&result) tok 0); \
 \
 	error: \
 	return rho_type_exc_unsupported_2(#tok, class, rho_getclass(b)); \
@@ -224,25 +269,47 @@ RhoValue rho_op_##op(RhoValue *a, RhoValue *b) \
 RhoValue rho_op_eq(RhoValue *a, RhoValue *b)
 {
 	RhoClass *class = rho_getclass(a);
-	const BoolBinOp eq = rho_resolve_eq(class);
+	RhoBinOp eq = rho_resolve_eq(class);
 
 	if (!eq) {
 		return rho_type_exc_unsupported_2("==", class, rho_getclass(b));
 	}
 
-	return rho_makeint(eq(a, b));
+	RhoValue res = eq(a, b);
+
+	if (rho_iserror(&res)) {
+		return res;
+	}
+
+	if (!rho_isbool(&res)) {
+		rho_release(&res);
+		return RHO_TYPE_EXC("equals method did not return a boolean value");
+	}
+
+	return res;
 }
 
 RhoValue rho_op_neq(RhoValue *a, RhoValue *b)
 {
 	RhoClass *class = rho_getclass(a);
-	const BoolBinOp eq = rho_resolve_eq(class);
+	RhoBinOp eq = rho_resolve_eq(class);
 
 	if (!eq) {
 		return rho_type_exc_unsupported_2("!=", class, rho_getclass(b));
 	}
 
-	return rho_makeint(!eq(a, b));
+	RhoValue res = eq(a, b);
+
+	if (rho_iserror(&res)) {
+		return res;
+	}
+
+	if (!rho_isbool(&res)) {
+		rho_release(&res);
+		return RHO_TYPE_EXC("equals method did not return a boolean value");
+	}
+
+	return rho_makebool(!rho_boolvalue(&res));
 }
 
 MAKE_VM_CMPOP(lt, <)
@@ -268,24 +335,13 @@ MAKE_VM_UNOP(minus, unary -)
  * in-place method, the general binary method is used instead
  * (e.g. if a class does not provide `iadd`, `add` will be
  * looked up and used).
- *
- * Since these operations are supposedly in-place, a user of
- * these functions would not expect to have to `retain` the
- * result because it *should* simply be the LHS, which has
- * already been retained. However, as described above, if the
- * corresponding in-place method is not supported, the regular
- * method will be used, in which case a new value will be
- * returned. Therefore, in this case, the LHS will be rho_released
- * by the in-place operator function. A consequence of this is
- * that the LHS should always be replaced by the return value
- * of the function, wherever it is being stored.
  */
 
 #define MAKE_VM_IBINOP(op, tok) \
 RhoValue rho_op_i##op(RhoValue *a, RhoValue *b) \
 { \
 	RhoClass *class = rho_getclass(a); \
-	BinOp binop = rho_resolve_i##op(class); \
+	RhoBinOp binop = rho_resolve_i##op(class); \
 	bool r_op = false; \
 	bool i_op = true; \
 	RhoValue result; \
@@ -309,6 +365,10 @@ RhoValue rho_op_i##op(RhoValue *a, RhoValue *b) \
 		i_op = false; \
 	} else { \
 		result = binop(a, b); \
+	} \
+\
+	if (rho_iserror(&result)) { \
+		return result; \
 	} \
 \
 	while (rho_isut(&result)) { \
@@ -345,14 +405,14 @@ RhoValue rho_op_i##op(RhoValue *a, RhoValue *b) \
 \
 			r_op = true; \
 		} \
+\
+		if (rho_iserror(&result)) { \
+			return result; \
+		} \
 	} \
 \
 	if (rho_isdbz(&result)) { \
 		goto div_by_zero_error; \
-	} \
-\
-	if (!i_op) { \
-		rho_release(a); \
 	} \
 \
 	return result; \
@@ -379,7 +439,7 @@ MAKE_VM_IBINOP(shiftr, >>=)
 RhoValue rho_op_get(RhoValue *v, RhoValue *idx)
 {
 	RhoClass *class = rho_getclass(v);
-	BinOp get = rho_resolve_get(class);
+	RhoBinOp get = rho_resolve_get(class);
 
 	if (!get) {
 		return rho_type_exc_cannot_index(class);
@@ -391,7 +451,7 @@ RhoValue rho_op_get(RhoValue *v, RhoValue *idx)
 RhoValue rho_op_set(RhoValue *v, RhoValue *idx, RhoValue *e)
 {
 	RhoClass *class = rho_getclass(v);
-	SeqSetFunc set = rho_resolve_set(class);
+	RhoSeqSetFunc set = rho_resolve_set(class);
 
 	if (!set) {
 		return rho_type_exc_cannot_index(class);
@@ -403,7 +463,7 @@ RhoValue rho_op_set(RhoValue *v, RhoValue *idx, RhoValue *e)
 RhoValue rho_op_apply(RhoValue *v, RhoValue *fn)
 {
 	RhoClass *class = rho_getclass(v);
-	BinOp apply = rho_resolve_apply(class);
+	RhoBinOp apply = rho_resolve_apply(class);
 
 	if (!apply) {
 		return rho_type_exc_cannot_apply(class);
@@ -420,7 +480,7 @@ RhoValue rho_op_apply(RhoValue *v, RhoValue *fn)
 RhoValue rho_op_iapply(RhoValue *v, RhoValue *fn)
 {
 	RhoClass *class = rho_getclass(v);
-	BinOp iapply = rho_resolve_iapply(class);
+	RhoBinOp iapply = rho_resolve_iapply(class);
 
 	RhoClass *fn_class = rho_getclass(fn);
 
@@ -429,15 +489,13 @@ RhoValue rho_op_iapply(RhoValue *v, RhoValue *fn)
 	}
 
 	if (!iapply) {
-		BinOp apply = rho_resolve_apply(class);
+		RhoBinOp apply = rho_resolve_apply(class);
 
 		if (!apply) {
 			return rho_type_exc_cannot_apply(class);
 		}
 
-		RhoValue ret = apply(v, fn);
-		rho_release(v);
-		return ret;
+		return apply(v, fn);
 	}
 
 	return iapply(v, fn);
@@ -446,7 +504,7 @@ RhoValue rho_op_iapply(RhoValue *v, RhoValue *fn)
 RhoValue rho_op_get_attr(RhoValue *v, const char *attr)
 {
 	RhoClass *class = rho_getclass(v);
-	AttrGetFunc attr_get = rho_resolve_attr_get(class);
+	RhoAttrGetFunc attr_get = rho_resolve_attr_get(class);
 
 	if (attr_get) {
 		return attr_get(v, attr);
@@ -535,8 +593,8 @@ RhoValue rho_op_get_attr_default(RhoValue *v, const char *attr)
 			break;
 		}
 		case RHO_ATTR_T_BOOL: {
-			const long n = rho_getmember(o, offset, bool);
-			res = rho_makeint(n);
+			const bool b = rho_getmember(o, offset, bool);
+			res = rho_makebool(b);
 			break;
 		}
 		case RHO_ATTR_T_FLOAT: {
@@ -575,7 +633,7 @@ RhoValue rho_op_get_attr_default(RhoValue *v, const char *attr)
 RhoValue rho_op_set_attr(RhoValue *v, const char *attr, RhoValue *new)
 {
 	RhoClass *class = rho_getclass(v);
-	AttrSetFunc attr_set = rho_resolve_attr_set(class);
+	RhoAttrSetFunc attr_set = rho_resolve_attr_set(class);
 
 	if (attr_set) {
 		return attr_set(v, attr, new);
@@ -720,12 +778,12 @@ RhoValue rho_op_set_attr_default(RhoValue *v, const char *attr, RhoValue *new)
 		break;
 	}
 	case RHO_ATTR_T_BOOL: {
-		if (!rho_isint(new)) {
+		if (!rho_isbool(new)) {
 			goto set_attr_error_mismatch;
 		}
-		const long n = rho_intvalue(new);
+		const bool b = rho_boolvalue(new);
 		bool *member_raw = (bool *)(o_raw + offset);
-		*member_raw = (bool)n;
+		*member_raw = b;
 		break;
 	}
 	case RHO_ATTR_T_FLOAT: {
@@ -796,7 +854,7 @@ RhoValue rho_op_set_attr_default(RhoValue *v, const char *attr, RhoValue *new)
 	}
 	}
 
-	return rho_makeint(0);
+	return rho_makefalse();
 
 	set_attr_error_not_found:
 	return rho_attr_exc_not_found(v_class, attr);
@@ -809,13 +867,13 @@ RhoValue rho_op_set_attr_default(RhoValue *v, const char *attr, RhoValue *new)
 }
 
 RhoValue rho_op_call(RhoValue *v,
-              RhoValue *args,
-              RhoValue *args_named,
-              const size_t nargs,
-              const size_t nargs_named)
+                     RhoValue *args,
+                     RhoValue *args_named,
+                     const size_t nargs,
+                     const size_t nargs_named)
 {
 	RhoClass *class = rho_getclass(v);
-	const CallFunc call = rho_resolve_call(class);
+	const RhoCallFunc call = rho_resolve_call(class);
 
 	if (!call) {
 		return rho_type_exc_not_callable(class);
@@ -827,13 +885,23 @@ RhoValue rho_op_call(RhoValue *v,
 RhoValue rho_op_in(RhoValue *element, RhoValue *collection)
 {
 	RhoClass *class = rho_getclass(collection);
-	const BoolBinOp contains = rho_resolve_contains(class);
+	const RhoBinOp contains = rho_resolve_contains(class);
 
 	if (contains) {
-		return rho_makeint(contains(collection, element));
+		RhoValue ret = contains(collection, element);
+
+		if (rho_iserror(&ret)) {
+			return ret;
+		}
+
+		if (!rho_isbool(&ret)) {
+			return RHO_TYPE_EXC("contains method did not return a boolean value");
+		}
+
+		return ret;
 	}
 
-	const UnOp iter_fn = rho_resolve_iter(class);
+	const RhoUnOp iter_fn = rho_resolve_iter(class);
 
 	if (!iter_fn) {
 		return rho_type_exc_not_iterable(class);
@@ -841,13 +909,13 @@ RhoValue rho_op_in(RhoValue *element, RhoValue *collection)
 
 	RhoValue iter = iter_fn(collection);
 	RhoClass *iter_class = rho_getclass(&iter);
-	const UnOp iternext = rho_resolve_iternext(iter_class);
+	const RhoUnOp iternext = rho_resolve_iternext(iter_class);
 
 	if (!iternext) {
 		return rho_type_exc_not_iterator(iter_class);
 	}
 
-	while (1) {
+	while (true) {
 		RhoValue next = iternext(&iter);
 
 		if (rho_is_iter_stop(&next)) {
@@ -870,18 +938,18 @@ RhoValue rho_op_in(RhoValue *element, RhoValue *collection)
 
 		if (rho_isint(&eq) && rho_intvalue(&eq) != 0) {
 			rho_release(&iter);
-			return rho_makeint(1);
+			return rho_maketrue();
 		}
 	}
 
 	rho_release(&iter);
-	return rho_makeint(0);
+	return rho_makefalse();
 }
 
 RhoValue rho_op_iter(RhoValue *v)
 {
 	RhoClass *class = rho_getclass(v);
-	const UnOp iter = rho_resolve_iter(class);
+	const RhoUnOp iter = rho_resolve_iter(class);
 
 	if (!iter) {
 		return rho_type_exc_not_iterable(class);
@@ -893,7 +961,7 @@ RhoValue rho_op_iter(RhoValue *v)
 RhoValue rho_op_iternext(RhoValue *v)
 {
 	RhoClass *class = rho_getclass(v);
-	const UnOp iternext = rho_resolve_iternext(class);
+	const RhoUnOp iternext = rho_resolve_iternext(class);
 
 	if (!iternext) {
 		return rho_type_exc_not_iterator(class);

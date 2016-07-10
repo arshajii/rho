@@ -90,4 +90,6 @@ int rho_reload_plugins(void)
 	return 0;
 }
 
+#else
+extern int dummy;
 #endif /* RHO_IS_POSIX */

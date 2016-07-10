@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "object.h"
 #include "iter.h"
+#include "util.h"
 
 extern struct rho_num_methods rho_list_num_methods;
 extern struct rho_seq_methods rho_list_seq_methods;
@@ -14,6 +15,7 @@ typedef struct {
 	RhoValue *elements;
 	size_t count;
 	size_t capacity;
+	RHO_SAVED_TID_FIELD
 } RhoListObject;
 
 RhoValue rho_list_make(RhoValue *elements, const size_t count);

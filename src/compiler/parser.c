@@ -125,11 +125,13 @@ static RhoAST *parse_while(RhoParser *p);
 static RhoAST *parse_for(RhoParser *p);
 static RhoAST *parse_def(RhoParser *p);
 static RhoAST *parse_gen(RhoParser *p);
+static RhoAST *parse_act(RhoParser *p);
 static RhoAST *parse_break(RhoParser *p);
 static RhoAST *parse_continue(RhoParser *p);
 static RhoAST *parse_return(RhoParser *p);
 static RhoAST *parse_throw(RhoParser *p);
 static RhoAST *parse_produce(RhoParser *p);
+static RhoAST *parse_receive(RhoParser *p);
 static RhoAST *parse_try_catch(RhoParser *p);
 static RhoAST *parse_import(RhoParser *p);
 static RhoAST *parse_export(RhoParser *p);
@@ -156,6 +158,7 @@ static void parse_err_invalid_break(RhoParser *p, RhoToken *tok);
 static void parse_err_invalid_continue(RhoParser *p, RhoToken *tok);
 static void parse_err_invalid_return(RhoParser *p, RhoToken *tok);
 static void parse_err_invalid_produce(RhoParser *p, RhoToken *tok);
+static void parse_err_invalid_receive(RhoParser *p, RhoToken *tok);
 static void parse_err_too_many_params(RhoParser *p, RhoToken *tok);
 static void parse_err_dup_params(RhoParser *p, RhoToken *tok, const char *param);
 static void parse_err_non_default_after_default(RhoParser *p, RhoToken *tok);
@@ -188,6 +191,7 @@ RhoParser *rho_parser_new(char *str, const char *name)
 	p->in_function = 0;
 	p->in_lambda = 0;
 	p->in_generator = 0;
+	p->in_actor = 0;
 	p->in_loop = 0;
 	p->error_type = RHO_PARSE_ERR_NONE;
 	p->error_msg = NULL;
@@ -266,6 +270,9 @@ static RhoAST *parse_stmt(RhoParser *p)
 	case RHO_TOK_GEN:
 		stmt = parse_gen(p);
 		break;
+	case RHO_TOK_ACT:
+		stmt = parse_act(p);
+		break;
 	case RHO_TOK_BREAK:
 		stmt = parse_break(p);
 		break;
@@ -280,6 +287,9 @@ static RhoAST *parse_stmt(RhoParser *p)
 		break;
 	case RHO_TOK_PRODUCE:
 		stmt = parse_produce(p);
+		break;
+	case RHO_TOK_RECEIVE:
+		stmt = parse_receive(p);
 		break;
 	case RHO_TOK_TRY:
 		stmt = parse_try_catch(p);
@@ -934,9 +944,28 @@ static RhoAST *parse_for(RhoParser *p)
 	return ast;
 }
 
-static RhoAST *parse_def_or_gen(RhoParser *p, bool def)
+#define PARSE_DEF 0
+#define PARSE_GEN 1
+#define PARSE_ACT 2
+
+static RhoAST *parse_def_or_gen_or_act(RhoParser *p, const int select)
 {
-	RhoToken *tok = def ? expect(p, RHO_TOK_DEF) : expect(p, RHO_TOK_GEN);
+	RhoToken *tok;
+
+	switch (select) {
+	case PARSE_DEF:
+		tok = expect(p, RHO_TOK_DEF);
+		break;
+	case PARSE_GEN:
+		tok = expect(p, RHO_TOK_GEN);
+		break;
+	case PARSE_ACT:
+		tok = expect(p, RHO_TOK_ACT);
+		break;
+	default:
+		RHO_INTERNAL_ERROR();
+	}
+
 	ERROR_CHECK(p);
 	RhoToken *name_tok = rho_parser_peek_token(p);
 	RhoAST *name = parse_ident(p);
@@ -996,15 +1025,28 @@ static RhoAST *parse_def_or_gen(RhoParser *p, bool def)
 
 	const unsigned old_in_function = p->in_function;
 	const unsigned old_in_generator = p->in_generator;
+	const unsigned old_in_actor = p->in_actor;
 	const unsigned old_in_lambda = p->in_lambda;
 	const unsigned old_in_loop = p->in_loop;
 
-	if (def) {
+	switch (select) {
+	case PARSE_DEF:
 		p->in_function = 1;
 		p->in_generator = 0;
-	} else {
+		p->in_actor = 0;
+		break;
+	case PARSE_GEN:
 		p->in_function = 0;
 		p->in_generator = 1;
+		p->in_actor = 0;
+		break;
+	case PARSE_ACT:
+		p->in_function = 0;
+		p->in_generator = 0;
+		p->in_actor = 1;
+		break;
+	default:
+		RHO_INTERNAL_ERROR();
 	}
 
 	p->in_lambda = 0;
@@ -1012,6 +1054,7 @@ static RhoAST *parse_def_or_gen(RhoParser *p, bool def)
 	RhoAST *body = parse_block(p);
 	p->in_function = old_in_function;
 	p->in_generator = old_in_generator;
+	p->in_actor = old_in_actor;
 	p->in_lambda = old_in_lambda;
 	p->in_loop = old_in_loop;
 
@@ -1022,20 +1065,44 @@ static RhoAST *parse_def_or_gen(RhoParser *p, bool def)
 		return NULL;
 	}
 
-	RhoAST *ast = rho_ast_new((def ? RHO_NODE_DEF : RHO_NODE_GEN), name, body, tok->lineno);
+	RhoAST *ast;
+
+	switch (select) {
+	case PARSE_DEF:
+		ast = rho_ast_new(RHO_NODE_DEF, name, body, tok->lineno);
+		break;
+	case PARSE_GEN:
+		ast = rho_ast_new(RHO_NODE_GEN, name, body, tok->lineno);
+		break;
+	case PARSE_ACT:
+		ast = rho_ast_new(RHO_NODE_ACT, name, body, tok->lineno);
+		break;
+	default:
+		RHO_INTERNAL_ERROR();
+	}
+
 	ast->v.params = params;
 	return ast;
 }
 
 static RhoAST *parse_def(RhoParser *p)
 {
-	return parse_def_or_gen(p, true);
+	return parse_def_or_gen_or_act(p, PARSE_DEF);
 }
 
 static RhoAST *parse_gen(RhoParser *p)
 {
-	return parse_def_or_gen(p, false);
+	return parse_def_or_gen_or_act(p, PARSE_GEN);
 }
+
+static RhoAST *parse_act(RhoParser *p)
+{
+	return parse_def_or_gen_or_act(p, PARSE_ACT);
+}
+
+#undef PARSE_DEF
+#undef PARSE_GEN
+#undef PARSE_ACT
 
 static RhoAST *parse_break(RhoParser *p)
 {
@@ -1070,7 +1137,7 @@ static RhoAST *parse_return(RhoParser *p)
 	RhoToken *tok = expect(p, RHO_TOK_RETURN);
 	ERROR_CHECK(p);
 
-	if (!(p->in_function || p->in_generator)) {
+	if (!(p->in_function || p->in_generator || p->in_actor)) {
 		parse_err_invalid_return(p, tok);
 		return NULL;
 	}
@@ -1117,6 +1184,22 @@ static RhoAST *parse_produce(RhoParser *p)
 	RhoAST *expr = parse_expr_no_assign(p);
 	ERROR_CHECK(p);
 	RhoAST *ast = rho_ast_new(RHO_NODE_PRODUCE, expr, NULL, tok->lineno);
+	return ast;
+}
+
+static RhoAST *parse_receive(RhoParser *p)
+{
+	RhoToken *tok = expect(p, RHO_TOK_RECEIVE);
+	ERROR_CHECK(p);
+
+	if (!p->in_actor) {
+		parse_err_invalid_receive(p, tok);
+		return NULL;
+	}
+
+	RhoAST *ident = parse_ident(p);
+	ERROR_CHECK(p);
+	RhoAST *ast = rho_ast_new(RHO_NODE_RECEIVE, ident, NULL, tok->lineno);
 	return ast;
 }
 
@@ -1317,16 +1400,22 @@ static RhoAST *parse_lambda(RhoParser *p)
 
 	const unsigned old_max_dollar_ident = p->max_dollar_ident;
 	const unsigned old_in_function = p->in_function;
+	const unsigned old_in_generator = p->in_generator;
+	const unsigned old_in_actor = p->in_actor;
 	const unsigned old_in_lambda = p->in_lambda;
 	const unsigned old_in_loop = p->in_loop;
 	p->max_dollar_ident = 0;
 	p->in_function = 1;
+	p->in_generator = 0;
+	p->in_actor = 0;
 	p->in_loop = 0;
 	p->in_lambda = 1;
 	RhoAST *body = parse_expr(p);
 	const unsigned int max_dollar_ident = p->max_dollar_ident;
 	p->max_dollar_ident = old_max_dollar_ident;
 	p->in_function = old_in_function;
+	p->in_generator = old_in_generator;
+	p->in_actor = old_in_actor;
 	p->in_lambda = old_in_lambda;
 	p->in_loop = old_in_loop;
 
@@ -1655,6 +1744,16 @@ static void parse_err_invalid_produce(RhoParser *p, RhoToken *tok)
 	                            p->name, tok->lineno, tok_err));
 	RHO_FREE(tok_err);
 	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_INVALID_PRODUCE);
+}
+
+static void parse_err_invalid_receive(RhoParser *p, RhoToken *tok)
+{
+	const char *tok_err = err_on_tok(p, tok);
+	RHO_PARSER_SET_ERROR_MSG(p,
+	                         rho_util_str_format(RHO_SYNTAX_ERROR " misplaced receive statement\n\n%s",
+	                            p->name, tok->lineno, tok_err));
+	RHO_FREE(tok_err);
+	RHO_PARSER_SET_ERROR_TYPE(p, RHO_PARSE_ERR_INVALID_RECEIVE);
 }
 
 static void parse_err_too_many_params(RhoParser *p, RhoToken *tok)

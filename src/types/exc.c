@@ -355,6 +355,68 @@ RhoClass rho_seq_exp_exception_class = {
 	.attr_set = NULL
 };
 
+RhoClass rho_actor_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
+	.name = "ActorException",
+	.super = &rho_exception_class,
+
+	.instance_size = sizeof(RhoActorException),
+
+	.init = sub_exc_init,
+	.del = sub_exc_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
+
+	.num_methods = NULL,
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
+
+RhoClass rho_conc_access_exception_class = {
+	.base = RHO_CLASS_BASE_INIT(),
+	.name = "ConcurrentAccessException",
+	.super = &rho_exception_class,
+
+	.instance_size = sizeof(RhoConcurrentAccessException),
+
+	.init = sub_exc_init,
+	.del = sub_exc_free,
+
+	.eq = NULL,
+	.hash = NULL,
+	.cmp = NULL,
+	.str = NULL,
+	.call = NULL,
+
+	.print = NULL,
+
+	.iter = NULL,
+	.iternext = NULL,
+
+	.num_methods = NULL,
+	.seq_methods  = NULL,
+
+	.members = NULL,
+	.methods = NULL,
+
+	.attr_get = NULL,
+	.attr_set = NULL
+};
+
 
 /* Common exceptions */
 

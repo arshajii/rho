@@ -41,20 +41,20 @@ static RhoValue hash(RhoValue *args, size_t nargs)
 static RhoValue str(RhoValue *args, size_t nargs)
 {
 	RHO_ARG_COUNT_CHECK("str", nargs, 1);
-	return rho_makeobj(rho_op_str(&args[0]));
+	return rho_op_str(&args[0]);
 }
 
 static RhoValue len(RhoValue *args, size_t nargs)
 {
 	RHO_ARG_COUNT_CHECK("len", nargs, 1);
 	RhoClass *class = rho_getclass(&args[0]);
-	LenFunc len = rho_resolve_len(class);
+	RhoUnOp len = rho_resolve_len(class);
 
 	if (!len) {
 		return rho_type_exc_unsupported_1(__func__, class);
 	}
 
-	return rho_makeint(len(&args[0]));
+	return len(&args[0]);
 }
 
 static RhoValue iter(RhoValue *args, size_t nargs)

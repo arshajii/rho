@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+
 #include "err.h"
 #include "object.h"
 
@@ -40,6 +41,14 @@ typedef struct {
 	RhoException base;
 } RhoSequenceExpandException;
 
+typedef struct {
+	RhoException base;
+} RhoActorException;
+
+typedef struct {
+	RhoException base;
+} RhoConcurrentAccessException;
+
 extern RhoClass rho_exception_class;
 extern RhoClass rho_index_exception_class;
 extern RhoClass rho_type_exception_class;
@@ -48,6 +57,8 @@ extern RhoClass rho_attr_exception_class;
 extern RhoClass rho_import_exception_class;
 extern RhoClass rho_isc_exception_class;
 extern RhoClass rho_seq_exp_exception_class;
+extern RhoClass rho_actor_exception_class;
+extern RhoClass rho_conc_access_exception_class;
 
 RhoValue rho_exc_make(RhoClass *exc_class, bool active, const char *msg_format, ...);
 void rho_exc_traceback_append(RhoException *e,
@@ -56,14 +67,16 @@ void rho_exc_traceback_append(RhoException *e,
 void rho_exc_traceback_print(RhoException *e, FILE *out);
 void rho_exc_print_msg(RhoException *e, FILE *out);
 
-#define RHO_EXC(...)         rho_exc_make(&rho_exception_class, true, __VA_ARGS__)
-#define RHO_INDEX_EXC(...)   rho_exc_make(&rho_index_exception_class, true, __VA_ARGS__)
-#define RHO_TYPE_EXC(...)    rho_exc_make(&rho_type_exception_class, true, __VA_ARGS__)
-#define RHO_IO_EXC(...)      rho_exc_make(&rho_io_exception_class, true, __VA_ARGS__)
-#define RHO_ATTR_EXC(...)    rho_exc_make(&rho_attr_exception_class, true, __VA_ARGS__)
-#define RHO_IMPORT_EXC(...)  rho_exc_make(&rho_import_exception_class, true, __VA_ARGS__)
-#define RHO_ISC_EXC(...)     rho_exc_make(&rho_isc_exception_class, true, __VA_ARGS__)
-#define RHO_SEQ_EXP_EXC(...) rho_exc_make(&rho_seq_exp_exception_class, true, __VA_ARGS__)
+#define RHO_EXC(...)           rho_exc_make(&rho_exception_class, true, __VA_ARGS__)
+#define RHO_INDEX_EXC(...)     rho_exc_make(&rho_index_exception_class, true, __VA_ARGS__)
+#define RHO_TYPE_EXC(...)      rho_exc_make(&rho_type_exception_class, true, __VA_ARGS__)
+#define RHO_IO_EXC(...)        rho_exc_make(&rho_io_exception_class, true, __VA_ARGS__)
+#define RHO_ATTR_EXC(...)      rho_exc_make(&rho_attr_exception_class, true, __VA_ARGS__)
+#define RHO_IMPORT_EXC(...)    rho_exc_make(&rho_import_exception_class, true, __VA_ARGS__)
+#define RHO_ISC_EXC(...)       rho_exc_make(&rho_isc_exception_class, true, __VA_ARGS__)
+#define RHO_SEQ_EXP_EXC(...)   rho_exc_make(&rho_seq_exp_exception_class, true, __VA_ARGS__)
+#define RHO_ACTOR_EXC(...)     rho_exc_make(&rho_actor_exception_class, true, __VA_ARGS__)
+#define RHO_CONC_ACCS_EXC(...) rho_exc_make(&rho_conc_access_exception_class, true, __VA_ARGS__)
 
 RhoValue rho_type_exc_unsupported_1(const char *op, const RhoClass *c1);
 RhoValue rho_type_exc_unsupported_2(const char *op, const RhoClass *c1, const RhoClass *c2);

@@ -7,35 +7,41 @@
 #include "str.h"
 #include "attr.h"
 #include "metaclass.h"
+#include "main.h"
 
 typedef struct rho_value  RhoValue;
 typedef struct rho_class  RhoClass;
 typedef struct rho_object RhoObject;
 
-typedef RhoValue (*UnOp)(RhoValue *this);
-typedef RhoValue (*BinOp)(RhoValue *this, RhoValue *other);
-typedef int (*IntUnOp)(RhoValue *this);
+typedef RhoValue (*RhoUnOp)(RhoValue *this);
+typedef RhoValue (*RhoBinOp)(RhoValue *this, RhoValue *other);
 typedef bool (*BoolUnOp)(RhoValue *this);
-typedef bool (*BoolBinOp)(RhoValue *this, RhoValue *other);
-typedef struct rho_str_object *(*StrUnOp)(RhoValue *this);
+typedef struct rho_str_object *(*RhoStrUnOp)(RhoValue *this);
 
-typedef RhoValue (*InitFunc)(RhoValue *this, RhoValue *args, size_t nargs);
-typedef void (*DelFunc)(RhoValue *this);
-typedef RhoValue (*CallFunc)(RhoValue *this,
+typedef RhoValue (*RhoInitFunc)(RhoValue *this, RhoValue *args, size_t nargs);
+typedef void (*RhoDelFunc)(RhoValue *this);
+typedef RhoValue (*RhoCallFunc)(RhoValue *this,
                              RhoValue *args,
                              RhoValue *args_named,
                              size_t nargs,
                              size_t nargs_named);
-typedef int (*PrintFunc)(RhoValue *this, FILE *out);
-typedef size_t (*LenFunc)(RhoValue *this);
-typedef RhoValue (*SeqSetFunc)(RhoValue *this, RhoValue *idx, RhoValue *v);
+typedef int (*RhoPrintFunc)(RhoValue *this, FILE *out);
+typedef RhoValue (*RhoSeqSetFunc)(RhoValue *this, RhoValue *idx, RhoValue *v);
 
-typedef RhoValue (*AttrGetFunc)(RhoValue *this, const char *attr);
-typedef RhoValue (*AttrSetFunc)(RhoValue *this, const char *attr, RhoValue *v);
+typedef RhoValue (*RhoAttrGetFunc)(RhoValue *this, const char *attr);
+typedef RhoValue (*RhoAttrSetFunc)(RhoValue *this, const char *attr, RhoValue *v);
+
+#if RHO_THREADED
+#include <stdatomic.h>
+#endif
 
 struct rho_object {
 	struct rho_class *class;
+#if RHO_THREADED
+	atomic_uint refcnt;
+#else
 	unsigned int refcnt;
+#endif
 };
 
 struct rho_num_methods;
@@ -49,19 +55,19 @@ struct rho_class {
 
 	const size_t instance_size;
 
-	InitFunc init;
-	DelFunc del;  /* every class should implement this */
+	RhoInitFunc init;
+	RhoDelFunc del;  /* every class should implement this */
 
-	BoolBinOp eq;
-	IntUnOp hash;
-	BinOp cmp;
-	StrUnOp str;
-	CallFunc call;
+	RhoBinOp eq;
+	RhoUnOp hash;
+	RhoBinOp cmp;
+	RhoUnOp str;
+	RhoCallFunc call;
 
-	PrintFunc print;
+	RhoPrintFunc print;
 
-	UnOp iter;
-	UnOp iternext;
+	RhoUnOp iter;
+	RhoUnOp iternext;
 
 	struct rho_num_methods *num_methods;
 	struct rho_seq_methods *seq_methods;
@@ -70,68 +76,68 @@ struct rho_class {
 	struct rho_attr_method *methods;
 	RhoAttrDict attr_dict;
 
-	AttrGetFunc attr_get;
-	AttrSetFunc attr_set;
+	RhoAttrGetFunc attr_get;
+	RhoAttrSetFunc attr_set;
 };
 
 struct rho_num_methods {
-	UnOp plus;
-	UnOp minus;
-	UnOp abs;
+	RhoUnOp plus;
+	RhoUnOp minus;
+	RhoUnOp abs;
 
-	BinOp add;
-	BinOp sub;
-	BinOp mul;
-	BinOp div;
-	BinOp mod;
-	BinOp pow;
+	RhoBinOp add;
+	RhoBinOp sub;
+	RhoBinOp mul;
+	RhoBinOp div;
+	RhoBinOp mod;
+	RhoBinOp pow;
 
-	UnOp bitnot;
-	BinOp bitand;
-	BinOp bitor;
-	BinOp xor;
-	BinOp shiftl;
-	BinOp shiftr;
+	RhoUnOp bitnot;
+	RhoBinOp bitand;
+	RhoBinOp bitor;
+	RhoBinOp xor;
+	RhoBinOp shiftl;
+	RhoBinOp shiftr;
 
-	BinOp iadd;
-	BinOp isub;
-	BinOp imul;
-	BinOp idiv;
-	BinOp imod;
-	BinOp ipow;
+	RhoBinOp iadd;
+	RhoBinOp isub;
+	RhoBinOp imul;
+	RhoBinOp idiv;
+	RhoBinOp imod;
+	RhoBinOp ipow;
 
-	BinOp ibitand;
-	BinOp ibitor;
-	BinOp ixor;
-	BinOp ishiftl;
-	BinOp ishiftr;
+	RhoBinOp ibitand;
+	RhoBinOp ibitor;
+	RhoBinOp ixor;
+	RhoBinOp ishiftl;
+	RhoBinOp ishiftr;
 
-	BinOp radd;
-	BinOp rsub;
-	BinOp rmul;
-	BinOp rdiv;
-	BinOp rmod;
-	BinOp rpow;
+	RhoBinOp radd;
+	RhoBinOp rsub;
+	RhoBinOp rmul;
+	RhoBinOp rdiv;
+	RhoBinOp rmod;
+	RhoBinOp rpow;
 
-	BinOp rbitand;
-	BinOp rbitor;
-	BinOp rxor;
-	BinOp rshiftl;
-	BinOp rshiftr;
+	RhoBinOp rbitand;
+	RhoBinOp rbitor;
+	RhoBinOp rxor;
+	RhoBinOp rshiftl;
+	RhoBinOp rshiftr;
 
 	BoolUnOp nonzero;
 
-	UnOp to_int;
-	UnOp to_float;
+	RhoUnOp to_int;
+	RhoUnOp to_float;
 };
 
 struct rho_seq_methods {
-	LenFunc len;
-	BinOp get;
-	SeqSetFunc set;
-	BoolBinOp contains;
-	BinOp apply;
-	BinOp iapply;
+	RhoUnOp len;
+	RhoBinOp get;
+	RhoSeqSetFunc set;
+	RhoBinOp contains;
+	RhoBinOp apply;
+	RhoBinOp iapply;
 };
 
 extern struct rho_num_methods obj_num_methods;
@@ -150,6 +156,7 @@ struct rho_value {
 
 		/* standard type classes */
 		RHO_VAL_TYPE_NULL,
+		RHO_VAL_TYPE_BOOL,
 		RHO_VAL_TYPE_INT,
 		RHO_VAL_TYPE_FLOAT,
 		RHO_VAL_TYPE_OBJECT,
@@ -162,6 +169,7 @@ struct rho_value {
 	} type;
 
 	union {
+		bool b;
 		long i;
 		double f;
 		void *o;
@@ -170,6 +178,7 @@ struct rho_value {
 };
 
 #define rho_isempty(val)    ((val)->type == RHO_VAL_TYPE_EMPTY)
+#define rho_isbool(val)     ((val)->type == RHO_VAL_TYPE_BOOL)
 #define rho_isnull(val)     ((val)->type == RHO_VAL_TYPE_NULL)
 #define rho_isint(val)      ((val)->type == RHO_VAL_TYPE_INT)
 #define rho_isfloat(val)    ((val)->type == RHO_VAL_TYPE_FLOAT)
@@ -181,6 +190,7 @@ struct rho_value {
 #define rho_isut(val)       ((val)->type == RHO_VAL_TYPE_UNSUPPORTED_TYPES)
 #define rho_isdbz(val)      ((val)->type == RHO_VAL_TYPE_DIV_BY_ZERO)
 
+#define rho_boolvalue(val)  ((val)->data.b)
 #define rho_intvalue(val)   ((val)->data.i)
 #define rho_floatvalue(val) ((val)->data.f)
 #define rho_objvalue(val)   ((val)->data.o)
@@ -191,6 +201,9 @@ struct rho_value {
 
 #define rho_makeempty()     ((RhoValue){.type = RHO_VAL_TYPE_EMPTY, .data = {.i = 0}})
 #define rho_makenull()      ((RhoValue){.type = RHO_VAL_TYPE_NULL, .data = {.i = 0}})
+#define rho_makebool(val)   ((RhoValue){.type = RHO_VAL_TYPE_BOOL, .data = {.b = (val)}})
+#define rho_maketrue()      ((RhoValue){.type = RHO_VAL_TYPE_BOOL, .data = {.b = 1}})
+#define rho_makefalse()     ((RhoValue){.type = RHO_VAL_TYPE_BOOL, .data = {.b = 0}})
 #define rho_makeint(val)    ((RhoValue){.type = RHO_VAL_TYPE_INT, .data = {.i = (val)}})
 #define rho_makefloat(val)  ((RhoValue){.type = RHO_VAL_TYPE_FLOAT, .data = {.f = (val)}})
 #define rho_makeobj(val)    ((RhoValue){.type = RHO_VAL_TYPE_OBJECT, .data = {.o = (val)}})
@@ -202,6 +215,9 @@ struct rho_value {
 
 #define RHO_MAKE_EMPTY()     { .type = RHO_VAL_TYPE_EMPTY, .data = { .i = 0 } }
 #define RHO_MAKE_NULL()      { .type = RHO_VAL_TYPE_NULL, .data = { .i = 0 } }
+#define RHO_MAKE_BOOL(val)   { .type = RHO_VAL_TYPE_BOOL, .data = { .b = (val) } }
+#define RHO_MAKE_TRUE()      { .type = RHO_VAL_TYPE_BOOL, .data = { .b = 1 } }
+#define RHO_MAKE_FALSE()     { .type = RHO_VAL_TYPE_BOOL, .data = { .b = 0 } }
 #define RHO_MAKE_INT(val)    { .type = RHO_VAL_TYPE_INT, .data = { .i = (val) } }
 #define RHO_MAKE_FLOAT(val)  { .type = RHO_VAL_TYPE_FLOAT, .data = { .f = (val) } }
 #define RHO_MAKE_OBJ(val)    { .type = RHO_VAL_TYPE_OBJECT, .data = { .o = (val) } }
@@ -216,66 +232,66 @@ RhoClass *rho_getclass(RhoValue *v);
 bool rho_is_a(RhoValue *v, RhoClass *class);
 bool rho_is_subclass(RhoClass *child, RhoClass *parent);
 
-InitFunc rho_resolve_init(RhoClass *class);
-DelFunc rho_resolve_del(RhoClass *class);
-BoolBinOp rho_resolve_eq(RhoClass *class);
-IntUnOp rho_resolve_hash(RhoClass *class);
-BinOp rho_resolve_cmp(RhoClass *class);
-StrUnOp rho_resolve_str(RhoClass *class);
-CallFunc rho_resolve_call(RhoClass *class);
-PrintFunc rho_resolve_print(RhoClass *class);
-UnOp rho_resolve_iter(RhoClass *class);
-UnOp rho_resolve_iternext(RhoClass *class);
-AttrGetFunc rho_resolve_attr_get(RhoClass *class);
-AttrSetFunc rho_resolve_attr_set(RhoClass *class);
+RhoInitFunc rho_resolve_init(RhoClass *class);
+RhoDelFunc rho_resolve_del(RhoClass *class);
+RhoBinOp rho_resolve_eq(RhoClass *class);
+RhoUnOp rho_resolve_hash(RhoClass *class);
+RhoBinOp rho_resolve_cmp(RhoClass *class);
+RhoUnOp rho_resolve_str(RhoClass *class);
+RhoCallFunc rho_resolve_call(RhoClass *class);
+RhoPrintFunc rho_resolve_print(RhoClass *class);
+RhoUnOp rho_resolve_iter(RhoClass *class);
+RhoUnOp rho_resolve_iternext(RhoClass *class);
+RhoAttrGetFunc rho_resolve_attr_get(RhoClass *class);
+RhoAttrSetFunc rho_resolve_attr_set(RhoClass *class);
 
-UnOp rho_resolve_plus(RhoClass *class);
-UnOp rho_resolve_minus(RhoClass *class);
-UnOp rho_resolve_abs(RhoClass *class);
-BinOp rho_resolve_add(RhoClass *class);
-BinOp rho_resolve_sub(RhoClass *class);
-BinOp rho_resolve_mul(RhoClass *class);
-BinOp rho_resolve_div(RhoClass *class);
-BinOp rho_resolve_mod(RhoClass *class);
-BinOp rho_resolve_pow(RhoClass *class);
-UnOp rho_resolve_bitnot(RhoClass *class);
-BinOp rho_resolve_bitand(RhoClass *class);
-BinOp rho_resolve_bitor(RhoClass *class);
-BinOp rho_resolve_xor(RhoClass *class);
-BinOp rho_resolve_shiftl(RhoClass *class);
-BinOp rho_resolve_shiftr(RhoClass *class);
-BinOp rho_resolve_iadd(RhoClass *class);
-BinOp rho_resolve_isub(RhoClass *class);
-BinOp rho_resolve_imul(RhoClass *class);
-BinOp rho_resolve_idiv(RhoClass *class);
-BinOp rho_resolve_imod(RhoClass *class);
-BinOp rho_resolve_ipow(RhoClass *class);
-BinOp rho_resolve_ibitand(RhoClass *class);
-BinOp rho_resolve_ibitor(RhoClass *class);
-BinOp rho_resolve_ixor(RhoClass *class);
-BinOp rho_resolve_ishiftl(RhoClass *class);
-BinOp rho_resolve_ishiftr(RhoClass *class);
-BinOp rho_resolve_radd(RhoClass *class);
-BinOp rho_resolve_rsub(RhoClass *class);
-BinOp rho_resolve_rmul(RhoClass *class);
-BinOp rho_resolve_rdiv(RhoClass *class);
-BinOp rho_resolve_rmod(RhoClass *class);
-BinOp rho_resolve_rpow(RhoClass *class);
-BinOp rho_resolve_rbitand(RhoClass *class);
-BinOp rho_resolve_rbitor(RhoClass *class);
-BinOp rho_resolve_rxor(RhoClass *class);
-BinOp rho_resolve_rshiftl(RhoClass *class);
-BinOp rho_resolve_rshiftr(RhoClass *class);
+RhoUnOp rho_resolve_plus(RhoClass *class);
+RhoUnOp rho_resolve_minus(RhoClass *class);
+RhoUnOp rho_resolve_abs(RhoClass *class);
+RhoBinOp rho_resolve_add(RhoClass *class);
+RhoBinOp rho_resolve_sub(RhoClass *class);
+RhoBinOp rho_resolve_mul(RhoClass *class);
+RhoBinOp rho_resolve_div(RhoClass *class);
+RhoBinOp rho_resolve_mod(RhoClass *class);
+RhoBinOp rho_resolve_pow(RhoClass *class);
+RhoUnOp rho_resolve_bitnot(RhoClass *class);
+RhoBinOp rho_resolve_bitand(RhoClass *class);
+RhoBinOp rho_resolve_bitor(RhoClass *class);
+RhoBinOp rho_resolve_xor(RhoClass *class);
+RhoBinOp rho_resolve_shiftl(RhoClass *class);
+RhoBinOp rho_resolve_shiftr(RhoClass *class);
+RhoBinOp rho_resolve_iadd(RhoClass *class);
+RhoBinOp rho_resolve_isub(RhoClass *class);
+RhoBinOp rho_resolve_imul(RhoClass *class);
+RhoBinOp rho_resolve_idiv(RhoClass *class);
+RhoBinOp rho_resolve_imod(RhoClass *class);
+RhoBinOp rho_resolve_ipow(RhoClass *class);
+RhoBinOp rho_resolve_ibitand(RhoClass *class);
+RhoBinOp rho_resolve_ibitor(RhoClass *class);
+RhoBinOp rho_resolve_ixor(RhoClass *class);
+RhoBinOp rho_resolve_ishiftl(RhoClass *class);
+RhoBinOp rho_resolve_ishiftr(RhoClass *class);
+RhoBinOp rho_resolve_radd(RhoClass *class);
+RhoBinOp rho_resolve_rsub(RhoClass *class);
+RhoBinOp rho_resolve_rmul(RhoClass *class);
+RhoBinOp rho_resolve_rdiv(RhoClass *class);
+RhoBinOp rho_resolve_rmod(RhoClass *class);
+RhoBinOp rho_resolve_rpow(RhoClass *class);
+RhoBinOp rho_resolve_rbitand(RhoClass *class);
+RhoBinOp rho_resolve_rbitor(RhoClass *class);
+RhoBinOp rho_resolve_rxor(RhoClass *class);
+RhoBinOp rho_resolve_rshiftl(RhoClass *class);
+RhoBinOp rho_resolve_rshiftr(RhoClass *class);
 BoolUnOp rho_resolve_nonzero(RhoClass *class);
-UnOp rho_resolve_to_int(RhoClass *class);
-UnOp rho_resolve_to_float(RhoClass *class);
+RhoUnOp rho_resolve_to_int(RhoClass *class);
+RhoUnOp rho_resolve_to_float(RhoClass *class);
 
-LenFunc rho_resolve_len(RhoClass *class);
-BinOp rho_resolve_get(RhoClass *class);
-SeqSetFunc rho_resolve_set(RhoClass *class);
-BoolBinOp rho_resolve_contains(RhoClass *class);
-BinOp rho_resolve_apply(RhoClass *class);
-BinOp rho_resolve_iapply(RhoClass *class);
+RhoUnOp rho_resolve_len(RhoClass *class);
+RhoBinOp rho_resolve_get(RhoClass *class);
+RhoSeqSetFunc rho_resolve_set(RhoClass *class);
+RhoBinOp rho_resolve_contains(RhoClass *class);
+RhoBinOp rho_resolve_apply(RhoClass *class);
+RhoBinOp rho_resolve_iapply(RhoClass *class);
 
 void *rho_obj_alloc(RhoClass *class);
 void *rho_obj_alloc_var(RhoClass *class, size_t extra);
@@ -296,5 +312,23 @@ struct rho_value_array {
 };
 
 void rho_class_init(RhoClass *class);
+
+
+/* thread safety */
+#include "main.h"
+#if RHO_THREADED
+#include <pthread.h>
+#define RHO_SAVED_TID_FIELD_NAME _saved_id
+#define RHO_SAVED_TID_FIELD pthread_t RHO_SAVED_TID_FIELD_NAME;
+#define RHO_CHECK_THREAD(o) \
+	if ((o)->RHO_SAVED_TID_FIELD_NAME != pthread_self()) \
+		return RHO_CONC_ACCS_EXC("invalid concurrent access to non-thread-safe method or function");
+#define RHO_INIT_SAVED_TID_FIELD(o) (o)->RHO_SAVED_TID_FIELD_NAME = pthread_self()
+#undef RHO_SAVED_TID_FIELD_NAME
+#else
+#define RHO_SAVED_TID_FIELD
+#define RHO_CHECK_THREAD(o)
+#define RHO_INIT_SAVED_TID_FIELD(o)
+#endif
 
 #endif /* RHO_OBJECT_H */

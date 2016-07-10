@@ -31,20 +31,20 @@
 		return rho_makeut(); \
 	}
 
-static bool float_eq(RhoValue *this, RhoValue *other)
+static RhoValue float_eq(RhoValue *this, RhoValue *other)
 {
 	if (rho_isint(other)) {
-		return rho_floatvalue(this) == rho_intvalue(other);
+		return rho_makebool(rho_floatvalue(this) == rho_intvalue(other));
 	} else if (rho_isfloat(other)) {
-		return rho_floatvalue(this) == rho_floatvalue(other);
+		return rho_makebool(rho_floatvalue(this) == rho_floatvalue(other));
 	} else {
-		return false;
+		return rho_makefalse();
 	}
 }
 
-static int float_hash(RhoValue *this)
+static RhoValue float_hash(RhoValue *this)
 {
-	return rho_util_hash_double(rho_floatvalue(this));
+	return rho_makeint(rho_util_hash_double(rho_floatvalue(this)));
 }
 
 static RhoValue float_cmp(RhoValue *this, RhoValue *other)
@@ -155,15 +155,14 @@ static RhoValue float_to_float(RhoValue *this)
 	return *this;
 }
 
-static RhoStrObject *float_str(RhoValue *this)
+static RhoValue float_str(RhoValue *this)
 {
 	char buf[32];
 	const double d = rho_floatvalue(this);
 	int len = snprintf(buf, sizeof(buf), "%f", d);
 	assert(0 < len && (size_t)len < sizeof(buf));
 
-	RhoValue res = rho_strobj_make_direct(buf, len);
-	return (RhoStrObject *)rho_objvalue(&res);
+	return rho_strobj_make_direct(buf, len);
 }
 
 struct rho_num_methods rho_float_num_methods = {
