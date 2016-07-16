@@ -517,10 +517,6 @@ RhoValue rho_op_get_attr_default(RhoValue *v, const char *attr)
 {
 	RhoClass *class = rho_getclass(v);
 
-	if (!rho_isobject(v)) {
-		goto get_attr_error_not_found;
-	}
-
 	const unsigned int value = rho_attr_dict_get(&class->attr_dict, attr);
 
 	if (!(value & RHO_ATTR_DICT_FLAG_FOUND)) {
@@ -530,13 +526,17 @@ RhoValue rho_op_get_attr_default(RhoValue *v, const char *attr)
 	const bool is_method = (value & RHO_ATTR_DICT_FLAG_METHOD);
 	const unsigned int idx = (value >> 2);
 
-	RhoObject *o = rho_objvalue(v);
 	RhoValue res;
 
 	if (is_method) {
 		const struct rho_attr_method *method = &class->methods[idx];
-		res = rho_methobj_make(o, method->meth);
+		res = rho_methobj_make(v, method->meth);
 	} else {
+		if (!rho_isobject(v)) {
+			goto get_attr_error_not_found;
+		}
+
+		RhoObject *o = rho_objvalue(v);
 		const struct rho_attr_member *member = &class->members[idx];
 		const size_t offset = member->offset;
 

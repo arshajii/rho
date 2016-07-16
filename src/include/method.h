@@ -8,10 +8,10 @@ extern RhoClass rho_method_class;
 
 typedef struct {
 	RhoObject base;
-	RhoObject *binder;
+	RhoValue binder;
 	MethodFunc method;
 } RhoMethod;
 
-RhoValue rho_methobj_make(RhoObject *binder, MethodFunc meth_func);
+RhoValue rho_methobj_make(RhoValue *binder, MethodFunc meth_func);
 
 #endif /* RHO_METHOD_H */

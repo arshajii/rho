@@ -55,15 +55,6 @@ RhoCodeObject *rho_codeobj_make(RhoCode *code,
 {
 	RhoCodeObject *co = rho_obj_alloc(&rho_co_class);
 	co->name = name;
-
-	if (stack_depth == -1) {
-		assert(try_catch_depth == -1);
-		stack_depth = rho_code_read_uint16(code);
-		try_catch_depth = rho_code_read_uint16(code);
-	} else if (stack_depth < 0) {
-		RHO_INTERNAL_ERROR();
-	}
-
 	co->vm = vm;
 	read_lno_table(co, code);
 	read_sym_table(co, code);
@@ -73,7 +64,17 @@ RhoCodeObject *rho_codeobj_make(RhoCode *code,
 	co->stack_depth = stack_depth;
 	co->try_catch_depth = try_catch_depth;
 	co->frame = NULL;
+	co->cache = rho_calloc(code->size, sizeof(struct rho_code_cache));
 	return co;
+}
+
+RhoCodeObject *rho_codeobj_make_toplevel(RhoCode *code,
+                                         const char *name,
+                                         RhoVM *vm)
+{
+	unsigned int stack_depth = rho_code_read_uint16(code);
+	unsigned int try_catch_depth = rho_code_read_uint16(code);
+	return rho_codeobj_make(code, name, 0, stack_depth, try_catch_depth, vm);
 }
 
 static void codeobj_free(RhoValue *this)
@@ -93,6 +94,8 @@ static void codeobj_free(RhoValue *this)
 
 	free(consts_array);
 	rho_frame_free(co->frame);
+
+	free(co->cache);
 
 	rho_obj_class.del(this);
 }

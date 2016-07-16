@@ -2,11 +2,11 @@
 #include "object.h"
 #include "method.h"
 
-RhoValue rho_methobj_make(RhoObject *binder, MethodFunc meth_func)
+RhoValue rho_methobj_make(RhoValue *binder, MethodFunc meth_func)
 {
 	RhoMethod *meth = rho_obj_alloc(&rho_method_class);
-	rho_retaino(binder);
-	meth->binder = binder;
+	rho_retain(binder);
+	meth->binder = *binder;
 	meth->method = meth_func;
 	return rho_makeobj(meth);
 }
@@ -14,7 +14,7 @@ RhoValue rho_methobj_make(RhoObject *binder, MethodFunc meth_func)
 static void methobj_free(RhoValue *this)
 {
 	RhoMethod *meth = rho_objvalue(this);
-	rho_releaseo(meth->binder);
+	rho_release(&meth->binder);
 	rho_obj_class.del(this);
 }
 
@@ -25,7 +25,7 @@ static RhoValue methobj_invoke(RhoValue *this,
                                size_t nargs_named)
 {
 	RhoMethod *meth = rho_objvalue(this);
-	return meth->method(&rho_makeobj(meth->binder), args, args_named, nargs, nargs_named);
+	return meth->method(&meth->binder, args, args_named, nargs, nargs_named);
 }
 
 struct rho_num_methods meth_num_methods = {

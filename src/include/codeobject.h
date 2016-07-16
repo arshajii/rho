@@ -11,6 +11,11 @@ struct rho_frame;
 
 extern RhoClass rho_co_class;
 
+struct rho_code_cache {
+	/* line number cache */
+	unsigned int lineno;
+};
+
 typedef struct {
 	RhoObject base;
 
@@ -50,7 +55,9 @@ typedef struct {
 	/* virtual machine associated with this code object */
 	struct rho_vm *vm;
 
+	/* caches */
 	struct rho_frame *frame;
+	struct rho_code_cache *cache;
 } RhoCodeObject;
 
 RhoCodeObject *rho_codeobj_make(RhoCode *code,
@@ -59,6 +66,14 @@ RhoCodeObject *rho_codeobj_make(RhoCode *code,
                                 int stack_depth,
                                 int try_catch_depth,
                                 struct rho_vm *vm);
+
+/*
+ * The stack and try-catch depths must be read out of the given
+ * code at the top level.
+ */
+RhoCodeObject *rho_codeobj_make_toplevel(RhoCode *code,
+                                         const char *name,
+                                         struct rho_vm *vm);
 
 RhoValue rho_codeobj_load_args(RhoCodeObject *co,
                                struct rho_value_array *default_args,

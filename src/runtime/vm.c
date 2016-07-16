@@ -178,7 +178,6 @@ RhoVM *rho_vm_new(void)
 	vm->callstack = NULL;
 	vm->globals = (struct rho_value_array){.array = NULL, .length = 0};
 	vm->global_names = (struct rho_str_array){.array = NULL, .length = 0};
-	vm->lno_cache = NULL;
 	vm->children = NULL;
 	vm->sibling = NULL;
 	rho_strdict_init(&vm->exports);
@@ -204,7 +203,6 @@ static void vm_free_helper(RhoVM *vm)
 		vm_free_helper(temp);
 	}
 
-	free(vm->lno_cache);
 	free(vm);
 }
 
@@ -234,8 +232,6 @@ int rho_vm_exec_code(RhoVM *vm, RhoCode *code)
 {
 	vm->head = code->bc;
 
-	free(vm->lno_cache);
-	vm->lno_cache = rho_calloc(code->size, sizeof(unsigned int));
 	vm_push_module_frame(vm, code);
 	rho_vm_eval_frame(vm);
 #if RHO_THREADED
@@ -459,7 +455,7 @@ void rho_frame_free(RhoFrame *frame)
 static void vm_push_module_frame(RhoVM *vm, RhoCode *code)
 {
 	assert(vm->module == NULL);
-	RhoCodeObject *co = rho_codeobj_make(code, "<module>", 0, -1, -1, vm);
+	RhoCodeObject *co = rho_codeobj_make_toplevel(code, "<module>", vm);
 	rho_vm_push_frame(vm, co);
 	vm->module = vm->callstack;
 	vm->globals = (struct rho_value_array){.array = vm->module->locals,
@@ -1819,10 +1815,10 @@ static unsigned int get_lineno(RhoFrame *frame)
 {
 	const size_t raw_pos = frame->pos;
 	RhoCodeObject *co = frame->co;
-	unsigned int *lno_cache = co->vm->lno_cache;
+	struct rho_code_cache *cache = co->cache;
 
-	if (lno_cache != NULL && lno_cache[raw_pos] != 0) {
-		return lno_cache[raw_pos];
+	if (cache[raw_pos].lineno != 0) {
+		return cache[raw_pos].lineno;
 	}
 
 	byte *bc = co->bc;
@@ -1869,11 +1865,7 @@ static unsigned int get_lineno(RhoFrame *frame)
 	}
 
 	unsigned int lineno = first_lineno + lineno_offset;
-
-	if (lno_cache != NULL) {
-		lno_cache[raw_pos] = lineno;
-	}
-
+	cache[raw_pos].lineno = lineno;
 	return lineno;
 }
 
