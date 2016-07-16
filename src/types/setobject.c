@@ -403,6 +403,7 @@ static RhoValue set_init(RhoValue *this, RhoValue *args, size_t nargs)
 	rho_obj_class.init(this, NULL, 0);
 
 	RhoSetObject *set = rho_objvalue(this);
+	RHO_INIT_SAVED_TID_FIELD(set);
 	set->entries = make_empty_table(EMPTY_SIZE);
 	set->count = 0;
 	set->capacity = EMPTY_SIZE;
