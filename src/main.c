@@ -52,7 +52,7 @@ static void print_not_implemented_and_exit(const enum cmd_flags mask)
 	for (int i = 0; options[i].mask != 0; i++) {
 		if (options[i].mask == mask) {
 			fprintf(stderr,
-					RHO_ERROR_HEADER "-%c/--%s not yet implemented\n",
+			        RHO_ERROR_HEADER "-%c/--%s not yet implemented\n",
 			        options[i].short_opt,
 			        options[i].long_opt);
 			exit(EXIT_FAILURE);
