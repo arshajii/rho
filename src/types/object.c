@@ -364,14 +364,14 @@ void rho_retaino(void *p)
 {
 	RhoObject *o = p;
 	if (o->refcnt != (unsigned)(-1)) {
-		++(o->refcnt);
+		RHO_UNUSED(++o->refcnt);
 	}
 }
 
 void rho_releaseo(void *p)
 {
 	RhoObject *o = p;
-	if (o->refcnt != (unsigned)(-1) && --(o->refcnt) == 0) {
+	if (o->refcnt != (unsigned)(-1) && --o->refcnt == 0) {
 		rho_destroyo(o);
 	}
 }
