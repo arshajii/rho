@@ -44,5 +44,8 @@ matrix:
       env:
         - CC=gcc-7
 
+before_script:
+  - sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/$CC /usr/bin/gcc
+
 script:
   - make
