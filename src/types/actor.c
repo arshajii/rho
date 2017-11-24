@@ -1,6 +1,3 @@
-#include "main.h"
-#if RHO_THREADED
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
@@ -12,8 +9,6 @@
 #include "exc.h"
 #include "util.h"
 #include "actor.h"
-
-#define SAFE(x) if ((x)) RHO_INTERNAL_ERROR()
 
 static struct rho_mailbox_node *make_node(RhoValue *v)
 {
@@ -31,19 +26,19 @@ void rho_mailbox_init(struct rho_mailbox *mb)
 	mb->head = node;
 	mb->tail = node;
 
-	SAFE(pthread_mutex_init(&mb->mutex, NULL));
-	SAFE(pthread_cond_init(&mb->cond, NULL));
+	RHO_SAFE(pthread_mutex_init(&mb->mutex, NULL));
+	RHO_SAFE(pthread_cond_init(&mb->cond, NULL));
 }
 
 void rho_mailbox_push(struct rho_mailbox *mb, RhoValue *v)
 {
 	struct rho_mailbox_node *node = make_node(v);
-	SAFE(pthread_mutex_lock(&mb->mutex));
-	SAFE(pthread_cond_signal(&mb->cond));
+	RHO_SAFE(pthread_mutex_lock(&mb->mutex));
+	RHO_SAFE(pthread_cond_signal(&mb->cond));
 	struct rho_mailbox_node *prev = mb->head;
 	mb->head = node;
 	prev->next = node;
-	SAFE(pthread_mutex_unlock(&mb->mutex));
+	RHO_SAFE(pthread_mutex_unlock(&mb->mutex));
 }
 
 RhoValue rho_mailbox_pop(struct rho_mailbox *mb)
@@ -52,11 +47,11 @@ RhoValue rho_mailbox_pop(struct rho_mailbox *mb)
 	struct rho_mailbox_node *next = tail->next;
 
 	if (next == NULL) {
-		SAFE(pthread_mutex_lock(&mb->mutex));
+		RHO_SAFE(pthread_mutex_lock(&mb->mutex));
 		while (mb->tail->next == NULL) {
-			SAFE(pthread_cond_wait(&mb->cond, &mb->mutex));
+			RHO_SAFE(pthread_cond_wait(&mb->cond, &mb->mutex));
 		}
-		SAFE(pthread_mutex_unlock(&mb->mutex));
+		RHO_SAFE(pthread_mutex_unlock(&mb->mutex));
 
 		tail = mb->tail;
 		next = tail->next;
@@ -95,8 +90,8 @@ void rho_mailbox_dealloc(struct rho_mailbox *mb)
 	mb->head = NULL;
 	mb->tail = NULL;
 
-	pthread_mutex_destroy(&mb->mutex);
-	pthread_cond_destroy(&mb->cond);
+	RHO_SAFE(pthread_mutex_destroy(&mb->mutex));
+	RHO_SAFE(pthread_cond_destroy(&mb->cond));
 }
 
 RhoValue rho_actor_proxy_make(RhoCodeObject *co)
@@ -113,7 +108,7 @@ static pthread_mutex_t link_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void actor_link(RhoActorObject *ao)
 {
-	SAFE(pthread_mutex_lock(&link_mutex));
+	RHO_SAFE(pthread_mutex_lock(&link_mutex));
 	rho_retaino(ao);
 
 	if (actors != NULL) {
@@ -123,12 +118,12 @@ static void actor_link(RhoActorObject *ao)
 	ao->next = actors;
 	ao->prev = NULL;
 	actors = ao;
-	pthread_mutex_unlock(&link_mutex);
+	RHO_SAFE(pthread_mutex_unlock(&link_mutex));
 }
 
 static void actor_unlink(RhoActorObject *ao)
 {
-	SAFE(pthread_mutex_lock(&link_mutex));
+	RHO_SAFE(pthread_mutex_lock(&link_mutex));
 	rho_releaseo(ao);
 
 	if (actors == ao) {
@@ -142,18 +137,18 @@ static void actor_unlink(RhoActorObject *ao)
 	if (ao->next != NULL) {
 		ao->next->prev = ao->prev;
 	}
-	SAFE(pthread_mutex_unlock(&link_mutex));
+	RHO_SAFE(pthread_mutex_unlock(&link_mutex));
 }
 
 void rho_actor_join_all(void)
 {
 	while (true) {
-		SAFE(pthread_mutex_lock(&link_mutex));
+		RHO_SAFE(pthread_mutex_lock(&link_mutex));
 		RhoActorObject *ao = actors;
-		SAFE(pthread_mutex_unlock(&link_mutex));
+		RHO_SAFE(pthread_mutex_unlock(&link_mutex));
 
 		if (ao != NULL) {
-			SAFE(pthread_join(ao->thread, NULL));
+			RHO_SAFE(pthread_join(ao->thread, NULL));
 		} else {
 			break;
 		}
@@ -198,7 +193,7 @@ static void actor_free(RhoValue *this)
 	RhoActorObject *ao = rho_objvalue(this);
 
 	if (ao->state == RHO_ACTOR_STATE_RUNNING) {
-		SAFE(pthread_join(ao->thread, NULL));
+		RHO_SAFE(pthread_join(ao->thread, NULL));
 		actor_unlink(ao);
 	}
 
@@ -383,8 +378,13 @@ static RhoValue actor_join(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 0);
 
 	RhoActorObject *ao = rho_objvalue(this);
-	SAFE(pthread_join(ao->thread, NULL));
-	RETURN_RETVAL(ao);
+
+	if (ao->state != RHO_ACTOR_STATE_READY) {
+		RHO_SAFE(pthread_join(ao->thread, NULL));
+		RETURN_RETVAL(ao);
+	} else {
+		return RHO_ACTOR_EXC("cannot join non-running actor");
+	}
 
 #undef NAME
 }
@@ -455,8 +455,8 @@ RhoValue rho_future_make(void)
 {
 	RhoFutureObject *future = rho_obj_alloc(&rho_future_class);
 	future->value = rho_makeempty();
-	pthread_mutex_init(&future->mutex, NULL);
-	pthread_cond_init(&future->cond, NULL);
+	RHO_SAFE(pthread_mutex_init(&future->mutex, NULL));
+	RHO_SAFE(pthread_cond_init(&future->cond, NULL));
 	return rho_makeobj(future);
 }
 
@@ -487,8 +487,8 @@ static void future_free(RhoValue *this)
 {
 	RhoFutureObject *future = rho_objvalue(this);
 	rho_release(&future->value);
-	pthread_mutex_destroy(&future->mutex);
-	pthread_cond_destroy(&future->cond);
+	RHO_SAFE(pthread_mutex_destroy(&future->mutex));
+	RHO_SAFE(pthread_cond_destroy(&future->cond));
 	rho_obj_class.del(this);
 }
 
@@ -533,12 +533,12 @@ static RhoValue future_get(RhoValue *this,
 		struct timespec ts;
 		struct timeval tv;
 
-		SAFE(gettimeofday(&tv, NULL));
+		RHO_SAFE(gettimeofday(&tv, NULL));
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
 		ts.tv_sec += ms/1000;
 		ts.tv_nsec += (ms % 1000) * 1000000;
 
-		SAFE(pthread_mutex_lock(&future->mutex));
+		RHO_SAFE(pthread_mutex_lock(&future->mutex));
 		while (rho_isempty(&future->value)) {
 			int n = pthread_cond_timedwait(&future->cond, &future->mutex, &ts);
 
@@ -549,13 +549,13 @@ static RhoValue future_get(RhoValue *this,
 				RHO_INTERNAL_ERROR();
 			}
 		}
-		SAFE(pthread_mutex_unlock(&future->mutex));
+		RHO_SAFE(pthread_mutex_unlock(&future->mutex));
 	} else {
-		SAFE(pthread_mutex_lock(&future->mutex));
+		RHO_SAFE(pthread_mutex_lock(&future->mutex));
 		while (rho_isempty(&future->value)) {
-			SAFE(pthread_cond_wait(&future->cond, &future->mutex));
+			RHO_SAFE(pthread_cond_wait(&future->cond, &future->mutex));
 		}
-		SAFE(pthread_mutex_unlock(&future->mutex));
+		RHO_SAFE(pthread_mutex_unlock(&future->mutex));
 	}
 
 	if (timeout) {
@@ -604,17 +604,17 @@ static RhoValue message_reply(RhoValue *this,
 	RhoFutureObject *future = msg->future;
 	RhoValue ret;
 
-	SAFE(pthread_mutex_lock(&future->mutex));
+	RHO_SAFE(pthread_mutex_lock(&future->mutex));
 	if (future != NULL) {
 		future_set_value(future, &args[0]);
-		SAFE(pthread_cond_broadcast(&future->cond));
+		RHO_SAFE(pthread_cond_broadcast(&future->cond));
 		rho_releaseo(future);
 		msg->future = NULL;
 		ret = rho_makenull();
 	} else {
 		ret = RHO_ACTOR_EXC("cannot reply to the same message twice");
 	}
-	SAFE(pthread_mutex_unlock(&future->mutex));
+	RHO_SAFE(pthread_mutex_unlock(&future->mutex));
 	return ret;
 
 #undef NAME
@@ -757,7 +757,3 @@ RhoClass rho_message_class = {
 	.attr_get = NULL,
 	.attr_set = NULL
 };
-
-#else
-extern int dummy;
-#endif /* RHO_THREADED */

@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdatomic.h>
 #include "object.h"
 #include "code.h"
 #include "codeobject.h"
@@ -27,10 +28,6 @@ struct rho_exc_stack_element {
 
 struct rho_mailbox;
 
-#if RHO_THREADED
-#include <stdatomic.h>
-#endif
-
 typedef struct rho_frame {
 	RhoCodeObject *co;
 
@@ -48,10 +45,8 @@ typedef struct rho_frame {
 	size_t pos;  /* position in bytecode */
 	struct rho_frame *prev;
 
-#if RHO_THREADED
 	struct rho_mailbox *mailbox;  /* support for actors */
 	atomic_flag owned;
-#endif
 
 	unsigned active            : 1;
 	unsigned persistent        : 1;

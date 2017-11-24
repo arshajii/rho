@@ -202,6 +202,7 @@ RhoValue rho_range_make(RhoValue *from, RhoValue *to)
 	}
 
 	RhoRange *range = rho_obj_alloc(&rho_range_class);
+	RHO_INIT_SAVED_TID_FIELD(range);
 	range->from = range->i = rho_intvalue(from);
 	range->to = rho_intvalue(to);
 	return rho_makeobj(range);
@@ -216,6 +217,7 @@ static RhoValue range_iternext(RhoValue *this)
 {
 	RhoRange *range = rho_objvalue(this);
 
+	RHO_ENTER(range);
 	const long from = range->from;
 	const long to = range->to;
 	const long i = range->i;
@@ -223,15 +225,19 @@ static RhoValue range_iternext(RhoValue *this)
 	if (to >= from) {
 		if (i < to) {
 			++(range->i);
+			RHO_EXIT(range);
 			return rho_makeint(i);
 		} else {
+			RHO_EXIT(range);
 			return rho_get_iter_stop();
 		}
 	} else {
 		if (i >= to) {
 			--(range->i);
+			RHO_EXIT(range);
 			return rho_makeint(i);
 		} else {
+			RHO_EXIT(range);
 			return rho_get_iter_stop();
 		}
 	}

@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
+#include <pthread.h>
 #include "compiler.h"
 #include "opcodes.h"
 #include "str.h"
@@ -38,29 +39,16 @@
 #include "vmops.h"
 #include "vm.h"
 
-#if RHO_THREADED
-#include <pthread.h>
 static pthread_key_t vm_key;
-#else
-static RhoVM *current_vm = NULL;
-#endif
 
 RhoVM *rho_current_vm_get(void)
 {
-#if RHO_THREADED
 	return pthread_getspecific(vm_key);
-#else
-	return current_vm;
-#endif
 }
 
 void rho_current_vm_set(RhoVM *vm)
 {
-#if RHO_THREADED
 	pthread_setspecific(vm_key, vm);
-#else
-	current_vm = vm;
-#endif
 }
 
 static RhoClass *classes[] = {
@@ -77,11 +65,9 @@ static RhoClass *classes[] = {
 	&rho_file_class,
 	&rho_co_class,
 	&rho_fn_class,
-#if RHO_THREADED
 	&rho_actor_class,
 	&rho_future_class,
 	&rho_message_class,
-#endif
 	&rho_method_class,
 	&rho_native_func_class,
 	&rho_module_class,
@@ -165,10 +151,7 @@ RhoVM *rho_vm_new(void)
 		}
 #endif
 
-#if RHO_THREADED
 		pthread_key_create(&vm_key, NULL);
-#endif
-
 		init = true;
 	}
 
@@ -234,9 +217,7 @@ int rho_vm_exec_code(RhoVM *vm, RhoCode *code)
 
 	vm_push_module_frame(vm, code);
 	rho_vm_eval_frame(vm);
-#if RHO_THREADED
 	rho_actor_join_all();
-#endif
 
 	RhoValue *ret = &vm->callstack->return_value;
 
@@ -281,7 +262,6 @@ static RhoFrame *get_frame(RhoCodeObject *co)
 		goto new_frame;
 	}
 
-#if RHO_THREADED
 	const bool owned = atomic_flag_test_and_set(&frame->owned);
 
 	if (!owned) {
@@ -290,10 +270,6 @@ static RhoFrame *get_frame(RhoCodeObject *co)
 	} else {
 		goto new_frame;
 	}
-#else
-	frame->co = co;
-	return frame;
-#endif
 
 	new_frame:
 	frame = rho_frame_make(co);
@@ -323,10 +299,7 @@ void rho_vm_pop_frame(RhoVM *vm)
 	RhoCodeObject *co = frame->co;
 	frame->active = 0;
 	frame->co = NULL;
-
-#if RHO_THREADED
 	atomic_flag_clear(&frame->owned);
-#endif
 
 	if (co != NULL) {
 		if (!frame->persistent) {
@@ -367,12 +340,10 @@ RhoFrame *rho_frame_make(RhoCodeObject *co)
 
 	frame->pos = 0;
 	frame->return_value = rho_makeempty();
-#if RHO_THREADED
 	frame->mailbox = NULL;
 	static atomic_flag flag = ATOMIC_FLAG_INIT;
 	frame->owned = flag;
 	atomic_flag_clear(&frame->owned);
-#endif
 
 	frame->active = 0;
 	frame->persistent = 0;
@@ -506,10 +477,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 
 	const struct rho_exc_stack_element *exc_stack_base = frame->exc_stack_base;
 	struct rho_exc_stack_element *exc_stack = frame->exc_stack;
-
-#if RHO_THREADED
 	struct rho_mailbox *mb = frame->mailbox;
-#endif
 
 	/* position in the bytecode */
 	size_t pos = frame->pos;
@@ -1487,7 +1455,6 @@ void rho_vm_eval_frame(RhoVM *vm)
 			break;
 		}
 		case RHO_INS_RECEIVE: {
-#if RHO_THREADED
 			/*
 			 * There's an important assumption that this opcode
 			 * will only ever be executed by code running in an
@@ -1510,11 +1477,6 @@ void rho_vm_eval_frame(RhoVM *vm)
 			}
 
 			STACK_PUSH(res);
-#else
-			/* Based on the assumption above, we should never reach this. */
-			res = rho_makeerr(rho_err_multithreading_not_supported());
-			goto error;
-#endif
 			break;
 		}
 		case RHO_INS_GET_ITER: {
@@ -1580,7 +1542,6 @@ void rho_vm_eval_frame(RhoVM *vm)
 			break;
 		}
 		case RHO_INS_MAKE_ACTOR: {
-#if RHO_THREADED
 			const unsigned int num_defaults = GET_UINT16();
 
 			RhoCodeObject *co = rho_objvalue(stack - num_defaults - 1);
@@ -1593,10 +1554,6 @@ void rho_vm_eval_frame(RhoVM *vm)
 
 			STACK_SET_TOP(ap);
 			rho_releaseo(co);
-#else
-			res = rho_makeerr(rho_err_multithreading_not_supported());
-			goto error;
-#endif
 			break;
 		}
 		case RHO_INS_SEQ_EXPAND: {

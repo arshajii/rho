@@ -335,6 +335,7 @@ void *rho_obj_alloc_var(RhoClass *class, size_t extra)
 	RhoObject *o = rho_malloc(class->instance_size + extra);
 	o->class = class;
 	o->refcnt = 1;
+	o->monitor = 0;
 	return o;
 }
 
@@ -426,4 +427,90 @@ void rho_class_init(RhoClass *class)
 	rho_attr_dict_init(&class->attr_dict, max_size);
 	rho_attr_dict_register_members(&class->attr_dict, class->members);
 	rho_attr_dict_register_methods(&class->attr_dict, class->methods);
+}
+
+static pthread_mutex_t monitor_management_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void monotir_init(RhoMonitor *monitor)
+{
+	RHO_SAFE(pthread_mutex_init(&monitor->mutex, NULL));
+	RHO_SAFE(pthread_cond_init(&monitor->cond, NULL));
+}
+
+static void monitor_destroy(RhoMonitor *monitor)
+{
+	RHO_SAFE(pthread_mutex_destroy(&monitor->mutex));
+	RHO_SAFE(pthread_cond_destroy(&monitor->cond));
+}
+
+static RhoMonitor *volatile monitors;
+#define MONITORS_INIT_CAPACITY (1 << 4)
+#define MONITORS_MAX_CAPACITY  (1 << 16)
+static size_t monotirs_capacity = 0;
+static unsigned int monitors_next = 0;
+static bool monitors_full = false;
+
+static void free_monitors(void)
+{
+	for (size_t i = 1; i < monitors_next; i++) {
+		monitor_destroy(&monitors[i]);
+	}
+
+	free(monitors);
+}
+
+bool rho_object_set_monitor(RhoObject *o)
+{
+	if (o->refcnt > 1 || o->monitor != 0) {
+		return false;
+	}
+
+	RHO_SAFE(pthread_mutex_lock(&monitor_management_mutex));
+	if (monotirs_capacity == 0) {
+		monitors = rho_malloc(MONITORS_INIT_CAPACITY * sizeof(RhoMonitor));
+		monotirs_capacity = MONITORS_INIT_CAPACITY;
+		monitors_next = 1;
+		monitors_full = false;
+		atexit(free_monitors);
+	}
+
+	if (monitors_next == monotirs_capacity) {
+		if (monotirs_capacity < MONITORS_MAX_CAPACITY) {
+			monotirs_capacity *= 2;
+			monitors = rho_realloc(monitors, monotirs_capacity * sizeof(RhoMonitor));
+		} else {
+			monitors_next = 1;
+			monitors_full = true;
+		}
+	}
+
+	if (!monitors_full) {
+		monotir_init(&monitors[monitors_next]);
+	}
+
+	o->monitor = monitors_next++;
+	RHO_SAFE(pthread_mutex_unlock(&monitor_management_mutex));
+	return true;
+}
+
+bool rho_object_enter(RhoObject *o)
+{
+	if (o->monitor == 0) {
+		return false;
+	}
+
+	RhoMonitor *monitor = &monitors[o->monitor];
+	RHO_SAFE(pthread_mutex_lock(&monitor->mutex));
+	return true;
+}
+
+bool rho_object_exit(RhoObject *o)
+{
+	if (o->monitor == 0) {
+		return false;
+	}
+
+	RhoMonitor *monitor = &monitors[o->monitor];
+	RHO_SAFE(pthread_mutex_unlock(&monitor->mutex));
+	return true;
 }

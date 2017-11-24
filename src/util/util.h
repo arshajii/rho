@@ -22,6 +22,7 @@
 #define rho_getmember(instance, offset, type) (*(type *)((char *)instance + offset))
 
 #define RHO_UNUSED(x) (void)(x)
+#define RHO_SAFE(x) if (x) RHO_INTERNAL_ERROR()
 
 int rho_util_hash_int(const int i);
 int rho_util_hash_long(const long l);

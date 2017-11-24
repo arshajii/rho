@@ -1,6 +1,7 @@
 #ifndef RHO_ITER_H
 #define RHO_ITER_H
 
+#include <pthread.h>
 #include "object.h"
 
 /* Base iterator */
@@ -36,6 +37,7 @@ extern RhoClass rho_range_class;
 
 typedef struct {
 	RhoIter base;
+	RHO_SAVED_TID_FIELD
 	long from;
 	long to;
 	long i;

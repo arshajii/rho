@@ -352,52 +352,64 @@ static void dict_resize(RhoDictObject *dict, const size_t new_capacity)
 static RhoValue dict_get(RhoValue *this, RhoValue *key)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
-	return rho_dict_get(dict, key, NULL);
+	RHO_ENTER(dict);
+	RhoValue ret = rho_dict_get(dict, key, NULL);
+	RHO_EXIT(dict);
+	return ret;
 }
 
 static RhoValue dict_set(RhoValue *this, RhoValue *key, RhoValue *value)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
-	return rho_dict_put(dict, key, value);
+	RHO_ENTER(dict);
+	RhoValue ret = rho_dict_put(dict, key, value);
+	RHO_EXIT(dict);
+	return ret;
 }
 
 static RhoValue dict_contains(RhoValue *this, RhoValue *key)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
-	return rho_dict_contains_key(dict, key);
+	RHO_ENTER(dict);
+	RhoValue ret = rho_dict_contains_key(dict, key);
+	RHO_EXIT(dict);
+	return ret;
 }
 
 static RhoValue dict_eq(RhoValue *this, RhoValue *other)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
+	RHO_ENTER(dict);
 
 	if (!rho_is_a(other, &rho_dict_class)) {
+		RHO_EXIT(dict);
 		return rho_makefalse();
 	}
 
 	RhoDictObject *other_dict = rho_objvalue(other);
-	return rho_dict_eq(dict, other_dict);
+	RhoValue ret = rho_dict_eq(dict, other_dict);
+	RHO_EXIT(dict);
+	return ret;
 }
 
 static RhoValue dict_len(RhoValue *this)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
-	return rho_makeint(rho_dict_len(dict));
+	RHO_ENTER(dict);
+	RhoValue ret = rho_makeint(rho_dict_len(dict));
+	RHO_EXIT(dict);
+	return ret;
 }
 
 static RhoValue dict_str(RhoValue *this)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
+	RHO_ENTER(dict);
 
 	const size_t capacity = dict->capacity;
 
 	if (dict->count == 0) {
+		RHO_EXIT(dict);
 		return rho_strobj_make_direct("{}", 2);
 	}
 
@@ -425,6 +437,7 @@ static RhoValue dict_str(RhoValue *this)
 
 				if (rho_iserror(&str_v)) {
 					rho_strbuf_dealloc(&sb);
+					RHO_EXIT(dict);
 					return str_v;
 				}
 
@@ -442,6 +455,7 @@ static RhoValue dict_str(RhoValue *this)
 
 				if (rho_iserror(&str_v)) {
 					rho_strbuf_dealloc(&sb);
+					RHO_EXIT(dict);
 					return str_v;
 				}
 
@@ -457,7 +471,9 @@ static RhoValue dict_str(RhoValue *this)
 	rho_strbuf_to_str(&sb, &dest);
 	dest.freeable = 1;
 
-	return rho_strobj_make(dest);
+	RhoValue ret = rho_strobj_make(dest);
+	RHO_EXIT(dict);
+	return ret;
 }
 
 static RhoValue iter_make(RhoDictObject *dict);
@@ -465,8 +481,10 @@ static RhoValue iter_make(RhoDictObject *dict);
 static RhoValue dict_iter(RhoValue *this)
 {
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
-	return iter_make(dict);
+	RHO_ENTER(dict);
+	RhoValue ret = iter_make(dict);
+	RHO_EXIT(dict);
+	return ret;
 }
 
 static RhoValue dict_get_method(RhoValue *this,
@@ -481,8 +499,10 @@ static RhoValue dict_get_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK_BETWEEN(NAME, nargs, 1, 2);
 
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
-	return rho_dict_get(dict, &args[0], (nargs == 2) ? &args[1] : NULL);
+	RHO_ENTER(dict);
+	RhoValue ret = rho_dict_get(dict, &args[0], (nargs == 2) ? &args[1] : NULL);
+	RHO_EXIT(dict);
+	return ret;
 #undef NAME
 }
 
@@ -498,9 +518,11 @@ static RhoValue dict_put_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 2);
 
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
+	RHO_ENTER(dict);
 	RhoValue old = rho_dict_put(dict, &args[0], &args[1]);
-	return rho_isempty(&old) ? rho_makenull() : old;
+	RhoValue ret = rho_isempty(&old) ? rho_makenull() : old;
+	RHO_EXIT(dict);
+	return ret;
 #undef NAME
 }
 
@@ -516,9 +538,11 @@ static RhoValue dict_remove_method(RhoValue *this,
 	RHO_ARG_COUNT_CHECK(NAME, nargs, 1);
 
 	RhoDictObject *dict = rho_objvalue(this);
-	RHO_CHECK_THREAD(dict);
+	RHO_ENTER(dict);
 	RhoValue v = rho_dict_remove_key(dict, &args[0]);
-	return rho_isempty(&v) ? rho_makenull() : v;
+	RhoValue ret = rho_isempty(&v) ? rho_makenull() : v;
+	RHO_EXIT(dict);
+	return ret;
 #undef NAME
 }
 
@@ -658,9 +682,10 @@ static RhoValue iter_make(RhoDictObject *dict)
 static RhoValue iter_next(RhoValue *this)
 {
 	RhoDictIter *iter = rho_objvalue(this);
-	RHO_CHECK_THREAD(iter->source);
+	RHO_ENTER(iter->source);
 
 	if (iter->saved_state_id != iter->source->state_id) {
+		RHO_EXIT(iter->source);
 		return RHO_ISC_EXC("dict changed state during iteration");
 	}
 
@@ -670,6 +695,7 @@ static RhoValue iter_next(RhoValue *this)
 	const size_t capacity = iter->source->capacity;
 
 	if (idx >= capacity) {
+		RHO_EXIT(iter->source);
 		return rho_get_iter_stop();
 	}
 
@@ -683,6 +709,7 @@ static RhoValue iter_next(RhoValue *this)
 		}
 
 		if (entry == NULL) {
+			RHO_EXIT(iter->source);
 			return rho_get_iter_stop();
 		}
 	}
@@ -694,6 +721,7 @@ static RhoValue iter_next(RhoValue *this)
 	iter->current_index = idx;
 	iter->current_entry = entry->next;
 
+	RHO_EXIT(iter->source);
 	return rho_tuple_make(pair, 2);
 }
 

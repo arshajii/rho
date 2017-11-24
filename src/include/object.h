@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdatomic.h>
+#include <pthread.h>
 #include "str.h"
 #include "attr.h"
 #include "metaclass.h"
@@ -21,27 +23,20 @@ typedef struct rho_str_object *(*RhoStrUnOp)(RhoValue *this);
 typedef RhoValue (*RhoInitFunc)(RhoValue *this, RhoValue *args, size_t nargs);
 typedef void (*RhoDelFunc)(RhoValue *this);
 typedef RhoValue (*RhoCallFunc)(RhoValue *this,
-                             RhoValue *args,
-                             RhoValue *args_named,
-                             size_t nargs,
-                             size_t nargs_named);
+                                RhoValue *args,
+                                RhoValue *args_named,
+                                size_t nargs,
+                                size_t nargs_named);
 typedef int (*RhoPrintFunc)(RhoValue *this, FILE *out);
 typedef RhoValue (*RhoSeqSetFunc)(RhoValue *this, RhoValue *idx, RhoValue *v);
 
 typedef RhoValue (*RhoAttrGetFunc)(RhoValue *this, const char *attr);
 typedef RhoValue (*RhoAttrSetFunc)(RhoValue *this, const char *attr, RhoValue *v);
 
-#if RHO_THREADED
-#include <stdatomic.h>
-#endif
-
 struct rho_object {
 	struct rho_class *class;
-#if RHO_THREADED
 	atomic_uint refcnt;
-#else
-	unsigned int refcnt;
-#endif
+	unsigned int monitor;
 };
 
 struct rho_num_methods;
@@ -313,22 +308,26 @@ struct rho_value_array {
 
 void rho_class_init(RhoClass *class);
 
-
-/* thread safety */
-#include "main.h"
-#if RHO_THREADED
-#include <pthread.h>
 #define RHO_SAVED_TID_FIELD_NAME _saved_id
 #define RHO_SAVED_TID_FIELD pthread_t RHO_SAVED_TID_FIELD_NAME;
+
 #define RHO_CHECK_THREAD(o) \
 	if ((o)->RHO_SAVED_TID_FIELD_NAME != pthread_self()) \
-		return RHO_CONC_ACCS_EXC("invalid concurrent access to non-thread-safe method or function");
+		return RHO_CONC_ACCS_EXC("invalid concurrent access of non-thread-safe method or function");
+
 #define RHO_INIT_SAVED_TID_FIELD(o) (o)->RHO_SAVED_TID_FIELD_NAME = pthread_self()
 #undef RHO_SAVED_TID_FIELD_NAME
-#else
-#define RHO_SAVED_TID_FIELD
-#define RHO_CHECK_THREAD(o)
-#define RHO_INIT_SAVED_TID_FIELD(o)
-#endif
+
+typedef struct {
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+} RhoMonitor;
+
+bool rho_object_set_monitor(RhoObject *o);
+bool rho_object_enter(RhoObject *o);
+bool rho_object_exit(RhoObject *o);
+
+#define RHO_ENTER(o) if (!rho_object_enter((RhoObject *)(o))) RHO_CHECK_THREAD(o)
+#define RHO_EXIT(o)  (rho_object_exit((RhoObject *)(o)))
 
 #endif /* RHO_OBJECT_H */

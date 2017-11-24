@@ -1,6 +1,3 @@
-#include "main.h"
-#if RHO_THREADED
-
 #ifndef RHO_ACTOR_H
 #define RHO_ACTOR_H
 
@@ -87,4 +84,3 @@ RhoValue rho_message_make(RhoValue *contents);
 RhoValue rho_kill_message_make(void);
 
 #endif /* RHO_ACTOR_H */
-#endif /* RHO_THREADED */
