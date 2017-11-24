@@ -70,7 +70,7 @@ a = 1
     }
 
     <i># functions can be anonymous:</i>
-	sqrt = (: $1 ** 0.5)
+    sqrt = (: $1 ** 0.5)
 
     <b>return</b> sqrt(square(a) + square(b))
 }
