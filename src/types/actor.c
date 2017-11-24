@@ -472,7 +472,7 @@ RhoValue rho_message_make(RhoValue *contents)
 
 RhoValue rho_kill_message_make(void)
 {
-	static RhoValue empty = rho_makeempty();
+	RhoValue empty = rho_makeempty();
 	return rho_message_make(&empty);
 }
 
@@ -534,6 +534,15 @@ static RhoValue future_get(RhoValue *this,
 		struct timeval tv;
 
 		RHO_SAFE(gettimeofday(&tv, NULL));
+
+#ifndef TIMEVAL_TO_TIMESPEC
+#define	TIMEVAL_TO_TIMESPEC(tv, ts)            \
+	do {                                       \
+		(ts)->ts_sec = (tv)->tv_sec;           \
+		(ts)->ts_nsec = (tv)->tv_usec * 1000;  \
+	} while (0)
+#endif
+
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
 		ts.tv_sec += ms/1000;
 		ts.tv_nsec += (ms % 1000) * 1000000;
