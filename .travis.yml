@@ -1,16 +1,48 @@
 language: c
-sudo: required  # gcc-4.9
+sudo: required
 dist: trusty
 
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - gcc-4.9
+matrix:
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-4.9
+      env:
+         - CC=gcc-4.9
 
-compiler:
-  - gcc
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-5
+      env:
+         - CC=gcc-5
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-6
+      env:
+        - CC=gcc-6
+
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-7
+      env:
+        - CC=gcc-7
 
 script:
   - make
