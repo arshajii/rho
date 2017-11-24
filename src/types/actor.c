@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <time.h>
 #include <sys/time.h>
 #include <errno.h>
 #include <pthread.h>
