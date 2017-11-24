@@ -1,5 +1,13 @@
 language: c
+sudo: required  # gcc-4.9
 dist: trusty
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-4.9
 
 compiler:
   - gcc
