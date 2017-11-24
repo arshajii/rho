@@ -539,8 +539,8 @@ static RhoValue future_get(RhoValue *this,
 #ifndef TIMEVAL_TO_TIMESPEC
 #define	TIMEVAL_TO_TIMESPEC(tv, ts)            \
 	do {                                       \
-		(ts)->ts_sec = (tv)->tv_sec;           \
-		(ts)->ts_nsec = (tv)->tv_usec * 1000;  \
+		(ts)->tv_sec = (tv)->tv_sec;           \
+		(ts)->tv_nsec = (tv)->tv_usec * 1000;  \
 	} while (0)
 #endif
 
