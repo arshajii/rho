@@ -1,8 +1,8 @@
 language: c
+dist: trusty
 
 compiler:
-  - gcc-4.9
-  - clang-5.0
+  - gcc
 
 script:
   - make
