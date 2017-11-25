@@ -150,6 +150,7 @@ void rho_actor_join_all(void)
 
 		if (ao != NULL) {
 			RHO_SAFE(pthread_join(ao->thread, NULL));
+			actor_unlink(ao);
 		} else {
 			break;
 		}
@@ -287,7 +288,6 @@ static void *actor_start_routine(void *args)
 	rho_frame_free(frame);
 
 	ao->state = RHO_ACTOR_STATE_FINISHED;
-	actor_unlink(ao);
 	return NULL;
 }
 
@@ -382,6 +382,7 @@ static RhoValue actor_join(RhoValue *this,
 
 	if (ao->state != RHO_ACTOR_STATE_READY) {
 		RHO_SAFE(pthread_join(ao->thread, NULL));
+		actor_unlink(ao);
 		RETURN_RETVAL(ao);
 	} else {
 		return RHO_ACTOR_EXC("cannot join non-running actor");
