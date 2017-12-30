@@ -86,6 +86,7 @@ RhoValue rho_type_exc_cannot_instantiate(const RhoClass *c1);
 RhoValue rho_type_exc_not_callable(const RhoClass *c1);
 RhoValue rho_type_exc_not_iterable(const RhoClass *c1);
 RhoValue rho_type_exc_not_iterator(const RhoClass *c1);
+RhoValue rho_type_exc_hint_mismatch(const RhoClass *got, const RhoClass *expected);
 RhoValue rho_call_exc_num_args(const char *fn, unsigned int got, unsigned int expected);
 RhoValue rho_call_exc_num_args_at_most(const char *fn, unsigned int got, unsigned int expected);
 RhoValue rho_call_exc_num_args_between(const char *fn, unsigned int got, unsigned int min, unsigned int max);

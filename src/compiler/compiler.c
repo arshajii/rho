@@ -798,9 +798,10 @@ static void compile_def_or_gen_or_act(RhoCompiler *compiler, RhoAST *ast, const 
 	}
 
 	const unsigned int lineno = ast->lineno;
+	const RhoAST *name = ast->left;
 
 	/* A function definition is essentially the assignment of a CodeObject to a variable. */
-	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, ast->left->v.ident);
+	const RhoSTSymbol *sym = rho_ste_get_symbol(compiler->st->ste_current, name->v.ident);
 
 	if (sym == NULL) {
 		RHO_INTERNAL_ERROR();
@@ -808,20 +809,51 @@ static void compile_def_or_gen_or_act(RhoCompiler *compiler, RhoAST *ast, const 
 
 	compile_const(compiler, ast);
 
+	/* type hints */
+	unsigned int num_hints = 0;
+	for (struct rho_ast_list *param = ast->v.params; param != NULL; param = param->next) {
+		RhoAST *v = param->ast;
+
+		if (v->type == RHO_NODE_ASSIGN) {
+			v = v->left;
+		}
+
+		RHO_AST_TYPE_ASSERT(v, RHO_NODE_IDENT);
+
+		if (v->left != NULL) {
+			compile_load(compiler, v->left);
+		} else {
+			write_ins(compiler, RHO_INS_LOAD_NULL, lineno);
+		}
+
+		++num_hints;
+	}
+
+	if (name->left != NULL) {
+		RHO_AST_TYPE_ASSERT(name->left, RHO_NODE_IDENT);
+		compile_load(compiler, name->left);
+	} else {
+		write_ins(compiler, RHO_INS_LOAD_NULL, lineno);
+	}
+
+	++num_hints;
+
+	/* defaults */
 	bool flip = false;  // sanity check: no non-default args after default ones
-	unsigned int num_default = 0;
+	unsigned int num_defaults = 0;
 	for (struct rho_ast_list *param = ast->v.params; param != NULL; param = param->next) {
 		if (param->ast->type == RHO_NODE_ASSIGN) {
 			flip = true;
 			RHO_AST_TYPE_ASSERT(param->ast->left, RHO_NODE_IDENT);
 			compile_node(compiler, param->ast->right, false);
-			++num_default;
+			++num_defaults;
 		} else {
 			assert(!flip);
 		}
 	}
 
-	assert(num_default <= 0xffff);
+	assert(num_defaults <= 0xff);
+	assert(num_hints <= 0xff);
 
 	switch (select) {
 	case COMPILE_DEF:
@@ -837,7 +869,7 @@ static void compile_def_or_gen_or_act(RhoCompiler *compiler, RhoAST *ast, const 
 		RHO_INTERNAL_ERROR();
 	}
 
-	write_uint16(compiler, num_default);
+	write_uint16(compiler, (num_hints << 8) | num_defaults);
 
 	write_ins(compiler, RHO_INS_STORE, lineno);
 	write_uint16(compiler, sym->id);
@@ -1993,7 +2025,7 @@ static int stack_delta(RhoOpcode opcode, int arg)
 	case RHO_INS_MAKE_FUNCOBJ:
 	case RHO_INS_MAKE_GENERATOR:
 	case RHO_INS_MAKE_ACTOR:
-		return -arg;
+		return -((arg & 0xff) + (arg >> 8));
 	case RHO_INS_SEQ_EXPAND:
 		return -1 + arg;
 	case RHO_INS_POP:

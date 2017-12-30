@@ -463,6 +463,12 @@ RhoValue rho_type_exc_not_iterator(const RhoClass *c1)
 	return RHO_TYPE_EXC("object of type '%s' is not an iterator", c1->name);
 }
 
+RhoValue rho_type_exc_hint_mismatch(const RhoClass *got, const RhoClass *expected)
+{
+	return RHO_TYPE_EXC("hint mismatch: %s is not a %s", got->name, expected->name);
+}
+
+
 RhoValue rho_call_exc_num_args(const char *fn, unsigned int got, unsigned int expected)
 {
 	return RHO_TYPE_EXC("function %s(): expected %u arguments, got %u",

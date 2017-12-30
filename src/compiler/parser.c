@@ -193,6 +193,7 @@ RhoParser *rho_parser_new(char *str, const char *name)
 	p->in_generator = 0;
 	p->in_actor = 0;
 	p->in_loop = 0;
+	p->in_args = 0;
 	p->error_type = RHO_PARSE_ERR_NONE;
 	p->error_msg = NULL;
 
@@ -497,6 +498,23 @@ static RhoAST *parse_atom(RhoParser *p)
 		break;
 	case RHO_TOK_IDENT:
 		ast = parse_ident(p);
+
+		/* type hints */
+		tok = rho_parser_peek_token(p);
+		if (p->in_args && tok->type == RHO_TOK_COLON) {
+			rho_parser_next_token(p);
+			tok = rho_parser_peek_token(p);
+
+			if (tok->type != RHO_TOK_IDENT) {
+				parse_err_unexpected_token(p, tok);
+				return NULL;
+			}
+
+			RhoAST *type = parse_ident(p);
+			assert(type != NULL);
+			ast->left = type;
+		}
+
 		break;
 	case RHO_TOK_DOLLAR:
 		ast = parse_dollar_ident(p);
@@ -971,11 +989,14 @@ static RhoAST *parse_def_or_gen_or_act(RhoParser *p, const int select)
 	RhoAST *name = parse_ident(p);
 	ERROR_CHECK(p);
 
+	const unsigned old_in_args = p->in_args;
+	p->in_args = 1;
 	unsigned int nargs;
 	RhoParamList *params = parse_comma_separated_list(p,
 	                                                  RHO_TOK_PAREN_OPEN, RHO_TOK_PAREN_CLOSE,
 	                                                  parse_expr,
 	                                                  &nargs);
+	p->in_args = old_in_args;
 	ERROR_CHECK_AST(p, params, name);
 
 	/* parameter syntax check */
@@ -1023,6 +1044,21 @@ static RhoAST *parse_def_or_gen_or_act(RhoParser *p, const int select)
 		}
 	}
 
+	/* return value type hint */
+	if (rho_parser_peek_token(p)->type == RHO_TOK_COLON) {
+		rho_parser_next_token(p);
+		RhoAST *ret_hint = parse_ident(p);
+
+		if (RHO_PARSER_ERROR(p)) {
+			assert(ret_hint == NULL);
+			rho_ast_free(name);
+			rho_ast_list_free(params);
+			return NULL;
+		}
+
+		name->left = ret_hint;
+	}
+
 	const unsigned old_in_function = p->in_function;
 	const unsigned old_in_generator = p->in_generator;
 	const unsigned old_in_actor = p->in_actor;
@@ -1057,6 +1093,7 @@ static RhoAST *parse_def_or_gen_or_act(RhoParser *p, const int select)
 	p->in_actor = old_in_actor;
 	p->in_lambda = old_in_lambda;
 	p->in_loop = old_in_loop;
+	p->in_args = old_in_args;
 
 	if (RHO_PARSER_ERROR(p)) {
 		assert(body == NULL);
@@ -1404,12 +1441,14 @@ static RhoAST *parse_lambda(RhoParser *p)
 	const unsigned old_in_actor = p->in_actor;
 	const unsigned old_in_lambda = p->in_lambda;
 	const unsigned old_in_loop = p->in_loop;
+	const unsigned old_in_args = p->in_args;
 	p->max_dollar_ident = 0;
 	p->in_function = 1;
 	p->in_generator = 0;
 	p->in_actor = 0;
 	p->in_loop = 0;
 	p->in_lambda = 1;
+	p->in_args = 0;
 	RhoAST *body = parse_expr(p);
 	const unsigned int max_dollar_ident = p->max_dollar_ident;
 	p->max_dollar_ident = old_max_dollar_ident;
@@ -1418,6 +1457,7 @@ static RhoAST *parse_lambda(RhoParser *p)
 	p->in_actor = old_in_actor;
 	p->in_lambda = old_in_lambda;
 	p->in_loop = old_in_loop;
+	p->in_args = old_in_args;
 
 	ERROR_CHECK(p);
 

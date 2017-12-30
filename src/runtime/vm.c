@@ -474,6 +474,7 @@ void rho_vm_eval_frame(RhoVM *vm)
 	const byte *bc = co->bc;
 	const RhoValue *stack_base = frame->val_stack_base;
 	RhoValue *stack = frame->val_stack;
+	RhoClass *ret_hint = RHO_CODEOBJ_RET_HINT(co);
 
 	const struct rho_exc_stack_element *exc_stack_base = frame->exc_stack_base;
 	struct rho_exc_stack_element *exc_stack = frame->exc_stack;
@@ -1256,8 +1257,8 @@ void rho_vm_eval_frame(RhoVM *vm)
 			res = rho_op_call(v1,
 			                  stack - nargs_named*2 - nargs,
 			                  stack - nargs_named*2,
-						      nargs,
-						      nargs_named);
+			                  nargs,
+			                  nargs_named);
 
 			rho_release(v1);
 			if (rho_iserror(&res)) {
@@ -1510,13 +1511,26 @@ void rho_vm_eval_frame(RhoVM *vm)
 			break;
 		}
 		case RHO_INS_MAKE_FUNCOBJ: {
-			const unsigned int num_defaults = GET_UINT16();
+			const unsigned int arg          = GET_UINT16();
+			const unsigned int num_hints    = (arg >> 8);
+			const unsigned int num_defaults = (arg & 0xff);
+			const unsigned int offset = num_defaults + num_hints;
 
-			RhoCodeObject *co = rho_objvalue(stack - num_defaults - 1);
+			RhoCodeObject *co = rho_objvalue(stack - offset - 1);
+			res = rho_codeobj_init_hints(co, stack - offset);
+
+			if (rho_iserror(&res)) {
+				goto error;
+			}
+
 			RhoValue fn = rho_funcobj_make(co);
 			rho_funcobj_init_defaults(rho_objvalue(&fn), stack - num_defaults, num_defaults);
 
 			for (unsigned i = 0; i < num_defaults; i++) {
+				rho_release(STACK_POP());
+			}
+
+			for (unsigned i = 0; i < num_hints; i++) {
 				rho_release(STACK_POP());
 			}
 
@@ -1526,13 +1540,26 @@ void rho_vm_eval_frame(RhoVM *vm)
 			break;
 		}
 		case RHO_INS_MAKE_GENERATOR: {
-			const unsigned int num_defaults = GET_UINT16();
+			const unsigned int arg          = GET_UINT16();
+			const unsigned int num_hints    = (arg >> 8);
+			const unsigned int num_defaults = (arg & 0xff);
+			const unsigned int offset = num_defaults + num_hints;
 
-			RhoCodeObject *co = rho_objvalue(stack - num_defaults - 1);
+			RhoCodeObject *co = rho_objvalue(stack - offset - 1);
+			res = rho_codeobj_init_hints(co, stack - offset);
+
+			if (rho_iserror(&res)) {
+				goto error;
+			}
+
 			RhoValue gp = rho_gen_proxy_make(co);
 			rho_gen_proxy_init_defaults(rho_objvalue(&gp), stack - num_defaults, num_defaults);
 
 			for (unsigned i = 0; i < num_defaults; i++) {
+				rho_release(STACK_POP());
+			}
+
+			for (unsigned i = 0; i < num_hints; i++) {
 				rho_release(STACK_POP());
 			}
 
@@ -1542,13 +1569,26 @@ void rho_vm_eval_frame(RhoVM *vm)
 			break;
 		}
 		case RHO_INS_MAKE_ACTOR: {
-			const unsigned int num_defaults = GET_UINT16();
+			const unsigned int arg          = GET_UINT16();
+			const unsigned int num_hints    = (arg >> 8);
+			const unsigned int num_defaults = (arg & 0xff);
+			const unsigned int offset = num_defaults + num_hints;
 
-			RhoCodeObject *co = rho_objvalue(stack - num_defaults - 1);
+			RhoCodeObject *co = rho_objvalue(stack - offset - 1);
+			res = rho_codeobj_init_hints(co, stack - offset);
+
+			if (rho_iserror(&res)) {
+				goto error;
+			}
+
 			RhoValue ap = rho_actor_proxy_make(co);
 			rho_actor_proxy_init_defaults(rho_objvalue(&ap), stack - num_defaults, num_defaults);
 
 			for (unsigned i = 0; i < num_defaults; i++) {
+				rho_release(STACK_POP());
+			}
+
+			for (unsigned i = 0; i < num_hints; i++) {
 				rho_release(STACK_POP());
 			}
 
@@ -1695,6 +1735,13 @@ void rho_vm_eval_frame(RhoVM *vm)
 	}
 
 	done:
+	if (ret_hint != NULL && !rho_is_a(&frame->return_value, ret_hint)) {
+		res = rho_type_exc_hint_mismatch(rho_getclass(&frame->return_value), ret_hint);
+		rho_release(&frame->return_value);
+		frame->return_value = rho_makeempty();
+		goto error;
+	}
+
 	return;
 
 #undef STACK_POP

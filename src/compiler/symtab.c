@@ -174,20 +174,29 @@ static void populate_symtable_from_node(RhoSymTable *st, RhoAST *ast)
 	case RHO_NODE_DEF:
 	case RHO_NODE_GEN:
 	case RHO_NODE_ACT: {
-		assert(ast->left->type == RHO_NODE_IDENT);
-		assert(ast->right->type == RHO_NODE_BLOCK);
+		RhoAST *name = ast->left;
+		RhoAST *block = ast->right;
+		assert(name->type == RHO_NODE_IDENT);
+		assert(block->type == RHO_NODE_BLOCK);
 
 		for (struct rho_ast_list *node = ast->v.params; node != NULL; node = node->next) {
-			if (node->ast->type == RHO_NODE_ASSIGN) {
-				populate_symtable_from_node(st, node->ast->right);
+			RhoAST *param = node->ast;
+			if (param->type == RHO_NODE_ASSIGN) {
+				populate_symtable_from_node(st, param->right);
+				param = param->left;
 			}
+
+			RHO_AST_TYPE_ASSERT(param, RHO_NODE_IDENT);
+			populate_symtable_from_node(st, param->left);  // possible type hint
 		}
+
+		populate_symtable_from_node(st, name->left);  // possible return value type hint
 
 		RhoSTEntry *parent = st->ste_current;
 		RhoSTEntry *child = parent->children[parent->child_pos++];
 
 		st->ste_current = child;
-		populate_symtable_from_node(st, ast->right);
+		populate_symtable_from_node(st, block);
 		st->ste_current = parent;
 		break;
 	}

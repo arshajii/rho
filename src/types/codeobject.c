@@ -59,6 +59,7 @@ RhoCodeObject *rho_codeobj_make(RhoCode *code,
 	read_lno_table(co, code);
 	read_sym_table(co, code);
 	read_const_table(co, code);
+	co->hints = NULL;
 	co->bc = code->bc;
 	co->argcount = argcount;
 	co->stack_depth = stack_depth;
@@ -77,6 +78,36 @@ RhoCodeObject *rho_codeobj_make_toplevel(RhoCode *code,
 	return rho_codeobj_make(code, name, 0, stack_depth, try_catch_depth, vm);
 }
 
+/* last element of `types` should be return value hint */
+RhoValue rho_codeobj_init_hints(RhoCodeObject *co, RhoValue *types)
+{
+	const size_t n_hints = co->argcount + 1;
+	co->hints = rho_malloc(n_hints * sizeof(RhoClass *));
+
+	for (size_t i = 0; i < n_hints; i++) {
+		if (rho_isnull(&types[i])) {
+			co->hints[i] = NULL;
+			continue;
+		}
+
+		if (rho_getclass(&types[i]) != &rho_meta_class) {
+			for (size_t j = 0; j < i; j++) {
+				if (&types[j] != NULL) {
+					rho_releaseo(&types[j]);
+				}
+			}
+
+			return RHO_TYPE_EXC("type hint is a %s, not a type", rho_getclass(&types[i])->name);
+		}
+
+		RhoClass *type = rho_objvalue(&types[i]);
+		rho_retaino(type);
+		co->hints[i] = type;
+	}
+
+	return rho_makeempty();
+}
+
 static void codeobj_free(RhoValue *this)
 {
 	RhoCodeObject *co = rho_objvalue(this);
@@ -93,6 +124,18 @@ static void codeobj_free(RhoValue *this)
 	}
 
 	free(consts_array);
+
+	RhoClass **hints_array = co->hints;
+	const size_t hints_size = RHO_CODEOBJ_NUM_HINTS(co);
+
+	for (size_t i = 0; i < hints_size; i++) {
+		if (hints_array[i] != NULL) {
+			rho_releaseo(hints_array[i]);
+		}
+	}
+
+	free(hints_array);
+
 	rho_frame_free(co->frame);
 
 	free(co->cache);
@@ -313,6 +356,7 @@ RhoValue rho_codeobj_load_args(RhoCodeObject *co,
 	}
 
 	struct rho_str_array names = co->names;
+	RhoClass **hints = co->hints;
 
 	const unsigned limit = 2*nargs_named;
 	for (unsigned i = 0; i < limit; i += 2) {
@@ -326,6 +370,12 @@ RhoValue rho_codeobj_load_args(RhoCodeObject *co,
 					RELEASE_ALL();
 					return rho_call_exc_dup_arg(co->name, name->str.value);
 				}
+
+				if (hints[j] != NULL && !rho_is_a(&v, hints[j])) {
+					RELEASE_ALL();
+					return rho_type_exc_hint_mismatch(rho_getclass(&v), hints[j]);
+				}
+
 				rho_retain(&v);
 				locals[j] = v;
 				found = true;
@@ -348,6 +398,11 @@ RhoValue rho_codeobj_load_args(RhoCodeObject *co,
 				RELEASE_ALL();
 				return rho_call_exc_missing_arg(co->name, names.array[i].str);
 			}
+
+			if (hints[i] != NULL && !rho_is_a(&locals[i], hints[i])) {
+				RELEASE_ALL();
+				return rho_type_exc_hint_mismatch(rho_getclass(&locals[i]), hints[i]);
+			}
 		}
 	} else {
 		const unsigned int limit = argcount - n_defaults;  /* where the defaults start */
@@ -360,6 +415,11 @@ RhoValue rho_codeobj_load_args(RhoCodeObject *co,
 					RELEASE_ALL();
 					return rho_call_exc_missing_arg(co->name, names.array[i].str);
 				}
+			}
+
+			if (hints[i] != NULL && !rho_is_a(&locals[i], hints[i])) {
+				RELEASE_ALL();
+				return rho_type_exc_hint_mismatch(rho_getclass(&locals[i]), hints[i]);
 			}
 		}
 	}

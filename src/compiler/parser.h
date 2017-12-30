@@ -158,6 +158,7 @@ typedef struct {
 	unsigned in_generator : 1;
 	unsigned in_actor     : 1;
 	unsigned in_loop      : 1;
+	unsigned in_args      : 1;
 } RhoParser;
 
 enum {

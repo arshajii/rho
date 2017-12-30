@@ -46,6 +46,9 @@ typedef struct {
 	/* enumerated constants */
 	struct rho_value_array consts;
 
+	/* type hints */
+	RhoClass **hints;
+
 	/* line number table */
 	byte *lno_table;
 
@@ -82,5 +85,10 @@ RhoValue rho_codeobj_load_args(RhoCodeObject *co,
                                size_t nargs,
                                size_t nargs_named,
                                RhoValue *locals);
+
+RhoValue rho_codeobj_init_hints(RhoCodeObject *co, RhoValue *types);
+
+#define RHO_CODEOBJ_NUM_HINTS(co) (((co)->hints != NULL) ? ((co)->argcount + 1) : 0)
+#define RHO_CODEOBJ_RET_HINT(co)  (((co)->hints != NULL) ? ((co)->hints[(co)->argcount]) : NULL)
 
 #endif /* RHO_CODEOBJECT_H */
